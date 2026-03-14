@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
@@ -45,19 +46,26 @@ function RootLayoutNav() {
 
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isDark } = useTheme();
   const [splashDone, setSplashDone] = useState<boolean>(false);
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
   }, []);
 
-  if (authLoading) {
-    return <PulseSplash onComplete={handleSplashComplete} />;
+  if (authLoading && !splashDone) {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <PulseSplash onComplete={handleSplashComplete} />
+      </>
+    );
   }
 
   if (!isAuthenticated) {
     return (
       <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
         {splashDone && <AuthScreen />}
       </>
@@ -68,6 +76,7 @@ function AppContent() {
     <DataProvider>
       <SecureWalletProvider>
       <BiometricAuthProvider>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <RootLayoutNav />
         <LockScreen />
         {splashDone && (

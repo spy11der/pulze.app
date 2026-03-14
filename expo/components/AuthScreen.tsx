@@ -347,14 +347,14 @@ export function AuthScreen() {
               By continuing, you agree to our{' '}
               <Text
                 style={[styles.footerLink, { color: accentColor }]}
-                onPress={() => void WebBrowser.openBrowserAsync('https://pulse-app.com/terms')}
+                onPress={() => void WebBrowser.openBrowserAsync('https://pulze.app/terms')}
               >
                 Terms
               </Text>
               {' & '}
               <Text
                 style={[styles.footerLink, { color: accentColor }]}
-                onPress={() => void WebBrowser.openBrowserAsync('https://pulse-app.com/privacy')}
+                onPress={() => void WebBrowser.openBrowserAsync('https://pulze.app/privacy')}
               >
                 Privacy Policy
               </Text>

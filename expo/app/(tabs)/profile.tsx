@@ -26,13 +26,14 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSecureWallet } from '@/providers/SecureWalletProvider';
 import { currentUser } from '@/constants/identity';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark, mode } = useTheme();
   const { vibeCount, spotCount } = useData();
-  const { logout } = useAuth();
+  const { logout, user: authUser } = useAuth();
   const { documents } = useSecureWallet();
 
   const tierSummary = useMemo(() => {
@@ -68,11 +69,12 @@ export default function ProfileScreen() {
     router.push('/secure-wallet');
   }, [router]);
 
+  const displayName = authUser?.displayName || currentUser.displayName;
+  const username = authUser?.username || currentUser.username;
+
   const handleCopyId = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (Platform.OS !== 'web') {
-      await Clipboard.setStringAsync(currentUser.pulzeId);
-    }
+    await Clipboard.setStringAsync(currentUser.pulzeId);
     console.log('[Profile] Copied Pulze ID:', currentUser.pulzeId);
   }, []);
 
@@ -122,7 +124,7 @@ export default function ProfileScreen() {
         <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.heroTop}>
             <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.18)' : 'rgba(92, 168, 48, 0.12)' }]}>
-              <Text style={[styles.avatarText, { color: colors.lime }]}>JP</Text>
+              <Text style={[styles.avatarText, { color: colors.lime }]}>{displayName.slice(0, 2).toUpperCase()}</Text>
             </View>
             <View style={styles.heroActions}>
               <Pressable
@@ -143,8 +145,8 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.heroBody}>
-            <Text style={[styles.name, { color: colors.text }]}>{currentUser.displayName}</Text>
-            <Text style={[styles.handle, { color: colors.textMuted }]}>@{currentUser.username} · {currentUser.location}</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
+            <Text style={[styles.handle, { color: colors.textMuted }]}>@{username} · {currentUser.location}</Text>
             <Pressable
               onPress={handleCopyId}
               style={({ pressed }) => [styles.pulzeIdRow, { backgroundColor: colors.aqua + '14' }, pressed && styles.btnPressed]}
