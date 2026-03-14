@@ -8,6 +8,7 @@ import { AppErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { BiometricAuthProvider } from '@/providers/BiometricAuthProvider';
 import { DataProvider } from '@/providers/DataProvider';
+import { SecureWalletProvider } from '@/providers/SecureWalletProvider';
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
@@ -37,6 +38,7 @@ function RootLayoutNav() {
       <Stack.Screen name="qr-code" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="ticketing" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="checkout" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="secure-wallet" options={{ presentation: 'card', headerShown: false }} />
     </Stack>
   );
 }
@@ -64,6 +66,7 @@ function AppContent() {
 
   return (
     <DataProvider>
+      <SecureWalletProvider>
       <BiometricAuthProvider>
         <RootLayoutNav />
         <LockScreen />
@@ -75,6 +78,7 @@ function AppContent() {
         )}
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
       </BiometricAuthProvider>
+      </SecureWalletProvider>
     </DataProvider>
   );
 }

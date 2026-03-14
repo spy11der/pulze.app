@@ -5,12 +5,14 @@ import { useRouter } from 'expo-router';
 import {
   ChevronRight,
   Copy,
+  CreditCard,
   Database,
   Edit3,
   LogOut,
   Moon,
   QrCode,
   Settings,
+  Shield,
   ShieldCheck,
   Sun,
   Users,
@@ -22,6 +24,7 @@ import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friend
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useSecureWallet } from '@/providers/SecureWalletProvider';
 import { currentUser } from '@/constants/identity';
 
 export default function ProfileScreen() {
@@ -30,6 +33,7 @@ export default function ProfileScreen() {
   const { colors, isDark, mode } = useTheme();
   const { vibeCount, spotCount } = useData();
   const { logout } = useAuth();
+  const { documents } = useSecureWallet();
 
   const tierSummary = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -57,6 +61,11 @@ export default function ProfileScreen() {
   const handleOpenQR = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/qr-code');
+  }, [router]);
+
+  const handleOpenWallet = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/secure-wallet');
   }, [router]);
 
   const handleCopyId = useCallback(async () => {
@@ -242,6 +251,29 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
+        </Pressable>
+
+        <Pressable
+          onPress={handleOpenWallet}
+          style={({ pressed }) => [styles.walletSection, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.btnPressed]}
+          testID="wallet-section"
+        >
+          <View style={[styles.walletIconWrap, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+            <Shield color={colors.aqua} size={22} />
+          </View>
+          <View style={styles.walletBody}>
+            <Text style={[styles.walletTitle, { color: colors.text }]}>Secure Wallet</Text>
+            <Text style={[styles.walletSubtitle, { color: colors.textMuted }]}>
+              {documents.length > 0 ? `${documents.length} document${documents.length !== 1 ? 's' : ''} stored` : 'Add your ID or license'}
+            </Text>
+          </View>
+          {documents.length > 0 && (
+            <View style={[styles.walletBadge, { backgroundColor: colors.lime + '20' }]}>
+              <CreditCard color={colors.lime} size={13} />
+              <Text style={[styles.walletBadgeText, { color: colors.lime }]}>{documents.length}</Text>
+            </View>
+          )}
+          <ChevronRight color={colors.textSoft} size={18} />
         </Pressable>
 
         <Pressable
@@ -589,6 +621,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800' as const,
     letterSpacing: 0.8,
+  },
+  walletSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+  },
+  walletIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletBody: {
+    flex: 1,
+    gap: 3,
+  },
+  walletTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  walletSubtitle: {
+    fontSize: 13,
+  },
+  walletBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  walletBadgeText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
   },
   qrSection: {
     flexDirection: 'row',
