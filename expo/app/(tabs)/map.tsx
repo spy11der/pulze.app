@@ -51,6 +51,25 @@ const INITIAL_REGION: Region = {
   longitudeDelta: 0.045,
 };
 
+const DARK_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#0d1b2a' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1b2a' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#5a7d8a' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#7eb8c9' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#5a7d8a' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#0f2b1a' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#3a7d5c' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#162d3e' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1a3a50' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1e4a5e' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#255570' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#8ab4c4' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#142636' }] },
+  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#5a8d9e' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#071520' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3a6070' }] },
+];
+
 interface Coordinates {
   latitude: number;
   longitude: number;
@@ -567,6 +586,7 @@ function NativeMapContent({
           pitchEnabled
           toolbarEnabled={false}
           onPress={handleMapPress}
+          customMapStyle={DARK_MAP_STYLE}
           testID="city-map-view"
         >
           {HEATMAP_CIRCLES.map((circle) => (

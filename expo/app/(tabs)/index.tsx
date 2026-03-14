@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Animated,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Compass, Database, Eye, Flame, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2 } from 'lucide-react-native';
+import { Compass, Database, Eye, Flame, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2, X, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
@@ -44,6 +45,9 @@ export default function FeedScreen() {
 
   const { vibes, removeVibe, vibeCount } = useData();
   const router = useRouter();
+  const [vibeModalVisible, setVibeModalVisible] = useState<boolean>(false);
+  const [vibeModalScore, setVibeModalScore] = useState<number>(0);
+  const [vibeModalVenue, setVibeModalVenue] = useState<string>('');
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -131,11 +135,13 @@ export default function FeedScreen() {
     console.log('[Feed] Story pressed, navigating to map', { storyId });
   }, [router]);
 
-  const handleVibePress = useCallback((storyId: string) => {
+  const handleVibePress = useCallback((storyId: string, intensity: number, venue: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/(tabs)/map');
-    console.log('[Feed] Vibe score pressed, navigating to vibe analysis', { storyId });
-  }, [router]);
+    setVibeModalScore(intensity);
+    setVibeModalVenue(venue);
+    setVibeModalVisible(true);
+    console.log('[Feed] Vibe score pressed, showing explanation', { storyId, intensity });
+  }, []);
 
   const handleSignalPress = useCallback((storyId: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -309,13 +315,20 @@ export default function FeedScreen() {
                 vibeScale={vibeScale}
                 vibeOpacity={vibeOpacity}
                 onPress={() => handleStoryPress(story.id)}
-                onVibePress={() => handleVibePress(story.id)}
+                onVibePress={() => handleVibePress(story.id, story.intensity, story.venue)}
                 onSignalPress={() => handleSignalPress(story.id)}
               />
             ))}
           </>
         )}
       </ScrollView>
+
+      <VibeScoreModal
+        visible={vibeModalVisible}
+        score={vibeModalScore}
+        venue={vibeModalVenue}
+        onClose={() => setVibeModalVisible(false)}
+      />
     </View>
   );
 }
@@ -442,6 +455,206 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
       </Pressable>
     </View>
   );
+});
+
+function getVibeLabel(score: number): { label: string; color: string; description: string } {
+  if (score >= 80) return { label: 'On Fire', color: '#FF4D3A', description: 'This place is absolutely electric right now. Maximum energy, packed crowds, and non-stop movement.' };
+  if (score >= 60) return { label: 'Buzzing', color: '#FFAA2E', description: 'High energy and social. Expect lively conversations, active crowds, and a strong pulse.' };
+  if (score >= 40) return { label: 'Lively', color: '#E8D544', description: 'A nice balance of energy. Enough going on to feel alive, but not overwhelming.' };
+  if (score >= 20) return { label: 'Chill', color: '#5BE89E', description: 'Relaxed and easy-going. Great for unwinding, casual hangouts, or a quiet drink.' };
+  return { label: 'Quiet', color: '#4DB8E8', description: 'Peaceful and calm. Ideal for focus, reading, or escaping the noise.' };
+}
+
+const VIBE_TIERS = [
+  { min: 80, max: 100, label: 'On Fire', color: '#FF4D3A', icon: Flame },
+  { min: 60, max: 79, label: 'Buzzing', color: '#FFAA2E', icon: Zap },
+  { min: 40, max: 59, label: 'Lively', color: '#E8D544', icon: Radio },
+  { min: 20, max: 39, label: 'Chill', color: '#5BE89E', icon: Compass },
+  { min: 0, max: 19, label: 'Quiet', color: '#4DB8E8', icon: Eye },
+];
+
+function VibeScoreModal({
+  visible,
+  score,
+  venue,
+  onClose,
+}: {
+  visible: boolean;
+  score: number;
+  venue: string;
+  onClose: () => void;
+}) {
+  const { colors, isDark } = useTheme();
+  const vibe = getVibeLabel(score);
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.9);
+      opacityAnim.setValue(0);
+    }
+  }, [visible, scaleAnim, opacityAnim]);
+
+  const handleClose = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, { toValue: 0.9, duration: 150, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+    ]).start(() => onClose());
+  }, [scaleAnim, opacityAnim, onClose]);
+
+  return (
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent testID="vibe-score-modal">
+      <Pressable style={vibeModalStyles.backdrop} onPress={handleClose}>
+        <Animated.View
+          style={[
+            vibeModalStyles.container,
+            {
+              backgroundColor: isDark ? '#0B232C' : '#fff',
+              borderColor: isDark ? 'rgba(123,220,219,0.18)' : 'rgba(0,0,0,0.08)',
+              transform: [{ scale: scaleAnim }],
+              opacity: opacityAnim,
+            },
+          ]}
+        >
+          <Pressable onPress={handleClose} style={[vibeModalStyles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}>
+            <X color={colors.textMuted} size={16} />
+          </Pressable>
+
+          <View style={[vibeModalStyles.scoreCircle, { borderColor: vibe.color }]}>
+            <Text style={[vibeModalStyles.scoreText, { color: vibe.color }]}>{score}</Text>
+          </View>
+
+          <Text style={[vibeModalStyles.label, { color: vibe.color }]}>{vibe.label}</Text>
+          <Text style={[vibeModalStyles.venue, { color: colors.textMuted }]}>{venue}</Text>
+          <Text style={[vibeModalStyles.description, { color: colors.text }]}>{vibe.description}</Text>
+
+          <View style={[vibeModalStyles.divider, { backgroundColor: colors.border }]} />
+
+          <Text style={[vibeModalStyles.scaleTitle, { color: colors.textMuted }]}>VIBE SCALE</Text>
+          <View style={vibeModalStyles.tierList}>
+            {VIBE_TIERS.map((tier) => {
+              const isActive = score >= tier.min && score <= tier.max;
+              const TierIcon = tier.icon;
+              return (
+                <View
+                  key={tier.label}
+                  style={[
+                    vibeModalStyles.tierRow,
+                    {
+                      backgroundColor: isActive
+                        ? (isDark ? tier.color + '18' : tier.color + '12')
+                        : 'transparent',
+                      borderColor: isActive ? tier.color + '40' : 'transparent',
+                    },
+                  ]}
+                >
+                  <TierIcon color={isActive ? tier.color : colors.textSoft} size={14} />
+                  <Text style={[vibeModalStyles.tierLabel, { color: isActive ? tier.color : colors.textSoft }]}>{tier.label}</Text>
+                  <Text style={[vibeModalStyles.tierRange, { color: isActive ? tier.color : colors.textSoft }]}>{tier.min}–{tier.max}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const vibeModalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 28,
+  },
+  container: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  scoreCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  scoreText: {
+    fontSize: 32,
+    fontWeight: '900' as const,
+  },
+  label: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+  },
+  venue: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    marginVertical: 12,
+  },
+  scaleTitle: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+  },
+  tierList: {
+    width: '100%',
+    gap: 4,
+  },
+  tierRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  tierLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    flex: 1,
+  },
+  tierRange: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
 });
 
 const styles = StyleSheet.create({
