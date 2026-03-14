@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -26,7 +26,6 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSecureWallet } from '@/providers/SecureWalletProvider';
 import { currentUser } from '@/constants/identity';
-import { useAuth } from '@/providers/AuthProvider';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
