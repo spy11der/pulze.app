@@ -447,3 +447,161 @@ export const sampleEvent: PulzeEvent = {
 export function getEventForVenue(venueId: string): PulzeEvent {
   return venueEvents[venueId] ?? sampleEvent;
 }
+
+export interface ArtistListing {
+  id: string;
+  artistName: string;
+  eventName: string;
+  venue: string;
+  venueId: string;
+  date: string;
+  startingPrice: number;
+  image: string;
+  genre: string;
+  trending: boolean;
+  sellingFast: boolean;
+  soldOutPercent: number;
+}
+
+export const artistListings: ArtistListing[] = [
+  {
+    id: 'al-001',
+    artistName: 'DJ Sable',
+    eventName: 'Neon Drift: Rooftop After Dark',
+    venue: 'Mica Rooftop',
+    venueId: 'v-001',
+    date: 'Sat, Mar 22',
+    startingPrice: 25,
+    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
+    genre: 'Deep House',
+    trending: true,
+    sellingFast: true,
+    soldOutPercent: 82,
+  },
+  {
+    id: 'al-002',
+    artistName: 'Mira Volta',
+    eventName: 'Velvet Sessions: Jazz & Soul',
+    venue: 'The Velvet Room',
+    venueId: 'v-002',
+    date: 'Fri, Mar 21',
+    startingPrice: 35,
+    image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=400&fit=crop',
+    genre: 'Jazz / Soul',
+    trending: true,
+    sellingFast: false,
+    soldOutPercent: 58,
+  },
+  {
+    id: 'al-003',
+    artistName: 'KVSH',
+    eventName: 'Neon Garden: Techno Bloom',
+    venue: 'Neon Garden',
+    venueId: 'v-004',
+    date: 'Sat, Mar 22',
+    startingPrice: 30,
+    image: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=400&h=400&fit=crop',
+    genre: 'Techno',
+    trending: true,
+    sellingFast: true,
+    soldOutPercent: 91,
+  },
+  {
+    id: 'al-004',
+    artistName: 'Luna Ray',
+    eventName: 'Skyline Sunset Mixer',
+    venue: 'Skyline Terrace',
+    venueId: 'v-003',
+    date: 'Thu, Mar 20',
+    startingPrice: 20,
+    image: 'https://images.unsplash.com/photo-1508854710579-5cecc3a9ff17?w=400&h=400&fit=crop',
+    genre: 'Indie Pop',
+    trending: false,
+    sellingFast: false,
+    soldOutPercent: 34,
+  },
+  {
+    id: 'al-005',
+    artistName: 'Noctis',
+    eventName: 'Echo: Warehouse Rave',
+    venue: 'Echo Warehouse',
+    venueId: 'v-007',
+    date: 'Sat, Mar 22',
+    startingPrice: 40,
+    image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&h=400&fit=crop',
+    genre: 'Bass / EDM',
+    trending: false,
+    sellingFast: true,
+    soldOutPercent: 76,
+  },
+  {
+    id: 'al-006',
+    artistName: 'Sage Meridian',
+    eventName: 'Dusk: Acoustic Sessions',
+    venue: 'Dusk Lounge',
+    venueId: 'v-005',
+    date: 'Wed, Mar 19',
+    startingPrice: 15,
+    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop',
+    genre: 'Acoustic',
+    trending: false,
+    sellingFast: false,
+    soldOutPercent: 22,
+  },
+  {
+    id: 'al-007',
+    artistName: 'Prism Collective',
+    eventName: 'Prism: Art After Hours',
+    venue: 'Prism Hall',
+    venueId: 'v-006',
+    date: 'Fri, Mar 21',
+    startingPrice: 28,
+    image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=400&fit=crop',
+    genre: 'Experimental',
+    trending: false,
+    sellingFast: false,
+    soldOutPercent: 45,
+  },
+  {
+    id: 'al-008',
+    artistName: 'Zephyr',
+    eventName: 'Aura: Neon Nights',
+    venue: 'Aura Club',
+    venueId: 'v-008',
+    date: 'Sat, Mar 22',
+    startingPrice: 50,
+    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
+    genre: 'House',
+    trending: true,
+    sellingFast: true,
+    soldOutPercent: 88,
+  },
+  {
+    id: 'al-009',
+    artistName: 'Ember & Ash',
+    eventName: 'Velvet Sessions: Late Set',
+    venue: 'The Velvet Room',
+    venueId: 'v-002',
+    date: 'Sat, Mar 22',
+    startingPrice: 35,
+    image: 'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?w=400&h=400&fit=crop',
+    genre: 'R&B / Neo-Soul',
+    trending: false,
+    sellingFast: false,
+    soldOutPercent: 52,
+  },
+  {
+    id: 'al-010',
+    artistName: 'Void Protocol',
+    eventName: 'Echo: After Midnight',
+    venue: 'Echo Warehouse',
+    venueId: 'v-007',
+    date: 'Fri, Mar 21',
+    startingPrice: 45,
+    image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=400&h=400&fit=crop',
+    genre: 'Industrial Techno',
+    trending: true,
+    sellingFast: false,
+    soldOutPercent: 63,
+  },
+];
