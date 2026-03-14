@@ -34,6 +34,7 @@ import {
   Sparkles,
   Users,
   X,
+  Bike,
   Zap,
 } from 'lucide-react-native';
 
@@ -121,6 +122,12 @@ function getLyftUrls(destination: MapVenue) {
   return { nativeUrl, webUrl };
 }
 
+function getLimeUrls(destination: MapVenue) {
+  const webUrl = `https://limebike.com/map?lat=${destination.latitude}&lng=${destination.longitude}`;
+  const nativeUrl = `limebike://map?lat=${destination.latitude}&lng=${destination.longitude}`;
+  return { nativeUrl, webUrl };
+}
+
 function getDirectionsUrl(destination: MapVenue) {
   if (Platform.OS === 'ios') {
     return `http://maps.apple.com/?daddr=${destination.latitude},${destination.longitude}&dirflg=d`;
@@ -195,6 +202,7 @@ function BottomSheet({
   onDirections,
   onUber,
   onLyft,
+  onLime,
   bottomOffset,
 }: {
   venue: MapVenue;
@@ -202,6 +210,7 @@ function BottomSheet({
   onDirections: () => void;
   onUber: () => void;
   onLyft: () => void;
+  onLime: () => void;
   bottomOffset: number;
 }) {
   const { colors, isDark } = useTheme();
@@ -352,6 +361,14 @@ function BottomSheet({
           >
             <CarFront color={colors.text} size={14} />
             <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Lyft</Text>
+          </Pressable>
+          <Pressable
+            onPress={onLime}
+            style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A2B1A' : '#E8F5E8', borderColor: isDark ? 'rgba(0, 222, 0, 0.2)' : 'rgba(0, 180, 0, 0.15)' }, pressed && styles.btnPressed]}
+            testID="sheet-lime"
+          >
+            <Bike color="#00DE00" size={14} />
+            <Text style={[styles.sheetSecondaryText, { color: '#00DE00' }]}>Lime</Text>
           </Pressable>
         </View>
       </View>
@@ -804,6 +821,12 @@ export default function MapScreen() {
     await openUrl(urls.nativeUrl, urls.webUrl);
   }, [openUrl, selectedVenue]);
 
+  const handleLime = useCallback(async () => {
+    if (!selectedVenue) return;
+    const urls = getLimeUrls(selectedVenue);
+    await openUrl(urls.nativeUrl, urls.webUrl);
+  }, [openUrl, selectedVenue]);
+
   const handleRecenter = useCallback(() => {
     if (userLocation) {
       const nextRegion: Region = { latitude: userLocation.latitude, longitude: userLocation.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 };
@@ -900,6 +923,7 @@ export default function MapScreen() {
               onDirections={() => void handleDirections()}
               onUber={() => void handleUber()}
               onLyft={() => void handleLyft()}
+              onLime={() => void handleLime()}
               bottomOffset={48}
             />
           ) : null}
@@ -1019,6 +1043,7 @@ export default function MapScreen() {
               onDirections={() => void handleDirections()}
               onUber={() => void handleUber()}
               onLyft={() => void handleLyft()}
+              onLime={() => void handleLime()}
               bottomOffset={insets.bottom + 12}
             />
           ) : null}
@@ -1225,7 +1250,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   sheetChipText: { fontSize: 11, fontWeight: '600' as const },
-  sheetActions: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  sheetActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
   sheetPrimary: {
     flex: 1,
     flexDirection: 'row',
