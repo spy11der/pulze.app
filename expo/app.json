@@ -11,18 +11,34 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#041318"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.cmdj1v6lzdnu5omh92zbm"
+      "bundleIdentifier": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pulse uses your location to show nearby events, venues, and friends on the map.",
+        "NSCameraUsageDescription": "Pulse needs camera access so you can take photos for your posts and profile.",
+        "NSPhotoLibraryUsageDescription": "Pulse needs photo library access so you can share photos in your posts and update your profile picture.",
+        "NSFaceIDUsageDescription": "Pulse uses Face ID to securely lock the app and protect your wallet."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#041318"
       },
-      "package": "app.rork.cmdj1v6lzdnu5omh92zbm"
+      "package": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
