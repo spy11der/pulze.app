@@ -12,7 +12,7 @@ import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
 import { CityWelcome } from '@/components/CityWelcome';
 
-void SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient({
   defaultOptions: {
