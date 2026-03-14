@@ -15,16 +15,20 @@ import {
   BellRing,
   Bookmark,
   ChevronDown,
+  ExternalLink,
+  FileText,
   Fingerprint,
   Lock,
   MapPin,
   Moon,
   ScanFace,
+  Shield,
   ShieldAlert,
   Sun,
   Trash2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
@@ -233,6 +237,44 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Legal</Text>
+          <Pressable
+            onPress={() => {
+              void Haptics.selectionAsync();
+              void Linking.openURL('https://pulze.app/privacy');
+            }}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="privacy-policy-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <Shield color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Privacy Policy</Text>
+              <Text style={[styles.legalSub, { color: colors.textMuted }]}>pulze.app/privacy</Text>
+            </View>
+            <ExternalLink color={colors.textSoft} size={16} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void Haptics.selectionAsync();
+              void Linking.openURL('https://pulze.app/terms');
+            }}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="terms-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <FileText color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Terms of Service</Text>
+              <Text style={[styles.legalSub, { color: colors.textMuted }]}>pulze.app/terms</Text>
+            </View>
+            <ExternalLink color={colors.textSoft} size={16} />
+          </Pressable>
+        </View>
+
         <View style={[styles.dangerSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Pressable
             onPress={handleDeleteAccount}
@@ -410,5 +452,16 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    padding: 14,
+  },
+  legalSub: {
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
 });
