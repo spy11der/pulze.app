@@ -45,8 +45,8 @@ const MAP_COMPACT_HEIGHT = SCREEN_HEIGHT * 0.6;
 const INITIAL_VISIBLE_VENUES = 2;
 
 const INITIAL_REGION: Region = {
-  latitude: 40.7199,
-  longitude: -73.9921,
+  latitude: 39.7392,
+  longitude: -104.9903,
   latitudeDelta: 0.045,
   longitudeDelta: 0.045,
 };
