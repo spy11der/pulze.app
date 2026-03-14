@@ -131,6 +131,17 @@ export default function FeedScreen() {
     console.log('[Feed] Story pressed, navigating to map', { storyId });
   }, [router]);
 
+  const handleVibePress = useCallback((storyId: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(tabs)/map');
+    console.log('[Feed] Vibe score pressed, navigating to vibe analysis', { storyId });
+  }, [router]);
+
+  const handleSignalPress = useCallback((storyId: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    console.log('[Feed] Media signal pressed, opening source details', { storyId });
+  }, []);
+
   const heroGradient: [string, string] = isDark
     ? ['#09232B', '#041318']
     : ['#E8F4F8', '#DCE9EF'];
@@ -298,6 +309,8 @@ export default function FeedScreen() {
                 vibeScale={vibeScale}
                 vibeOpacity={vibeOpacity}
                 onPress={() => handleStoryPress(story.id)}
+                onVibePress={() => handleVibePress(story.id)}
+                onSignalPress={() => handleSignalPress(story.id)}
               />
             ))}
           </>
@@ -312,50 +325,68 @@ const StoryCard = React.memo(function StoryCard({
   vibeScale,
   vibeOpacity,
   onPress,
+  onVibePress,
+  onSignalPress,
 }: {
   story: (typeof vibeStories)[number];
   vibeScale: Animated.Value;
   vibeOpacity: Animated.Value;
   onPress: () => void;
+  onVibePress: () => void;
+  onSignalPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.storyCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.cardPressed]}
+    <View
+      style={[styles.storyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
       testID={`story-${story.id}`}
     >
-      <View style={styles.storyTop}>
-        <View style={styles.storyHeading}>
-          <Text style={[styles.storyTitle, { color: colors.text }]}>{story.title}</Text>
-          <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{story.venue} · {story.neighborhood}</Text>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [pressed && styles.cardPressed]}
+        testID={`story-body-${story.id}`}
+      >
+        <View style={styles.storyTop}>
+          <View style={styles.storyHeading}>
+            <Text style={[styles.storyTitle, { color: colors.text }]}>{story.title}</Text>
+            <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{story.venue} · {story.neighborhood}</Text>
+          </View>
+          <Pressable
+            onPress={onVibePress}
+            hitSlop={8}
+            style={({ pressed }) => [styles.vibeBadgeContainer, pressed && { opacity: 0.7, transform: [{ scale: 0.92 }] }]}
+            testID={`story-vibe-${story.id}`}
+          >
+            <Animated.View style={[styles.vibePulseRing, { transform: [{ scale: vibeScale }], opacity: vibeOpacity }]} />
+            <View style={[styles.storyIntensityBadge, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.1)' }]}>
+              <Text style={[styles.storyIntensityText, { color: colors.aqua }]}>{story.intensity}</Text>
+            </View>
+          </Pressable>
         </View>
-        <View style={styles.vibeBadgeContainer}>
-          <Animated.View style={[styles.vibePulseRing, { transform: [{ scale: vibeScale }], opacity: vibeOpacity }]} />
-          <View style={[styles.storyIntensityBadge, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.1)' }]}>
-            <Text style={[styles.storyIntensityText, { color: colors.aqua }]}>{story.intensity}</Text>
+        <Text style={[styles.storySummary, { color: colors.text }]}>{story.summary}</Text>
+        <View style={styles.rowWrap}>
+          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
+            <MapPinned color={colors.aqua} size={14} />
+            <Text style={[styles.metaChipText, { color: colors.text }]}>{story.distance}</Text>
+          </View>
+          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
+            <Radio color={colors.aqua} size={14} />
+            <Text style={[styles.metaChipText, { color: colors.text }]}>{story.vibe}</Text>
+          </View>
+          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
+            <Text style={[styles.metaChipText, { color: colors.text }]}>{story.privacy === 'friends' ? 'Friends details' : 'Public vibe'}</Text>
           </View>
         </View>
-      </View>
-      <Text style={[styles.storySummary, { color: colors.text }]}>{story.summary}</Text>
-      <View style={styles.rowWrap}>
-        <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
-          <MapPinned color={colors.aqua} size={14} />
-          <Text style={[styles.metaChipText, { color: colors.text }]}>{story.distance}</Text>
-        </View>
-        <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
-          <Radio color={colors.aqua} size={14} />
-          <Text style={[styles.metaChipText, { color: colors.text }]}>{story.vibe}</Text>
-        </View>
-        <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
-          <Text style={[styles.metaChipText, { color: colors.text }]}>{story.privacy === 'friends' ? 'Friends details' : 'Public vibe'}</Text>
-        </View>
-      </View>
-      <View style={[styles.signalCard, { backgroundColor: isDark ? '#123642' : '#E0F0F5' }]}>
+      </Pressable>
+      <Pressable
+        onPress={onSignalPress}
+        style={({ pressed }) => [styles.signalCard, { backgroundColor: isDark ? '#123642' : '#E0F0F5' }, pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }]}
+        testID={`story-signal-${story.id}`}
+      >
         <Text style={[styles.signalLabel, { color: colors.aqua }]}>Media signal</Text>
         <Text style={[styles.signalText, { color: colors.textMuted }]}>{story.mediaLabel}</Text>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 });
 

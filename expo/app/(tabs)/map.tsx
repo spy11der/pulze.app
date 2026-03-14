@@ -701,9 +701,6 @@ export default function MapScreen() {
 
   const handleRegionChange = useCallback((region: Region) => {
     mapRegionRef.current = region;
-    if (Platform.OS === 'web') {
-      setWebMapRegion(region);
-    }
   }, []);
 
   const handlePressVenue = useCallback((venueId: string) => {

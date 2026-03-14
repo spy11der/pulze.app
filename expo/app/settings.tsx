@@ -278,6 +278,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     gap: 14,
+    overflow: 'hidden' as const,
   },
   sectionTitle: {
     fontSize: 18,
@@ -290,7 +291,9 @@ const styles = StyleSheet.create({
   },
   themeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
+    borderRadius: 16,
+    overflow: 'hidden' as const,
   },
   themeOption: {
     flex: 1,
@@ -299,8 +302,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    overflow: 'hidden' as const,
   },
   themeOptionText: {
     fontSize: 14,
