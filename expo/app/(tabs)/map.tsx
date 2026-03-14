@@ -1050,8 +1050,12 @@ const styles = StyleSheet.create({
     height: MAP_COMPACT_HEIGHT,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#1A3A44',
+    backgroundColor: '#E8E8E8',
     borderWidth: 1,
+  },
+  mapInner: {
+    flex: 1,
+    overflow: 'hidden',
   },
 
 
@@ -1290,7 +1294,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
   },
-  bottomSpacer: { height: 150 },
+  bottomSpacer: { height: 180 },
   btnPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
 
   webMarkerLayer: {
