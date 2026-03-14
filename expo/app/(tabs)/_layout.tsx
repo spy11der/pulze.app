@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { BlurView } from 'expo-blur';
-import { Chrome as Home, CirclePlus, Map, UserRound } from 'lucide-react-native';
+import { Chrome as Home, CirclePlus, Map, Ticket, UserRound } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 
@@ -72,6 +72,13 @@ export default function TabLayout() {
             fontWeight: '800' as const,
             marginTop: 2,
           },
+        }}
+      />
+      <Tabs.Screen
+        name="tickets"
+        options={{
+          title: 'Tickets',
+          tabBarIcon: ({ color, focused }) => <Ticket color={color} size={focused ? 22 : 20} />,
         }}
       />
       <Tabs.Screen

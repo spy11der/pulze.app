@@ -139,7 +139,7 @@ const VibeMarker = React.memo(function VibeMarker({
       onPress={onPress}
       anchor={{ x: 0.5, y: 0.5 }}
       tracksViewChanges={false}
-      tracksInfoWindowChanges={false}
+      flat
       stopPropagation
       testID={`map-marker-${marker.id}`}
     >
@@ -340,44 +340,26 @@ function BottomSheet({
   );
 }
 
-function WebVibeMarker({
+const WebVibeMarker = React.memo(function WebVibeMarker({
   venue,
   isSelected,
   onPress,
+  xPct,
+  yPct,
   containerWidth,
   containerHeight,
-  region,
 }: {
   venue: MapVenue;
   isSelected: boolean;
   onPress: () => void;
+  xPct: number;
+  yPct: number;
   containerWidth: number;
   containerHeight: number;
-  region: Region;
 }) {
   const color = getEnergyColor(venue.energy);
   const isHot = venue.energy >= 60;
-  const pulseAnim = useRef(new Animated.Value(0.5)).current;
 
-  useEffect(() => {
-    const speed = isHot ? 1400 : 2400;
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: speed, useNativeDriver: false }),
-        Animated.timing(pulseAnim, { toValue: 0.3, duration: speed, useNativeDriver: false }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [pulseAnim, isHot]);
-
-  const west = region.longitude - region.longitudeDelta / 2;
-  const east = region.longitude + region.longitudeDelta / 2;
-  const north = region.latitude + region.latitudeDelta / 2;
-  const south = region.latitude - region.latitudeDelta / 2;
-
-  const xPct = (venue.longitude - west) / (east - west);
-  const yPct = (north - venue.latitude) / (north - south);
   const left = xPct * containerWidth;
   const top = yPct * containerHeight;
 
@@ -400,7 +382,7 @@ function WebVibeMarker({
         },
       ]}
     >
-      <Animated.View
+      <View
         style={[
           styles.webMarkerGlow,
           {
@@ -408,7 +390,7 @@ function WebVibeMarker({
             height: glowSize,
             borderRadius: glowSize / 2,
             backgroundColor: color,
-            opacity: pulseAnim,
+            opacity: isHot ? 0.35 : 0.22,
           },
         ]}
       />
@@ -440,7 +422,7 @@ function WebVibeMarker({
       </View>
     </Pressable>
   );
-}
+})
 
 function WebMapFallback({
   region,
@@ -456,6 +438,19 @@ function WebMapFallback({
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const tileUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${region.longitude - region.longitudeDelta / 2},${region.latitude - region.latitudeDelta / 2},${region.longitude + region.longitudeDelta / 2},${region.latitude + region.latitudeDelta / 2}&layer=mapnik`;
 
+  const west = region.longitude - region.longitudeDelta / 2;
+  const east = region.longitude + region.longitudeDelta / 2;
+  const north = region.latitude + region.latitudeDelta / 2;
+  const south = region.latitude - region.latitudeDelta / 2;
+
+  const venuePositions = useMemo(() => {
+    return venues.map((venue) => ({
+      venue,
+      xPct: (venue.longitude - west) / (east - west),
+      yPct: (north - venue.latitude) / (north - south),
+    }));
+  }, [venues, west, east, north, south]);
+
   return (
     <View
       style={StyleSheet.absoluteFillObject}
@@ -465,19 +460,20 @@ function WebMapFallback({
     >
       {Platform.OS === 'web' ? (
         // @ts-ignore
-        <iframe src={tileUrl} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'auto' }} allowFullScreen loading="lazy" />
+        <iframe src={tileUrl} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }} allowFullScreen loading="lazy" />
       ) : null}
       {containerSize.width > 0 ? (
         <View style={styles.webMarkerLayer} pointerEvents="box-none">
-          {venues.map((venue) => (
+          {venuePositions.map(({ venue, xPct, yPct }) => (
             <WebVibeMarker
               key={venue.id}
               venue={venue}
               isSelected={venue.id === selectedVenue?.id}
               onPress={() => onSelectVenue(venue)}
+              xPct={xPct}
+              yPct={yPct}
               containerWidth={containerSize.width}
               containerHeight={containerSize.height}
-              region={region}
             />
           ))}
         </View>
