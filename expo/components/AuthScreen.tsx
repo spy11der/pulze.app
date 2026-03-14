@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from 'lucide-react-native';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, AtSign, Phone } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -26,7 +26,9 @@ export function AuthScreen() {
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -79,7 +81,15 @@ export function AuthScreen() {
       setError('Please enter your name');
       return;
     }
-    if (!email.trim()) {
+    if (mode === 'signup' && !username.trim()) {
+      setError('Please choose a username');
+      return;
+    }
+    if (mode === 'login' && !username.trim()) {
+      setError('Please enter your username');
+      return;
+    }
+    if (mode === 'signup' && !email.trim()) {
       setError('Please enter your email');
       return;
     }
@@ -98,9 +108,9 @@ export function AuthScreen() {
     setIsSubmitting(true);
     try {
       if (mode === 'login') {
-        await login(email.trim(), password);
+        await login(username.trim(), password);
       } else {
-        await signup(name.trim(), email.trim(), password);
+        await signup(name.trim(), username.trim(), email.trim(), phone.trim(), password);
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
@@ -109,7 +119,7 @@ export function AuthScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [mode, name, email, password, login, signup, buttonScale]);
+  }, [mode, name, username, email, phone, password, login, signup, buttonScale]);
 
   const accentColor = colors.aqua;
   const inputBg = isDark ? 'rgba(53, 212, 207, 0.06)' : 'rgba(26, 168, 163, 0.05)';
@@ -192,19 +202,51 @@ export function AuthScreen() {
               )}
 
               <InputField
-                icon={<Mail color={colors.textMuted} size={18} />}
-                placeholder="Email address"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
+                icon={<AtSign color={colors.textMuted} size={18} />}
+                placeholder="Username"
+                value={username}
+                onChangeText={setUsername}
                 autoCapitalize="none"
                 inputBg={inputBg}
                 inputBorder={inputBorder}
                 inputFocusBorder={inputFocusBorder}
                 textColor={colors.text}
                 placeholderColor={colors.textSoft}
-                testID="email-input"
+                testID="username-input"
               />
+
+              {mode === 'signup' && (
+                <>
+                  <InputField
+                    icon={<Mail color={colors.textMuted} size={18} />}
+                    placeholder="Email address"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    inputBg={inputBg}
+                    inputBorder={inputBorder}
+                    inputFocusBorder={inputFocusBorder}
+                    textColor={colors.text}
+                    placeholderColor={colors.textSoft}
+                    testID="email-input"
+                  />
+                  <InputField
+                    icon={<Phone color={colors.textMuted} size={18} />}
+                    placeholder="Phone number (optional)"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                    inputBg={inputBg}
+                    inputBorder={inputBorder}
+                    inputFocusBorder={inputFocusBorder}
+                    textColor={colors.text}
+                    placeholderColor={colors.textSoft}
+                    testID="phone-input"
+                  />
+                </>
+              )}
 
               <InputField
                 icon={<Lock color={colors.textMuted} size={18} />}

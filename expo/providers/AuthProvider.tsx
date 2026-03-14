@@ -8,6 +8,7 @@ export interface AuthUser {
   displayName: string;
   username: string;
   email: string;
+  phone: string;
 }
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
@@ -34,14 +35,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     void loadAuth();
   }, []);
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
-    console.log('[Auth] Login attempt for', email);
+  const login = useCallback(async (username: string, _password: string): Promise<boolean> => {
+    console.log('[Auth] Login attempt for', username);
     await new Promise((r) => setTimeout(r, 1200));
 
     const authUser: AuthUser = {
-      displayName: 'Jordan Pulse',
-      username: 'jordan.pulse',
-      email,
+      displayName: username,
+      username,
+      email: '',
+      phone: '',
     };
 
     await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(authUser));
@@ -51,15 +53,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return true;
   }, []);
 
-  const signup = useCallback(async (name: string, email: string, _password: string): Promise<boolean> => {
-    console.log('[Auth] Signup attempt for', email);
+  const signup = useCallback(async (name: string, username: string, email: string, phone: string, _password: string): Promise<boolean> => {
+    console.log('[Auth] Signup attempt for', username);
     await new Promise((r) => setTimeout(r, 1500));
 
-    const username = name.toLowerCase().replace(/\s+/g, '.').slice(0, 20);
     const authUser: AuthUser = {
       displayName: name,
       username,
       email,
+      phone,
     };
 
     await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(authUser));
