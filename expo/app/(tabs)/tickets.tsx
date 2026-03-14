@@ -203,7 +203,7 @@ export default function TicketsTab() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 160 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 200 }]}
       >
         <View style={{ height: 220 }} />
 
@@ -470,7 +470,7 @@ export default function TicketsTab() {
         </Animated.View>
       </ScrollView>
 
-      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 96, backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)', borderTopColor: colors.border }]}>
+      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 40, backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)', borderTopColor: colors.border }]}>
         <View style={styles.stickyInfo}>
           {selectedTierData ? (
             <>
@@ -701,6 +701,7 @@ const ArtistCard = React.memo(function ArtistCard({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    overflow: 'hidden' as const,
   },
   heroContainer: {
     position: 'absolute',

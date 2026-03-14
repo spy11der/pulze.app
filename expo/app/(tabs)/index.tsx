@@ -447,11 +447,13 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    overflow: 'hidden' as const,
   },
   content: {
     padding: 16,
-    paddingBottom: 110,
+    paddingBottom: 150,
     gap: 14,
+    maxWidth: '100%' as const,
   },
   hero: {
     borderRadius: 28,

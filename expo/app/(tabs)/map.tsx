@@ -460,7 +460,7 @@ function WebMapFallback({
     >
       {Platform.OS === 'web' ? (
         // @ts-ignore
-        <iframe src={tileUrl} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }} allowFullScreen loading="lazy" />
+        <iframe src={tileUrl} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'auto' }} allowFullScreen loading="lazy" />
       ) : null}
       {containerSize.width > 0 ? (
         <View style={styles.webMarkerLayer} pointerEvents="box-none">
@@ -1009,9 +1009,9 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, overflow: 'hidden' as const },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16 },
+  scrollContent: { paddingHorizontal: 16, maxWidth: '100%' as const },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1290,12 +1290,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
   },
-  bottomSpacer: { height: 110 },
+  bottomSpacer: { height: 150 },
   btnPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
 
   webMarkerLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
+    pointerEvents: 'box-none' as const,
   },
   webMarkerWrap: {
     position: 'absolute',

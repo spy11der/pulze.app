@@ -24,6 +24,7 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
           elevation: 0,
           zIndex: 50,
+          overflow: 'hidden',
         },
         tabBarItemStyle: {
           paddingVertical: 8,

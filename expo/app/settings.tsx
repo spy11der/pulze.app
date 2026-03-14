@@ -19,7 +19,6 @@ import {
   Lock,
   MapPin,
   Moon,
-  Monitor,
   ScanFace,
   ShieldAlert,
   Sun,
@@ -132,7 +131,6 @@ export default function SettingsScreen() {
   const themeOptions: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
     { id: 'light', label: 'Light', icon: Sun },
     { id: 'dark', label: 'Dark', icon: Moon },
-    { id: 'system', label: 'System', icon: Monitor },
   ];
 
   return (
@@ -279,6 +277,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     overflow: 'hidden' as const,
+    maxWidth: '100%',
   },
   sectionTitle: {
     fontSize: 18,
