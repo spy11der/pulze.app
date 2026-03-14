@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Animated,
-  Dimensions,
   Image,
   Linking,
   Platform,
@@ -24,7 +23,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  ExternalLink,
   Heart,
   MapPin,
   Minus,
@@ -40,10 +38,10 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { sampleEvent } from '@/mocks/events';
+import { venues, getEventForVenue } from '@/mocks/events';
 import type { TicketTier } from '@/mocks/events';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 
 export default function TicketingScreen() {
   const insets = useSafeAreaInsets();
@@ -51,6 +49,7 @@ export default function TicketingScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
 
+  const [selectedVenueId, setSelectedVenueId] = useState<string>(venues[0].id);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<boolean>(false);
@@ -61,7 +60,24 @@ export default function TicketingScreen() {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
 
-  const event = sampleEvent;
+  const event = useMemo(() => getEventForVenue(selectedVenueId), [selectedVenueId]);
+
+  const handleSelectVenue = useCallback((venueId: string) => {
+    if (venueId === selectedVenueId) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedVenueId(venueId);
+    setSelectedTier(null);
+    setQuantities({});
+    setSaved(false);
+    setLiked(false);
+    heroOpacity.setValue(0);
+    contentSlide.setValue(30);
+    Animated.parallel([
+      Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(contentSlide, { toValue: 0, duration: 350, delay: 100, useNativeDriver: true }),
+    ]).start();
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [selectedVenueId, heroOpacity, contentSlide]);
 
   useEffect(() => {
     Animated.parallel([
@@ -153,10 +169,6 @@ export default function TicketingScreen() {
     });
   }, [selectedTier, quantities, event, router]);
 
-  const totalSelected = useMemo(() => {
-    return Object.values(quantities).reduce((s, q) => s + q, 0);
-  }, [quantities]);
-
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;
     return event.ticketTiers.find(t => t.id === selectedTier) ?? null;
@@ -166,6 +178,8 @@ export default function TicketingScreen() {
     if (!selectedTierData) return 0;
     return selectedTierData.price * (quantities[selectedTierData.id] ?? 1);
   }, [selectedTierData, quantities]);
+
+
 
   const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
 
@@ -213,6 +227,23 @@ export default function TicketingScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
         <View style={{ height: 220 }} />
+
+        <View style={styles.venueSelectorContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.venueScrollContent}
+          >
+            {venues.map(venue => (
+              <VenueCard
+                key={venue.id}
+                venue={venue}
+                selected={venue.id === selectedVenueId}
+                onSelect={handleSelectVenue}
+              />
+            ))}
+          </ScrollView>
+        </View>
 
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>
@@ -474,6 +505,54 @@ export default function TicketingScreen() {
     </View>
   );
 }
+
+const VenueCard = React.memo(function VenueCard({
+  venue,
+  selected,
+  onSelect,
+}: {
+  venue: (typeof venues)[number];
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const { colors, isDark } = useTheme();
+  const energyColor = venue.energyType === 'pulze' ? colors.coral : venue.energyType === 'moderate' ? colors.amber : colors.quiet;
+
+  return (
+    <Pressable
+      onPress={() => onSelect(venue.id)}
+      style={({ pressed }) => [
+        styles.venueCard,
+        {
+          backgroundColor: selected
+            ? (isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.1)')
+            : colors.surface,
+          borderColor: selected ? colors.aqua : colors.border,
+          opacity: pressed ? 0.92 : 1,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+        },
+      ]}
+      testID={`venue-${venue.id}`}
+    >
+      <Image source={{ uri: venue.image }} style={styles.venueCardImage} />
+      <View style={styles.venueCardInfo}>
+        <Text
+          style={[styles.venueCardName, { color: selected ? colors.aqua : colors.text }]}
+          numberOfLines={1}
+        >
+          {venue.shortName}
+        </Text>
+        <View style={styles.venueCardVibeRow}>
+          <View style={[styles.venueCardVibeDot, { backgroundColor: energyColor }]} />
+          <Text style={[styles.venueCardVibeScore, { color: colors.textMuted }]}>{venue.vibeScore}</Text>
+        </View>
+      </View>
+      {selected && (
+        <View style={[styles.venueSelectedIndicator, { backgroundColor: colors.aqua }]} />
+      )}
+    </Pressable>
+  );
+});
 
 const TicketTierCard = React.memo(function TicketTierCard({
   tier,
@@ -1083,5 +1162,58 @@ const styles = StyleSheet.create({
   stickyBtnText: {
     fontSize: 16,
     fontWeight: '800' as const,
+  },
+  venueSelectorContainer: {
+    marginBottom: 8,
+  },
+  venueScrollContent: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  venueCard: {
+    width: 88,
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+  },
+  venueCardImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+  },
+  venueCardInfo: {
+    marginTop: 6,
+    alignItems: 'center',
+    gap: 3,
+  },
+  venueCardName: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textAlign: 'center' as const,
+  },
+  venueCardVibeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  venueCardVibeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  venueCardVibeScore: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+  },
+  venueSelectedIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 16,
+    right: 16,
+    height: 2.5,
+    borderRadius: 2,
   },
 });
