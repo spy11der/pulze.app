@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friends';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { currentUser } from '@/constants/identity';
 
 export default function ProfileScreen() {
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { colors, isDark, mode } = useTheme();
   const { vibeCount, spotCount } = useData();
+  const { logout } = useAuth();
 
   const tierSummary = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -85,7 +87,7 @@ export default function ProfileScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Log out',
-      'Are you sure you want to log out of Pulze?',
+      'Are you sure you want to log out of Pulse?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -93,12 +95,12 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: () => {
             console.log('[Profile] User logged out');
-            Alert.alert('Logged out', 'You have been logged out successfully.');
+            void logout();
           },
         },
       ]
     );
-  }, []);
+  }, [logout]);
 
   const ThemeIcon = mode === 'dark' ? Moon : Sun;
 

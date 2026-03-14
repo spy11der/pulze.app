@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
+  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, AtSign, Phone } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 
@@ -315,15 +317,47 @@ export function AuthScreen() {
             </View>
 
             <View style={styles.socialRow}>
-              <SocialButton label="Apple" icon="🍎" bg={isDark ? colors.surface : '#000'} textColor={isDark ? colors.text : '#fff'} />
-              <SocialButton label="Google" icon="G" bg={isDark ? colors.surface : '#fff'} textColor={isDark ? colors.text : '#333'} borderColor={isDark ? colors.border : '#ddd'} />
+              <SocialButton
+                label="Apple"
+                icon="🍎"
+                bg={isDark ? colors.surface : '#000'}
+                textColor={isDark ? colors.text : '#fff'}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.');
+                }}
+              />
+              <SocialButton
+                label="Google"
+                icon="G"
+                bg={isDark ? colors.surface : '#fff'}
+                textColor={isDark ? colors.text : '#333'}
+                borderColor={isDark ? colors.border : '#ddd'}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Alert.alert('Coming Soon', 'Sign in with Google will be available soon.');
+                }}
+              />
             </View>
           </Animated.View>
 
           <View style={styles.footer}>
             <Zap color={accentColor} size={12} />
             <Text style={[styles.footerText, { color: colors.textSoft }]}>
-              By continuing, you agree to our Terms & Privacy Policy
+              By continuing, you agree to our{' '}
+              <Text
+                style={[styles.footerLink, { color: accentColor }]}
+                onPress={() => void WebBrowser.openBrowserAsync('https://pulse-app.com/terms')}
+              >
+                Terms
+              </Text>
+              {' & '}
+              <Text
+                style={[styles.footerLink, { color: accentColor }]}
+                onPress={() => void WebBrowser.openBrowserAsync('https://pulse-app.com/privacy')}
+              >
+                Privacy Policy
+              </Text>
             </Text>
           </View>
         </ScrollView>
@@ -400,11 +434,13 @@ interface SocialButtonProps {
   bg: string;
   textColor: string;
   borderColor?: string;
+  onPress?: () => void;
 }
 
-function SocialButton({ label, icon, bg, textColor, borderColor }: SocialButtonProps) {
+function SocialButton({ label, icon, bg, textColor, borderColor, onPress }: SocialButtonProps) {
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [
         styles.socialButton,
         { backgroundColor: bg, borderColor: borderColor ?? 'transparent' },
@@ -607,5 +643,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500' as const,
     textAlign: 'center',
+  },
+  footerLink: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textDecorationLine: 'underline' as const,
   },
 });

@@ -25,10 +25,12 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
 import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
 import { useData } from '@/providers/DataProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import type { UserPreferences } from '@/providers/DataProvider';
 
 const privacyLabels: Record<UserPreferences['defaultPrivacy'], string> = {
@@ -54,6 +56,7 @@ export default function SettingsScreen() {
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { biometricEnabled, biometricAvailable, biometricType, toggleBiometric } = useBiometricAuth();
   const { preferences, updatePreference } = useData();
+  const { logout } = useAuth();
 
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -107,15 +110,23 @@ export default function SettingsScreen() {
           onPress: () => {
             Alert.alert(
               'Confirm Deletion',
-              'Are you absolutely sure? Type your mind — this is your last chance.',
+              'Are you absolutely sure? This is your last chance.',
               [
                 { text: 'Go back', style: 'cancel' },
                 {
                   text: 'Delete forever',
                   style: 'destructive',
-                  onPress: () => {
+                  onPress: async () => {
                     console.log('[Settings] Account deletion confirmed');
-                    Alert.alert('Account deleted', 'Your account has been permanently deleted.');
+                    try {
+                      await SecureStore.deleteItemAsync('pulze_user_prefs');
+                      await SecureStore.deleteItemAsync('pulze_biometric_enabled');
+                      console.log('[Settings] Local data cleared');
+                    } catch (e) {
+                      console.log('[Settings] Error clearing data:', e);
+                    }
+                    await logout();
+                    console.log('[Settings] Account deleted and logged out');
                   },
                 },
               ]
@@ -124,7 +135,7 @@ export default function SettingsScreen() {
         },
       ]
     );
-  }, []);
+  }, [logout]);
 
   const BiometricIcon = biometricType === 'Face ID' ? ScanFace : Fingerprint;
 
