@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 interface PulseSplashProps {
   onComplete: () => void;
@@ -37,20 +38,30 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
       ]),
     ]);
 
-    const fullSequence = Animated.sequence([
-      Animated.timing(pulseOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      singlePulse,
-      Animated.delay(120),
-      singlePulse,
-      Animated.delay(120),
-      singlePulse,
-      Animated.delay(200),
-      Animated.timing(containerOpacity, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]);
+    const triggerHaptic = () => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    };
 
-    fullSequence.start(() => {
-      setVisible(false);
-      onComplete();
+    Animated.timing(pulseOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start(() => {
+      triggerHaptic();
+      singlePulse.start(() => {
+        setTimeout(() => {
+          triggerHaptic();
+          singlePulse.start(() => {
+            setTimeout(() => {
+              triggerHaptic();
+              singlePulse.start(() => {
+                setTimeout(() => {
+                  Animated.timing(containerOpacity, { toValue: 0, duration: 350, useNativeDriver: true }).start(() => {
+                    setVisible(false);
+                    onComplete();
+                  });
+                }, 200);
+              });
+            }, 120);
+          });
+        }, 120);
+      });
     });
   }, [pulseScale, pulseOpacity, ring1Scale, ring1Opacity, ring2Scale, ring2Opacity, containerOpacity, onComplete]);
 
