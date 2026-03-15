@@ -40,6 +40,8 @@ function RootLayoutNav() {
       <Stack.Screen name="ticketing" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="checkout" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="secure-wallet" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="privacy-policy" options={{ presentation: 'card' }} />
+      <Stack.Screen name="terms-of-service" options={{ presentation: 'card' }} />
     </Stack>
   );
 }

@@ -15,7 +15,6 @@ import {
   BellRing,
   Bookmark,
   ChevronDown,
-  ExternalLink,
   FileText,
   Fingerprint,
   Lock,
@@ -28,7 +27,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
+import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
@@ -61,6 +60,7 @@ export default function SettingsScreen() {
   const { biometricEnabled, biometricAvailable, biometricType, toggleBiometric } = useBiometricAuth();
   const { preferences, updatePreference } = useData();
   const { logout } = useAuth();
+  const router = useRouter();
 
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -242,7 +242,7 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => {
               void Haptics.selectionAsync();
-              void Linking.openURL('https://pulze.app/privacy');
+              router.push('/privacy-policy');
             }}
             style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
             testID="privacy-policy-btn"
@@ -252,14 +252,13 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.settingBody}>
               <Text style={[styles.settingValue, { color: colors.text }]}>Privacy Policy</Text>
-              <Text style={[styles.legalSub, { color: colors.textMuted }]}>pulze.app/privacy</Text>
             </View>
-            <ExternalLink color={colors.textSoft} size={16} />
+            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
           </Pressable>
           <Pressable
             onPress={() => {
               void Haptics.selectionAsync();
-              void Linking.openURL('https://pulze.app/terms');
+              router.push('/terms-of-service');
             }}
             style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
             testID="terms-btn"
@@ -269,9 +268,8 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.settingBody}>
               <Text style={[styles.settingValue, { color: colors.text }]}>Terms of Service</Text>
-              <Text style={[styles.legalSub, { color: colors.textMuted }]}>pulze.app/terms</Text>
             </View>
-            <ExternalLink color={colors.textSoft} size={16} />
+            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
           </Pressable>
         </View>
 
