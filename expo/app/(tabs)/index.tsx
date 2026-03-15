@@ -162,12 +162,12 @@ export default function FeedScreen() {
           <View style={styles.topRow}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.eyebrow, { color: colors.aqua }]}>Pulse</Text>
-              <Text style={[styles.heroTitle, { color: colors.text }]}>The city, in the mood it is in right now.</Text>
+              <Text style={[styles.heroTitle, { color: colors.text }]}>The city, right now.</Text>
             </View>
             <Pressable onPress={handleLiveBadgePress} testID="live-badge-btn">
               <Animated.View style={[styles.liveBadgeOuter, { transform: [{ scale: livePulse }] }]}>
                 <Animated.View style={[styles.liveBadge, { backgroundColor: colors.aquaBright, opacity: glowAnim }]}>
-                  <Radio color={isDark ? colors.background : '#fff'} size={14} />
+                  <Radio color={isDark ? colors.background : '#fff'} size={12} />
                   <Text style={[styles.liveBadgeText, { color: isDark ? colors.background : '#fff' }]}>Live</Text>
                 </Animated.View>
               </Animated.View>
@@ -177,15 +177,15 @@ export default function FeedScreen() {
           <View style={styles.heroStats}>
             <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
               <Text style={[styles.statValue, { color: colors.text }]}>{liveAverage}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>avg city energy</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>energy</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
               <Text style={[styles.statValue, { color: colors.text }]}>{signalCount}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{feedMode === 'my_vibes' ? 'your vibes' : 'nearby signals'}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{feedMode === 'my_vibes' ? 'vibes' : 'signals'}</Text>
             </View>
-            <View style={[styles.statCardWide, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.1)' : 'rgba(92, 168, 48, 0.08)' }]}>
-              <Text style={[styles.statValueSmall, { color: colors.textMuted }]}>Tonight looks best for</Text>
-              <Text style={[styles.statHighlight, { color: colors.lime }]}>Rooftops, riverwalks, open-air sets</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.1)' : 'rgba(92, 168, 48, 0.08)' }]}>
+              <Text style={[styles.statHighlight, { color: colors.lime }]}>Rooftops</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>best tonight</Text>
             </View>
           </View>
         </LinearGradient>
@@ -663,36 +663,35 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
   },
   content: {
-    padding: 14,
-    paddingBottom: 150,
-    gap: 10,
+    padding: 12,
+    paddingBottom: 120,
+    gap: 8,
     maxWidth: '100%' as const,
   },
   hero: {
-    borderRadius: 22,
-    padding: 16,
-    gap: 12,
+    borderRadius: 18,
+    padding: 12,
+    gap: 8,
     borderWidth: 1,
     overflow: 'hidden' as const,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
   },
   eyebrow: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   heroTitle: {
-    fontSize: 22,
+    fontSize: 17,
     fontWeight: '800' as const,
-    lineHeight: 27,
-    marginTop: 4,
-    maxWidth: 220,
+    lineHeight: 21,
+    marginTop: 2,
   },
   liveBadgeOuter: {
     marginTop: 2,
@@ -700,67 +699,65 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   liveBadgeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800' as const,
   },
   heroStats: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   statCard: {
     flex: 1,
-    minWidth: 90,
-    borderRadius: 16,
-    padding: 12,
-    gap: 4,
+    borderRadius: 12,
+    padding: 8,
+    gap: 2,
   },
   statCardWide: {
     width: '100%',
-    borderRadius: 16,
-    padding: 12,
-    gap: 3,
+    borderRadius: 12,
+    padding: 8,
+    gap: 2,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '800' as const,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
   },
   statValueSmall: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700' as const,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   statHighlight: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800' as const,
-    lineHeight: 20,
+    lineHeight: 17,
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   modeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    borderRadius: 16,
-    paddingVertical: 11,
+    gap: 4,
+    borderRadius: 12,
+    paddingVertical: 8,
     borderWidth: 1,
   },
   modeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800' as const,
   },
   filterRow: {
@@ -769,51 +766,51 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 5,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderWidth: 1,
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700' as const,
   },
   momentCard: {
-    borderRadius: 20,
-    padding: 14,
-    gap: 10,
+    borderRadius: 16,
+    padding: 12,
+    gap: 6,
     overflow: 'hidden' as const,
   },
   momentHeader: {
-    gap: 4,
+    gap: 2,
   },
   momentTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800' as const,
   },
   momentCaption: {
-    fontSize: 14,
+    fontSize: 13,
   },
   momentBody: {
-    gap: 10,
+    gap: 6,
   },
   momentPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   momentPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800' as const,
   },
   momentText: {
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
   sectionHeader: {
     gap: 4,
@@ -944,9 +941,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   eventPromoCard: {
-    borderRadius: 20,
-    padding: 14,
-    gap: 8,
+    borderRadius: 16,
+    padding: 12,
+    gap: 6,
     overflow: 'hidden' as const,
   },
   eventPromoTop: {
@@ -955,9 +952,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   eventPromoIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -971,11 +968,11 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
   },
   eventPromoTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800' as const,
-    lineHeight: 23,
+    lineHeight: 20,
   },
   eventPromoMeta: {
-    fontSize: 14,
+    fontSize: 13,
   },
 });
