@@ -109,7 +109,9 @@ export default function TicketingScreen() {
   const event = useMemo(() => getEventForVenue(selectedVenueId), [selectedVenueId]);
 
   const heroImageUri = useMemo(() => {
-    return tmVenueImages[selectedVenueId] ?? event.heroImage;
+    const tmImage = tmVenueImages[selectedVenueId];
+    if (tmImage && tmImage.length > 0) return tmImage;
+    return event.heroImage;
   }, [selectedVenueId, tmVenueImages, event.heroImage]);
 
   const tmImageFetched = tmVenueImages[selectedVenueId] !== undefined;
@@ -588,7 +590,7 @@ const VenueCard = React.memo(function VenueCard({
           backgroundColor: selected
             ? (isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.1)')
             : colors.surface,
-          borderColor: selected ? colors.aqua : colors.border,
+          borderColor: selected ? colors.aqua : (isDark ? 'rgba(123, 220, 219, 0.35)' : 'rgba(11, 35, 44, 0.2)'),
           opacity: pressed ? 0.92 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         },
@@ -1239,6 +1241,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     paddingHorizontal: 10,
     borderWidth: 1.5,
+    overflow: 'hidden' as const,
   },
   venueCardImage: {
     width: 48,
