@@ -338,38 +338,42 @@ function BottomSheet({
         </View>
 
         <View style={styles.sheetActions}>
-          <Pressable
-            onPress={onDirections}
-            style={({ pressed }) => [styles.sheetPrimary, { backgroundColor: colors.aquaBright }, pressed && styles.btnPressed]}
-            testID="sheet-directions"
-          >
-            <Navigation color={isDark ? '#041318' : '#fff'} size={15} />
-            <Text style={[styles.sheetPrimaryText, { color: isDark ? '#041318' : '#fff' }]}>Directions</Text>
-          </Pressable>
-          <Pressable
-            onPress={onUber}
-            style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
-            testID="sheet-uber"
-          >
-            <CarFront color={colors.text} size={14} />
-            <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Uber</Text>
-          </Pressable>
-          <Pressable
-            onPress={onLyft}
-            style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
-            testID="sheet-lyft"
-          >
-            <CarFront color={colors.text} size={14} />
-            <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Lyft</Text>
-          </Pressable>
-          <Pressable
-            onPress={onLime}
-            style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A2B1A' : '#E8F5E8', borderColor: isDark ? 'rgba(0, 222, 0, 0.2)' : 'rgba(0, 180, 0, 0.15)' }, pressed && styles.btnPressed]}
-            testID="sheet-lime"
-          >
-            <Bike color="#00DE00" size={14} />
-            <Text style={[styles.sheetSecondaryText, { color: '#00DE00' }]}>Lime</Text>
-          </Pressable>
+          <View style={styles.sheetActionsRow}>
+            <Pressable
+              onPress={onDirections}
+              style={({ pressed }) => [styles.sheetPrimary, { backgroundColor: colors.aquaBright }, pressed && styles.btnPressed]}
+              testID="sheet-directions"
+            >
+              <Navigation color={isDark ? '#041318' : '#fff'} size={15} />
+              <Text style={[styles.sheetPrimaryText, { color: isDark ? '#041318' : '#fff' }]} numberOfLines={1}>Directions</Text>
+            </Pressable>
+            <Pressable
+              onPress={onLime}
+              style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A2B1A' : '#E8F5E8', borderColor: isDark ? 'rgba(0, 222, 0, 0.2)' : 'rgba(0, 180, 0, 0.15)' }, pressed && styles.btnPressed]}
+              testID="sheet-lime"
+            >
+              <Bike color="#00DE00" size={14} />
+              <Text style={[styles.sheetSecondaryText, { color: '#00DE00' }]}>Lime</Text>
+            </Pressable>
+          </View>
+          <View style={styles.sheetActionsRow}>
+            <Pressable
+              onPress={onUber}
+              style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
+              testID="sheet-uber"
+            >
+              <CarFront color={colors.text} size={14} />
+              <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Uber</Text>
+            </Pressable>
+            <Pressable
+              onPress={onLyft}
+              style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
+              testID="sheet-lyft"
+            >
+              <CarFront color={colors.text} size={14} />
+              <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Lyft</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Animated.View>
@@ -1250,7 +1254,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   sheetChipText: { fontSize: 11, fontWeight: '600' as const },
-  sheetActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  sheetActions: { gap: 8, marginTop: 2 },
+  sheetActionsRow: { flexDirection: 'row', gap: 8 },
   sheetPrimary: {
     flex: 1,
     flexDirection: 'row',
@@ -1259,6 +1264,7 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: 14,
     paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   sheetPrimaryText: { fontSize: 13, fontWeight: '800' as const },
   sheetSecondary: {
