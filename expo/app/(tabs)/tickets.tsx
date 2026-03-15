@@ -669,7 +669,12 @@ const ArtistCard = React.memo(function ArtistCard({
       <View style={styles.compactArtistInfo}>
         <View style={styles.compactArtistTop}>
           <Text style={[styles.compactArtistName, { color: colors.text }]} numberOfLines={1}>{artist.artistName}</Text>
-          {artist.trending && (
+          {artist.sellingFast && (
+            <View style={[styles.compactSellingFast, { backgroundColor: isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)' }]}>
+              <Text style={[styles.compactSellingFastText, { color: colors.coral }]}>{artist.soldOutPercent}% sold</Text>
+            </View>
+          )}
+          {!artist.sellingFast && artist.trending && (
             <View style={[styles.trendingBadge, { backgroundColor: isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)' }]}>
               <TrendingUp color={colors.coral} size={10} />
             </View>
@@ -689,11 +694,6 @@ const ArtistCard = React.memo(function ArtistCard({
           <Text style={[styles.compactArtistPrice, { color: colors.text }]}>${artist.startingPrice}</Text>
         </View>
       </View>
-      {artist.sellingFast && (
-        <View style={[styles.compactSellingFast, { backgroundColor: isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)' }]}>
-          <Text style={[styles.compactSellingFastText, { color: colors.coral }]}>{artist.soldOutPercent}% sold</Text>
-        </View>
-      )}
     </Pressable>
   );
 });
@@ -1167,9 +1167,6 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
   },
   compactSellingFast: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,

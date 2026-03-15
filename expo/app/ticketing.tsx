@@ -1171,12 +1171,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   venueCard: {
-    width: 88,
+    width: 100,
     alignItems: 'center',
     borderRadius: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     borderWidth: 1.5,
   },
   venueCardImage: {
