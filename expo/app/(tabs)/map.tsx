@@ -42,7 +42,7 @@ import { mapVenues, type MapVenue } from '@/mocks/city';
 import { useTheme } from '@/providers/ThemeProvider';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MAP_COMPACT_HEIGHT = SCREEN_HEIGHT * 0.6;
+const MAP_COMPACT_HEIGHT = SCREEN_HEIGHT * 0.4;
 const INITIAL_VISIBLE_VENUES = 2;
 
 const INITIAL_REGION: Region = {
@@ -1065,7 +1065,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   headerCopy: { flex: 1 },
   headerActions: { flexDirection: 'row', gap: 10 },
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
   },
   sheetSecondaryText: { fontSize: 12, fontWeight: '700' as const },
 
-  venueListSection: { marginTop: 20, gap: 10 },
+  venueListSection: { marginTop: 12, gap: 8 },
   venueListHeader: {
     flexDirection: 'row',
     alignItems: 'center',
