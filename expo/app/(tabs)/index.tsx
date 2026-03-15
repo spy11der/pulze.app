@@ -155,7 +155,7 @@ export default function FeedScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="feed-screen">
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient colors={heroGradient} style={[styles.hero, { borderColor: colors.border }]}>
@@ -663,15 +663,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
   },
   content: {
-    padding: 16,
+    padding: 14,
     paddingBottom: 150,
-    gap: 14,
+    gap: 10,
     maxWidth: '100%' as const,
   },
   hero: {
-    borderRadius: 28,
-    padding: 22,
-    gap: 18,
+    borderRadius: 22,
+    padding: 16,
+    gap: 12,
     borderWidth: 1,
     overflow: 'hidden' as const,
   },
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 10,
   },
   eyebrow: {
     fontSize: 13,
@@ -688,11 +688,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '800' as const,
-    lineHeight: 34,
-    marginTop: 8,
-    maxWidth: 240,
+    lineHeight: 27,
+    marginTop: 4,
+    maxWidth: 220,
   },
   liveBadgeOuter: {
     marginTop: 2,
@@ -712,51 +712,51 @@ const styles = StyleSheet.create({
   heroStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    minWidth: 100,
-    borderRadius: 20,
-    padding: 16,
-    gap: 6,
+    minWidth: 90,
+    borderRadius: 16,
+    padding: 12,
+    gap: 4,
   },
   statCardWide: {
     width: '100%',
-    borderRadius: 20,
-    padding: 16,
-    gap: 6,
+    borderRadius: 16,
+    padding: 12,
+    gap: 3,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800' as const,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
   statValueSmall: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700' as const,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   statHighlight: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800' as const,
-    lineHeight: 23,
+    lineHeight: 20,
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   modeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 18,
-    paddingVertical: 14,
+    gap: 5,
+    borderRadius: 16,
+    paddingVertical: 11,
     borderWidth: 1,
   },
   modeText: {
@@ -769,10 +769,10 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderWidth: 1,
   },
   filterText: {
@@ -780,9 +780,9 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
   momentCard: {
-    borderRadius: 24,
-    padding: 18,
-    gap: 14,
+    borderRadius: 20,
+    padding: 14,
+    gap: 10,
     overflow: 'hidden' as const,
   },
   momentHeader: {
@@ -944,9 +944,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   eventPromoCard: {
-    borderRadius: 22,
-    padding: 18,
-    gap: 10,
+    borderRadius: 20,
+    padding: 14,
+    gap: 8,
     overflow: 'hidden' as const,
   },
   eventPromoTop: {
