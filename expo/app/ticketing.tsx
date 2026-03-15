@@ -1171,12 +1171,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   venueCard: {
-    width: 100,
+    width: 115,
     alignItems: 'center',
     borderRadius: 16,
     paddingTop: 10,
     paddingBottom: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     borderWidth: 1.5,
   },
   venueCardImage: {
@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   venueCardName: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700' as const,
     textAlign: 'center' as const,
   },
@@ -1205,7 +1205,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   venueCardVibeScore: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700' as const,
   },
   venueSelectedIndicator: {
