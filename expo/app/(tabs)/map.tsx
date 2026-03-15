@@ -265,10 +265,10 @@ function BottomSheet({
     <Animated.View
       style={[
         styles.bottomSheet,
-        { bottom: bottomOffset, transform: [{ translateY: slideAnim }] },
+        { bottom: bottomOffset, top: 0, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <View style={[styles.sheetInner, { backgroundColor: sheetBg, borderColor: colors.border }]}>
+      <View style={[styles.sheetInner, { backgroundColor: sheetBg, borderColor: colors.border, maxHeight: '100%' }]}>
         <View {...panResponder.panHandlers} style={styles.sheetDragZone}>
           <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }]} />
         </View>
@@ -281,100 +281,79 @@ function BottomSheet({
           <X color={colors.textMuted} size={16} />
         </Pressable>
 
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetAvatarWrap}>
-            <Image source={{ uri: venue.avatar }} style={styles.sheetAvatar} contentFit="cover" />
-            <View style={[styles.sheetAvatarRing, { borderColor: color }]} />
-          </View>
-          <View style={styles.sheetHeaderText}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
-            <View style={styles.sheetSubRow}>
-              <MapPin color={colors.textMuted} size={11} />
-              <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>{venue.category} · {venue.neighborhood}</Text>
+        <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} bounces={false}>
+          <View style={styles.sheetHeader}>
+            <View style={styles.sheetAvatarWrap}>
+              <Image source={{ uri: venue.avatar }} style={styles.sheetAvatar} contentFit="cover" />
+              <View style={[styles.sheetAvatarRing, { borderColor: color }]} />
+            </View>
+            <View style={styles.sheetHeaderText}>
+              <Text style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
+              <View style={styles.sheetSubRow}>
+                <MapPin color={colors.textMuted} size={11} />
+                <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>{venue.category} · {venue.neighborhood}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <View style={[styles.sheetEnergyBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-          <View style={styles.sheetEnergyLeft}>
-            <View style={[styles.sheetEnergyDot, { backgroundColor: color }]} />
-            <Text style={[styles.sheetEnergyLabel, { color }]}>{getEnergyLabel(venue.energy)}</Text>
-            <Text style={[styles.sheetEnergyNum, { color: colors.textMuted }]}>· {venue.energy}/100</Text>
+          <View style={styles.sheetChips}>
+            <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <Users color={colors.aqua} size={12} />
+              <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.people}</Text>
+            </View>
+            <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <Clock color={colors.aqua} size={12} />
+              <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.postedAgo}</Text>
+            </View>
+            <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <Sparkles color={colors.aqua} size={12} />
+              <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.mood}</Text>
+            </View>
+            <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <Compass color={colors.aqua} size={12} />
+              <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.eta}</Text>
+            </View>
           </View>
-          <View style={styles.sheetEnergyTrack}>
-            <View style={[styles.sheetEnergyFill, { width: `${Math.min(100, venue.energy)}%`, backgroundColor: color }]} />
-          </View>
-        </View>
 
-        <Text style={[styles.sheetBlurb, { color: colors.textSoft }]} numberOfLines={2}>{venue.blurb}</Text>
-
-        {venue.photo ? (
-          <View style={styles.sheetPhotoWrap}>
-            <Image source={{ uri: venue.photo }} style={styles.sheetPhoto} contentFit="cover" />
-            <LinearGradient
-              colors={['transparent', isDark ? 'rgba(8,28,35,0.6)' : 'rgba(255,255,255,0.4)']}
-              style={styles.sheetPhotoGradient}
-            />
+          <View style={styles.sheetActions}>
+            <View style={styles.sheetActionsRow}>
+              <Pressable
+                onPress={onDirections}
+                style={({ pressed }) => [styles.sheetPrimary, { backgroundColor: colors.aquaBright }, pressed && styles.btnPressed]}
+                testID="sheet-directions"
+              >
+                <Navigation color={isDark ? '#041318' : '#fff'} size={15} />
+                <Text style={[styles.sheetPrimaryText, { color: isDark ? '#041318' : '#fff' }]} numberOfLines={1}>Directions</Text>
+              </Pressable>
+              <Pressable
+                onPress={onLime}
+                style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A2B1A' : '#E8F5E8', borderColor: isDark ? 'rgba(0, 222, 0, 0.2)' : 'rgba(0, 180, 0, 0.15)' }, pressed && styles.btnPressed]}
+                testID="sheet-lime"
+              >
+                <Bike color="#00DE00" size={14} />
+                <Text style={[styles.sheetSecondaryText, { color: '#00DE00' }]}>Lime</Text>
+              </Pressable>
+            </View>
+            <View style={styles.sheetActionsRow}>
+              <Pressable
+                onPress={onUber}
+                style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
+                testID="sheet-uber"
+              >
+                <CarFront color={colors.text} size={14} />
+                <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Uber</Text>
+              </Pressable>
+              <Pressable
+                onPress={onLyft}
+                style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
+                testID="sheet-lyft"
+              >
+                <CarFront color={colors.text} size={14} />
+                <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Lyft</Text>
+              </Pressable>
+            </View>
           </View>
-        ) : null}
-
-        <View style={styles.sheetChips}>
-          <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-            <Users color={colors.aqua} size={12} />
-            <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.people}</Text>
-          </View>
-          <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-            <Clock color={colors.aqua} size={12} />
-            <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.postedAgo}</Text>
-          </View>
-          <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-            <Sparkles color={colors.aqua} size={12} />
-            <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.mood}</Text>
-          </View>
-          <View style={[styles.sheetChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-            <Compass color={colors.aqua} size={12} />
-            <Text style={[styles.sheetChipText, { color: colors.text }]}>{venue.eta}</Text>
-          </View>
-        </View>
-
-        <View style={styles.sheetActions}>
-          <View style={styles.sheetActionsRow}>
-            <Pressable
-              onPress={onDirections}
-              style={({ pressed }) => [styles.sheetPrimary, { backgroundColor: colors.aquaBright }, pressed && styles.btnPressed]}
-              testID="sheet-directions"
-            >
-              <Navigation color={isDark ? '#041318' : '#fff'} size={15} />
-              <Text style={[styles.sheetPrimaryText, { color: isDark ? '#041318' : '#fff' }]} numberOfLines={1}>Directions</Text>
-            </Pressable>
-            <Pressable
-              onPress={onLime}
-              style={({ pressed }) => [styles.sheetSecondary, { backgroundColor: isDark ? '#1A2B1A' : '#E8F5E8', borderColor: isDark ? 'rgba(0, 222, 0, 0.2)' : 'rgba(0, 180, 0, 0.15)' }, pressed && styles.btnPressed]}
-              testID="sheet-lime"
-            >
-              <Bike color="#00DE00" size={14} />
-              <Text style={[styles.sheetSecondaryText, { color: '#00DE00' }]}>Lime</Text>
-            </Pressable>
-          </View>
-          <View style={styles.sheetActionsRow}>
-            <Pressable
-              onPress={onUber}
-              style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
-              testID="sheet-uber"
-            >
-              <CarFront color={colors.text} size={14} />
-              <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Uber</Text>
-            </Pressable>
-            <Pressable
-              onPress={onLyft}
-              style={({ pressed }) => [styles.sheetSecondary, { flex: 1 }, { backgroundColor: isDark ? '#1A1A1A' : '#F0F0F0', borderColor: colors.border }, pressed && styles.btnPressed]}
-              testID="sheet-lyft"
-            >
-              <CarFront color={colors.text} size={14} />
-              <Text style={[styles.sheetSecondaryText, { color: colors.text }]}>Lyft</Text>
-            </Pressable>
-          </View>
-        </View>
+        </ScrollView>
       </View>
     </Animated.View>
   );
@@ -1148,13 +1127,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
+    justifyContent: 'flex-end',
   },
   sheetInner: {
     marginHorizontal: 8,
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 18,
+    padding: 12,
     borderWidth: 1,
-    gap: 10,
+    gap: 6,
+  },
+  sheetScroll: {
+    flexGrow: 0,
+    gap: 8,
   },
   sheetDragZone: {
     alignItems: 'center',
@@ -1186,9 +1170,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   sheetAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   sheetAvatarRing: {
     position: 'absolute',
@@ -1196,11 +1180,11 @@ const styles = StyleSheet.create({
     left: -2,
     right: -2,
     bottom: -2,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 2,
   },
-  sheetHeaderText: { flex: 1, gap: 2 },
-  sheetTitle: { fontSize: 17, fontWeight: '800' as const },
+  sheetHeaderText: { flex: 1, gap: 1 },
+  sheetTitle: { fontSize: 15, fontWeight: '800' as const },
   sheetSubRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sheetSubtitle: { fontSize: 12 },
   sheetEnergyBar: {
@@ -1244,7 +1228,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: 40,
   },
-  sheetChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  sheetChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6 },
   sheetChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1254,8 +1238,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   sheetChipText: { fontSize: 11, fontWeight: '600' as const },
-  sheetActions: { gap: 8, marginTop: 2 },
-  sheetActionsRow: { flexDirection: 'row', gap: 8 },
+  sheetActions: { gap: 6, marginTop: 6 },
+  sheetActionsRow: { flexDirection: 'row', gap: 6 },
   sheetPrimary: {
     flex: 1,
     flexDirection: 'row',
@@ -1263,20 +1247,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
-  sheetPrimaryText: { fontSize: 13, fontWeight: '800' as const },
+  sheetPrimaryText: { fontSize: 12, fontWeight: '800' as const },
   sheetSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
   },
-  sheetSecondaryText: { fontSize: 12, fontWeight: '700' as const },
+  sheetSecondaryText: { fontSize: 11, fontWeight: '700' as const },
 
   venueListSection: { marginTop: 12, gap: 8 },
   venueListHeader: {
