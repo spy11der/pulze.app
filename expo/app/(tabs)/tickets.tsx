@@ -26,7 +26,7 @@ import {
   Minus,
   Navigation,
   Plus,
-  Share2,
+
   Sparkles,
   Star,
   Ticket,
@@ -48,12 +48,12 @@ export default function TicketsTab() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<boolean>(false);
-  const [liked, setLiked] = useState<boolean>(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const vibeGlow = useRef(new Animated.Value(0.6)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
+  const [_liked, setLiked] = useState<boolean>(false);
 
   const event = sampleEvent;
 
@@ -115,12 +115,12 @@ export default function TicketsTab() {
     setSaved(s => !s);
   }, []);
 
-  const handleLike = useCallback(() => {
+  const _handleLike = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLiked(l => !l);
   }, []);
 
-  const handleShare = useCallback(async () => {
+  const _handleShare = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Share.share({
@@ -167,46 +167,14 @@ export default function TicketsTab() {
 
   const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
 
-  const heroGradientColors: [string, string, string] = isDark
-    ? ['transparent', 'rgba(4, 19, 24, 0.6)', colors.background]
-    : ['transparent', 'rgba(245, 248, 250, 0.6)', colors.background];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="tickets-tab-screen">
-      <Animated.View style={[styles.heroContainer, { opacity: heroOpacity }]}>
-        <Image source={{ uri: event.heroImage }} style={styles.heroImage} />
-        <LinearGradient colors={heroGradientColors} style={styles.heroGradient} />
-        <View style={[styles.heroTopBar, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.heroTitleBadge}>
-            <Ticket color={colors.aqua} size={16} />
-            <Text style={[styles.heroTitleBadgeText, { color: colors.aqua }]}>Ticketing</Text>
-          </View>
-          <View style={styles.heroActions}>
-            <Pressable
-              onPress={handleLike}
-              style={[styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}
-              testID="tickets-like"
-            >
-              <Heart color={liked ? colors.coral : (isDark ? '#fff' : '#000')} size={20} fill={liked ? colors.coral : 'transparent'} />
-            </Pressable>
-            <Pressable
-              onPress={handleShare}
-              style={[styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}
-              testID="tickets-share"
-            >
-              <Share2 color={isDark ? '#fff' : '#000'} size={20} />
-            </Pressable>
-          </View>
-        </View>
-      </Animated.View>
-
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 260 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 260, paddingTop: insets.top + 12 }]}
       >
-        <View style={{ height: 220 }} />
-
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>
 
