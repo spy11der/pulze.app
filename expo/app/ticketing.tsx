@@ -41,6 +41,50 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { venues, getEventForVenue } from '@/mocks/events';
 import type { TicketTier } from '@/mocks/events';
 
+const TM_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? '';
+
+const venueSearchNames: Record<string, string> = {
+  'v-001': 'Fillmore Auditorium',
+  'v-002': 'Gothic Theatre',
+  'v-003': 'Bluebird Theater',
+  'v-004': 'Ogden Theatre',
+  'v-005': 'Cervantes Masterpiece',
+  'v-006': 'Summit Music Hall',
+  'v-007': 'Church Nightclub',
+  'v-008': 'Meow Wolf Denver',
+  'v-009': 'Swallow Hill',
+  'v-010': 'Oriental Theater',
+};
+
+async function fetchTMVenueImage(venueId: string): Promise<string | null> {
+  const keyword = venueSearchNames[venueId];
+  if (!keyword || !TM_API_KEY) return null;
+  try {
+    const url = `https://app.ticketmaster.com/discovery/v2/venues.json?keyword=${encodeURIComponent(keyword)}&stateCode=CO&apikey=${TM_API_KEY}&size=3`;
+    console.log('[TM] Fetching venue image for:', keyword);
+    const res = await fetch(url);
+    const data = await res.json();
+    const tmVenues = data?._embedded?.venues ?? [];
+    for (const v of tmVenues) {
+      const images = v?.images ?? [];
+      if (images.length > 0) {
+        const best = images.reduce((a: any, b: any) => ((b.width ?? 0) > (a.width ?? 0) ? b : a), images[0]);
+        console.log('[TM] Found image for', keyword, ':', best.url, `(${best.width}x${best.height})`);
+        if ((best.width ?? 0) >= 400) {
+          return best.url;
+        }
+        console.log('[TM] Image too small, using fallback for', keyword);
+        return null;
+      }
+    }
+    console.log('[TM] No images found for', keyword);
+    return null;
+  } catch (e) {
+    console.log('[TM] Error fetching venue image:', e);
+    return null;
+  }
+}
+
 
 
 export default function TicketingScreen() {
@@ -54,6 +98,8 @@ export default function TicketingScreen() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<boolean>(false);
   const [liked, setLiked] = useState<boolean>(false);
+  const [tmVenueImages, setTmVenueImages] = useState<Record<string, string>>({});
+
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const vibeGlow = useRef(new Animated.Value(0.6)).current;
@@ -61,6 +107,21 @@ export default function TicketingScreen() {
   const contentSlide = useRef(new Animated.Value(30)).current;
 
   const event = useMemo(() => getEventForVenue(selectedVenueId), [selectedVenueId]);
+
+  const heroImageUri = useMemo(() => {
+    return tmVenueImages[selectedVenueId] ?? event.heroImage;
+  }, [selectedVenueId, tmVenueImages, event.heroImage]);
+
+  const tmImageFetched = tmVenueImages[selectedVenueId] !== undefined;
+  useEffect(() => {
+    if (tmImageFetched) return;
+    let cancelled = false;
+    void fetchTMVenueImage(selectedVenueId).then(url => {
+      if (cancelled) return;
+      setTmVenueImages(prev => ({ ...prev, [selectedVenueId]: url ?? '' }));
+    });
+    return () => { cancelled = true; };
+  }, [selectedVenueId, tmImageFetched]);
 
   const handleSelectVenue = useCallback((venueId: string) => {
     if (venueId === selectedVenueId) return;
@@ -192,7 +253,7 @@ export default function TicketingScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <Animated.View style={[styles.heroContainer, { opacity: heroOpacity }]}>
-        <Image source={{ uri: event.heroImage }} style={styles.heroImage} />
+        <Image source={{ uri: heroImageUri }} style={styles.heroImage} />
         <LinearGradient colors={heroGradientColors} style={styles.heroGradient} />
         <View style={[styles.heroTopBar, { paddingTop: insets.top + 8 }]}>
           <Pressable
@@ -226,7 +287,7 @@ export default function TicketingScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
-        <View style={{ height: 220 }} />
+        <View style={{ height: 260 }} />
 
         <View style={styles.venueSelectorContainer}>
           <ScrollView
