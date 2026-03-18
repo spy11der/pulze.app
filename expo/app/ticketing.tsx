@@ -289,7 +289,7 @@ export default function TicketingScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
-        <View style={{ height: 260 }} />
+        <View style={{ height: 290 }} />
 
         <View style={styles.venueSelectorContainer}>
           <ScrollView
@@ -1227,7 +1227,7 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
   },
   venueSelectorContainer: {
-    marginBottom: 8,
+    marginBottom: 12,
     overflow: 'visible',
   },
   venueScrollContent: {
