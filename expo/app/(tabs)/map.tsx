@@ -29,6 +29,8 @@ import {
   MapPin,
   ChevronRight,
   X,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Image as RNImage } from 'react-native';
@@ -409,6 +411,7 @@ export default function MapScreen() {
   const [activeFilters, setActiveFilters] = useState<MapFilterId[]>(['all']);
   const [mapRegion, setMapRegion] = useState<Region>(DENVER_REGION);
   const { userLocation, isLocating, requestLocation } = useMapLocation();
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const filteredVenues = useMemo(() => filterVenues(pulzeVenues, activeFilters), [activeFilters]);
   const { clusters, singles } = useMemo(() => clusterVenues(filteredVenues, mapRegion), [filteredVenues, mapRegion]);
@@ -502,6 +505,30 @@ export default function MapScreen() {
   }, [selectedVenue]);
 
   const handleMapPress = useCallback(() => setSelectedId(null), []);
+
+  const handleToggleExpand = useCallback(() => {
+    Haptics.selectionAsync().catch(() => {});
+    setIsExpanded((prev) => !prev);
+    if (!isExpanded) {
+      const expandedRegion: Region = {
+        latitude: mapRegion.latitude,
+        longitude: mapRegion.longitude,
+        latitudeDelta: mapRegion.latitudeDelta * 2.5,
+        longitudeDelta: mapRegion.longitudeDelta * 2.5,
+      };
+      if (Platform.OS === 'web') setMapRegion(expandedRegion);
+      mapRef.current?.animateToRegion(expandedRegion, 400);
+    } else {
+      const zoomedRegion: Region = {
+        latitude: mapRegion.latitude,
+        longitude: mapRegion.longitude,
+        latitudeDelta: mapRegion.latitudeDelta / 2.5,
+        longitudeDelta: mapRegion.longitudeDelta / 2.5,
+      };
+      if (Platform.OS === 'web') setMapRegion(zoomedRegion);
+      mapRef.current?.animateToRegion(zoomedRegion, 400);
+    }
+  }, [isExpanded, mapRegion]);
 
   const userCoordinate = useMemo(
     () => userLocation ? { latitude: userLocation.latitude, longitude: userLocation.longitude } : null,
@@ -599,21 +626,38 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      <Pressable
-        onPress={() => void handleRecenter()}
-        style={({ pressed }) => [
-          styles.recenterBtn,
-          { top: insets.top + 50, backgroundColor: isDark ? 'rgba(8, 22, 28, 0.9)' : 'rgba(255,255,255,0.94)' },
-          pressed && styles.pressed,
-        ]}
-        testID="map-recenter"
-      >
-        {isLocating ? (
-          <ActivityIndicator color={colors.aqua} size="small" />
-        ) : (
-          <LocateFixed color={colors.aqua} size={18} />
-        )}
-      </Pressable>
+      <View style={[styles.mapControlsColumn, { top: insets.top + 50 }]}>
+        <Pressable
+          onPress={() => void handleRecenter()}
+          style={({ pressed }) => [
+            styles.recenterBtn,
+            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.9)' : 'rgba(255,255,255,0.94)' },
+            pressed && styles.pressed,
+          ]}
+          testID="map-recenter"
+        >
+          {isLocating ? (
+            <ActivityIndicator color={colors.aqua} size="small" />
+          ) : (
+            <LocateFixed color={colors.aqua} size={18} />
+          )}
+        </Pressable>
+        <Pressable
+          onPress={handleToggleExpand}
+          style={({ pressed }) => [
+            styles.recenterBtn,
+            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.9)' : 'rgba(255,255,255,0.94)' },
+            pressed && styles.pressed,
+          ]}
+          testID="map-expand-toggle"
+        >
+          {isExpanded ? (
+            <Minimize2 color={colors.aqua} size={18} />
+          ) : (
+            <Maximize2 color={colors.aqua} size={18} />
+          )}
+        </Pressable>
+      </View>
 
       <View style={[styles.legendBar, { bottom: insets.bottom + (selectedVenue ? 180 : 90) }]}>
         <View style={[styles.legendInner, { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.88)' : 'rgba(255,255,255,0.92)' }]}>
@@ -672,15 +716,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700' as const,
   },
-  recenterBtn: {
+  mapControlsColumn: {
     position: 'absolute',
     right: 12,
+    zIndex: 15,
+    gap: 8,
+  },
+  recenterBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 15,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 6,
