@@ -4,9 +4,9 @@ import * as SQLite from 'expo-sqlite';
 export interface VibeTags {
   energy: string[];
   crowd: string[];
+  mood: string[];
   music: string[];
   type: string[];
-  mood: string[];
   wait: string[];
 }
 
@@ -19,6 +19,7 @@ export interface SavedVibe {
   neighborhood: string;
   vibeLabel: string;
   tags: VibeTags;
+  mediaUri: string;
   createdAt: string;
 }
 
@@ -56,6 +57,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       neighborhood TEXT NOT NULL DEFAULT '',
       vibe_label TEXT NOT NULL DEFAULT '',
       tags TEXT NOT NULL DEFAULT '{}',
+      media_uri TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -84,8 +86,8 @@ export async function insertVibe(vibe: Omit<SavedVibe, 'id' | 'createdAt'>): Pro
   const tagsJson = JSON.stringify(vibe.tags ?? {});
 
   await database.runAsync(
-    `INSERT INTO vibes (id, privacy, energy, caption, venue, neighborhood, vibe_label, tags, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO vibes (id, privacy, energy, caption, venue, neighborhood, vibe_label, tags, media_uri, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     vibe.privacy,
     vibe.energy,
@@ -94,6 +96,7 @@ export async function insertVibe(vibe: Omit<SavedVibe, 'id' | 'createdAt'>): Pro
     vibe.neighborhood,
     vibe.vibeLabel,
     tagsJson,
+    vibe.mediaUri ?? '',
     createdAt
   );
 
@@ -113,11 +116,12 @@ export async function getAllVibes(): Promise<SavedVibe[]> {
     neighborhood: string;
     vibe_label: string;
     tags: string;
+    media_uri: string;
     created_at: string;
   }>('SELECT * FROM vibes ORDER BY created_at DESC');
 
   return rows.map((row) => {
-    let parsedTags: VibeTags = { energy: [], crowd: [], music: [], type: [], mood: [], wait: [] };
+    let parsedTags: VibeTags = { energy: [], crowd: [], mood: [], music: [], type: [], wait: [] };
     try {
       parsedTags = { ...parsedTags, ...JSON.parse(row.tags || '{}') };
     } catch (e) {
@@ -132,6 +136,7 @@ export async function getAllVibes(): Promise<SavedVibe[]> {
       neighborhood: row.neighborhood,
       vibeLabel: row.vibe_label,
       tags: parsedTags,
+      mediaUri: row.media_uri ?? '',
       createdAt: row.created_at,
     };
   });

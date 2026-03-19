@@ -1,23 +1,38 @@
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChevronRight, Globe2, Lock, MapPin, Send, Users, Zap } from 'lucide-react-native';
+import {
+  Camera,
+  Check,
+  ChevronRight,
+  Globe2,
+  Lock,
+  MapPin,
+  Send,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react-native';
 
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import type { VibeTags } from '@/services/database';
 
 interface TagCategory {
-  key: keyof VibeTags;
+  key: keyof Pick<VibeTags, 'energy' | 'crowd' | 'mood'>;
   label: string;
   color: string;
   tags: string[];
@@ -28,37 +43,19 @@ const TAG_CATEGORIES: TagCategory[] = [
     key: 'energy',
     label: 'Energy',
     color: '#A5F05C',
-    tags: ['low', 'chill', 'steady', 'turnt', 'packed'],
+    tags: ['chill', 'steady', 'turnt', 'packed'],
   },
   {
     key: 'crowd',
     label: 'Crowd',
     color: '#35D4CF',
-    tags: ['empty', 'light', 'medium', 'full', 'shoulder-to-shoulder'],
-  },
-  {
-    key: 'music',
-    label: 'Music',
-    color: '#F56AC5',
-    tags: ['quiet', 'vibey', 'loud', 'live', 'DJ'],
-  },
-  {
-    key: 'type',
-    label: 'Scene',
-    color: '#FFBF47',
-    tags: ['date night', 'party', 'solo', 'group', 'work'],
+    tags: ['empty', 'light', 'medium', 'full'],
   },
   {
     key: 'mood',
     label: 'Mood',
     color: '#FF6D5E',
-    tags: ['good vibes', 'awkward', 'lit', 'relaxed', 'upscale'],
-  },
-  {
-    key: 'wait',
-    label: 'Wait',
-    color: '#7EC8E3',
-    tags: ['no wait', 'short wait', 'long wait'],
+    tags: ['good vibes', 'lit', 'relaxed', 'upscale'],
   },
 ];
 
@@ -156,37 +153,30 @@ function deriveVibeLabel(tags: VibeTags): string {
   const allTags = [
     ...tags.energy,
     ...tags.crowd,
-    ...tags.music,
-    ...tags.type,
     ...tags.mood,
-    ...tags.wait,
   ];
   if (allTags.length === 0) return 'No vibe yet';
-  const top = allTags.slice(0, 3).join(' · ');
-  return top;
+  return allTags.slice(0, 3).join(' · ');
 }
 
 function deriveEnergyScore(tags: VibeTags): number {
   const energyMap: Record<string, number> = {
-    low: 15,
-    chill: 30,
+    chill: 25,
     steady: 50,
     turnt: 78,
-    packed: 92,
+    packed: 95,
   };
   const crowdMap: Record<string, number> = {
     empty: 10,
-    light: 25,
-    medium: 50,
-    full: 75,
-    'shoulder-to-shoulder': 95,
+    light: 30,
+    medium: 55,
+    full: 80,
   };
-  const musicMap: Record<string, number> = {
-    quiet: 15,
-    vibey: 40,
-    loud: 70,
-    live: 80,
-    DJ: 85,
+  const moodMap: Record<string, number> = {
+    relaxed: 25,
+    'good vibes': 55,
+    upscale: 60,
+    lit: 85,
   };
 
   let total = 0;
@@ -198,8 +188,8 @@ function deriveEnergyScore(tags: VibeTags): number {
   for (const t of tags.crowd) {
     if (crowdMap[t] != null) { total += crowdMap[t]; count++; }
   }
-  for (const t of tags.music) {
-    if (musicMap[t] != null) { total += musicMap[t]; count++; }
+  for (const t of tags.mood) {
+    if (moodMap[t] != null) { total += moodMap[t]; count++; }
   }
 
   if (count === 0) return 50;
@@ -218,16 +208,18 @@ export default function PostScreen() {
   const [selectedTags, setSelectedTags] = useState<VibeTags>({
     energy: [],
     crowd: [],
+    mood: [],
     music: [],
     type: [],
-    mood: [],
     wait: [],
   });
+  const [caption, setCaption] = useState<string>('');
+  const [mediaUri, setMediaUri] = useState<string>('');
   const [posted, setPosted] = useState<boolean>(false);
   const [showPrivacy, setShowPrivacy] = useState<boolean>(false);
 
   const totalSelected = useMemo(() => {
-    return Object.values(selectedTags).flat().length;
+    return selectedTags.energy.length + selectedTags.crowd.length + selectedTags.mood.length;
   }, [selectedTags]);
 
   const vibeLabel = useMemo(() => deriveVibeLabel(selectedTags), [selectedTags]);
@@ -258,6 +250,71 @@ export default function PostScreen() {
     setShowPrivacy(false);
   }, []);
 
+  const handlePickMedia = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      console.log('[Post] Media picker not fully supported on web');
+    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow access to your photos to attach media.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsEditing: true,
+        quality: 0.8,
+        videoMaxDuration: 15,
+      });
+      if (!result.canceled && result.assets[0]) {
+        console.log('[Post] Media selected:', result.assets[0].uri);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setMediaUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('[Post] Error picking media:', err);
+    }
+  }, []);
+
+  const handleTakePhoto = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow camera access to take a photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        console.log('[Post] Photo taken:', result.assets[0].uri);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setMediaUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('[Post] Error taking photo:', err);
+    }
+  }, []);
+
+  const handleMediaAction = useCallback(() => {
+    void Haptics.selectionAsync();
+    if (Platform.OS === 'web') {
+      void handlePickMedia();
+      return;
+    }
+    Alert.alert('Add media', '', [
+      { text: 'Take photo', onPress: () => void handleTakePhoto() },
+      { text: 'Choose from gallery', onPress: () => void handlePickMedia() },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [handlePickMedia, handleTakePhoto]);
+
+  const handleRemoveMedia = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setMediaUri('');
+  }, []);
+
   const handlePostVibe = useCallback(() => {
     if (totalSelected === 0) {
       Alert.alert('Tap some vibes', 'Select at least one tag before posting.');
@@ -265,18 +322,19 @@ export default function PostScreen() {
     }
 
     const venue = venues[selectedVenueIdx];
-    console.log('[Post] Saving vibe...', { selectedPrivacy, selectedTags, energyScore });
+    console.log('[Post] Saving vibe...', { selectedPrivacy, selectedTags, energyScore, caption, mediaUri });
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     addVibe(
       {
         privacy: selectedPrivacy,
         energy: energyScore,
-        caption: '',
+        caption,
         venue: venue.name,
         neighborhood: venue.neighborhood,
         vibeLabel,
         tags: selectedTags,
+        mediaUri,
       },
       {
         onSuccess: () => {
@@ -287,11 +345,13 @@ export default function PostScreen() {
             setSelectedTags({
               energy: [],
               crowd: [],
+              mood: [],
               music: [],
               type: [],
-              mood: [],
               wait: [],
             });
+            setCaption('');
+            setMediaUri('');
             setSelectedPrivacy(preferences.defaultPrivacy);
           }, 2200);
         },
@@ -308,6 +368,8 @@ export default function PostScreen() {
     selectedVenueIdx,
     energyScore,
     vibeLabel,
+    caption,
+    mediaUri,
     addVibe,
     preferences.defaultPrivacy,
   ]);
@@ -367,8 +429,7 @@ export default function PostScreen() {
             {totalSelected} tags · {venues[selectedVenueIdx].neighborhood}
           </Text>
           <View style={styles.successTagRow}>
-            {Object.values(selectedTags)
-              .flat()
+            {[...selectedTags.energy, ...selectedTags.crowd, ...selectedTags.mood]
               .slice(0, 5)
               .map((t) => (
                 <View
@@ -565,6 +626,56 @@ export default function PostScreen() {
           </View>
         ))}
 
+        <View style={styles.mediaSection}>
+          {mediaUri ? (
+            <View style={styles.mediaPreviewWrap}>
+              <Image
+                source={{ uri: mediaUri }}
+                style={[styles.mediaPreview, { borderColor: colors.border }]}
+              />
+              <Pressable
+                onPress={handleRemoveMedia}
+                style={[styles.mediaRemoveBtn, { backgroundColor: colors.coral }]}
+              >
+                <X color="#fff" size={14} />
+              </Pressable>
+              <Pressable
+                onPress={handleMediaAction}
+                style={[styles.mediaChangeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <Camera color={colors.textMuted} size={14} />
+                <Text style={[styles.mediaChangeBtnText, { color: colors.textMuted }]}>Change</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.mediaButtonRow}>
+              <Pressable
+                onPress={handleMediaAction}
+                style={[styles.mediaAddBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              >
+                <Camera color={colors.aqua} size={18} />
+                <Text style={[styles.mediaAddText, { color: colors.textMuted }]}>Add photo or video</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.captionWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TextInput
+            style={[styles.captionInput, { color: colors.text }]}
+            placeholder="what's the vibe?"
+            placeholderTextColor={colors.textSoft}
+            value={caption}
+            onChangeText={(t) => setCaption(t.slice(0, 80))}
+            maxLength={80}
+            returnKeyType="done"
+            testID="caption-input"
+          />
+          <Text style={[styles.captionCount, { color: colors.textSoft }]}>
+            {caption.length}/80
+          </Text>
+        </View>
+
         {totalSelected > 0 && (
           <View
             style={[
@@ -575,13 +686,10 @@ export default function PostScreen() {
               },
             ]}
           >
-            <Text style={[styles.previewLabel, { color: colors.textSoft }]}>
-              VIBE PREVIEW
-            </Text>
-            <Text style={[styles.previewValue, { color: colors.text }]}>
-              {vibeLabel}
-            </Text>
-            <View style={styles.previewScoreRow}>
+            <View style={styles.previewRow}>
+              <Text style={[styles.previewLabel, { color: colors.textSoft }]}>
+                VIBE PREVIEW
+              </Text>
               <View
                 style={[
                   styles.previewScoreBadge,
@@ -594,13 +702,12 @@ export default function PostScreen() {
                   {energyScore}
                 </Text>
               </View>
-              <Text style={[styles.previewScoreLabel, { color: colors.textMuted }]}>
-                energy score
-              </Text>
             </View>
+            <Text style={[styles.previewValue, { color: colors.text }]}>
+              {vibeLabel}
+            </Text>
           </View>
         )}
-
       </ScrollView>
 
       <View
@@ -846,11 +953,89 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
   },
-  previewStrip: {
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
+  mediaSection: {
+    marginTop: 2,
+  },
+  mediaButtonRow: {
+    flexDirection: 'row' as const,
+  },
+  mediaAddBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
+    borderStyle: 'dashed' as const,
+  },
+  mediaAddText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  mediaPreviewWrap: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  mediaPreview: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  mediaRemoveBtn: {
+    position: 'absolute' as const,
+    top: -6,
+    left: 62,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  mediaChangeBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  mediaChangeBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  captionWrap: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
+  captionInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    paddingVertical: 0,
+  },
+  captionCount: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  previewStrip: {
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+    borderWidth: 1,
+  },
+  previewRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
   },
   previewLabel: {
     fontSize: 11,
@@ -858,14 +1043,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   previewValue: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700' as const,
-  },
-  previewScoreRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    marginTop: 2,
   },
   previewScoreBadge: {
     borderRadius: 10,
@@ -875,9 +1054,6 @@ const styles = StyleSheet.create({
   previewScoreText: {
     fontSize: 15,
     fontWeight: '800' as const,
-  },
-  previewScoreLabel: {
-    fontSize: 13,
   },
   bottomBar: {
     position: 'absolute' as const,
