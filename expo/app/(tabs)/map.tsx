@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-m
 import {
   Flame,
   LocateFixed,
+  Search,
   Zap,
   Moon,
   Sparkles,
@@ -29,8 +31,6 @@ import {
   MapPin,
   ChevronRight,
   X,
-  Maximize2,
-  Minimize2,
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Image as RNImage } from 'react-native';
@@ -411,7 +411,8 @@ export default function MapScreen() {
   const [activeFilters, setActiveFilters] = useState<MapFilterId[]>(['all']);
   const [mapRegion, setMapRegion] = useState<Region>(DENVER_REGION);
   const { userLocation, isLocating, requestLocation } = useMapLocation();
-  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
 
   const filteredVenues = useMemo(() => filterVenues(pulzeVenues, activeFilters), [activeFilters]);
   const { clusters, singles } = useMemo(() => clusterVenues(filteredVenues, mapRegion), [filteredVenues, mapRegion]);
@@ -504,31 +505,27 @@ export default function MapScreen() {
     Linking.openURL(url).catch(() => {});
   }, [selectedVenue]);
 
-  const handleMapPress = useCallback(() => setSelectedId(null), []);
+  const handleMapPress = useCallback(() => {
+    setSelectedId(null);
+    setIsSearchFocused(false);
+  }, []);
 
-  const handleToggleExpand = useCallback(() => {
-    Haptics.selectionAsync().catch(() => {});
-    setIsExpanded((prev) => !prev);
-    if (!isExpanded) {
-      const expandedRegion: Region = {
-        latitude: mapRegion.latitude,
-        longitude: mapRegion.longitude,
-        latitudeDelta: mapRegion.latitudeDelta * 2.5,
-        longitudeDelta: mapRegion.longitudeDelta * 2.5,
-      };
-      if (Platform.OS === 'web') setMapRegion(expandedRegion);
-      mapRef.current?.animateToRegion(expandedRegion, 400);
-    } else {
-      const zoomedRegion: Region = {
-        latitude: mapRegion.latitude,
-        longitude: mapRegion.longitude,
-        latitudeDelta: mapRegion.latitudeDelta / 2.5,
-        longitudeDelta: mapRegion.longitudeDelta / 2.5,
-      };
-      if (Platform.OS === 'web') setMapRegion(zoomedRegion);
-      mapRef.current?.animateToRegion(zoomedRegion, 400);
-    }
-  }, [isExpanded, mapRegion]);
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return pulzeVenues.filter(
+      (v) =>
+        v.name.toLowerCase().includes(q) ||
+        v.neighborhood.toLowerCase().includes(q) ||
+        v.categoryLabel.toLowerCase().includes(q)
+    ).slice(0, 5);
+  }, [searchQuery]);
+
+  const handleSearchSelect = useCallback((venue: PulzeVenue) => {
+    setSearchQuery('');
+    setIsSearchFocused(false);
+    handlePressVenue(venue.id);
+  }, [handlePressVenue]);
 
   const userCoordinate = useMemo(
     () => userLocation ? { latitude: userLocation.latitude, longitude: userLocation.longitude } : null,
@@ -606,57 +603,100 @@ export default function MapScreen() {
         </MapView>
       )}
 
-      <View style={[styles.filterBar, { top: insets.top + 6 }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScroll}
-          bounces={false}
-        >
-          {MAP_FILTERS.map((filter) => (
-            <FilterChip
-              key={filter.id}
-              filterId={filter.id}
-              label={filter.label}
-              iconName={filter.icon}
-              isActive={activeFilters.includes(filter.id)}
-              onPress={() => handleToggleFilter(filter.id)}
+      <View style={[styles.topOverlay, { top: insets.top + 6 }]}>
+        <View style={[styles.searchRow]}>
+          <View style={[
+            styles.searchBar,
+            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)' },
+          ]}>
+            <Search color={colors.textMuted} size={15} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search venues..."
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              returnKeyType="search"
+              testID="map-search-input"
             />
-          ))}
-        </ScrollView>
-      </View>
+            {searchQuery.length > 0 ? (
+              <Pressable onPress={() => { setSearchQuery(''); setIsSearchFocused(false); }} hitSlop={8}>
+                <X color={colors.textMuted} size={14} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => void handleRecenter()}
+            style={({ pressed }) => [
+              styles.recenterBtn,
+              { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)' },
+              pressed && styles.pressed,
+            ]}
+            testID="map-recenter"
+          >
+            {isLocating ? (
+              <ActivityIndicator color={colors.aqua} size="small" />
+            ) : (
+              <LocateFixed color={colors.aqua} size={18} />
+            )}
+          </Pressable>
+        </View>
 
-      <View style={[styles.mapControlsColumn, { top: insets.top + 50 }]}>
-        <Pressable
-          onPress={() => void handleRecenter()}
-          style={({ pressed }) => [
-            styles.recenterBtn,
-            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.9)' : 'rgba(255,255,255,0.94)' },
-            pressed && styles.pressed,
-          ]}
-          testID="map-recenter"
-        >
-          {isLocating ? (
-            <ActivityIndicator color={colors.aqua} size="small" />
-          ) : (
-            <LocateFixed color={colors.aqua} size={18} />
-          )}
-        </Pressable>
-        <Pressable
-          onPress={handleToggleExpand}
-          style={({ pressed }) => [
-            styles.recenterBtn,
-            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.9)' : 'rgba(255,255,255,0.94)' },
-            pressed && styles.pressed,
-          ]}
-          testID="map-expand-toggle"
-        >
-          {isExpanded ? (
-            <Minimize2 color={colors.aqua} size={18} />
-          ) : (
-            <Maximize2 color={colors.aqua} size={18} />
-          )}
-        </Pressable>
+        {isSearchFocused && searchResults.length > 0 ? (
+          <View style={[
+            styles.searchResults,
+            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.96)' : 'rgba(255,255,255,0.98)' },
+          ]}>
+            {searchResults.map((venue) => {
+              const vColor = getVibeColor(venue.vibe_score);
+              return (
+                <Pressable
+                  key={venue.id}
+                  onPress={() => handleSearchSelect(venue)}
+                  style={({ pressed }) => [
+                    styles.searchResultItem,
+                    { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  testID={`search-result-${venue.id}`}
+                >
+                  <View style={[styles.searchResultDot, { backgroundColor: vColor }]} />
+                  <View style={styles.searchResultText}>
+                    <Text style={[styles.searchResultName, { color: colors.text }]} numberOfLines={1}>
+                      {venue.name}
+                    </Text>
+                    <Text style={[styles.searchResultSub, { color: colors.textMuted }]} numberOfLines={1}>
+                      {venue.categoryLabel} · {venue.neighborhood}
+                    </Text>
+                  </View>
+                  <Text style={[styles.searchResultScore, { color: vColor }]}>{venue.vibe_score}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {!isSearchFocused || searchResults.length === 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+            bounces={false}
+            style={styles.filterScrollWrap}
+          >
+            {MAP_FILTERS.map((filter) => (
+              <FilterChip
+                key={filter.id}
+                filterId={filter.id}
+                label={filter.label}
+                iconName={filter.icon}
+                isActive={activeFilters.includes(filter.id)}
+                onPress={() => handleToggleFilter(filter.id)}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
       </View>
 
       <View style={[styles.legendBar, { bottom: insets.bottom + (selectedVenue ? 180 : 90) }]}>
@@ -692,14 +732,81 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  filterBar: {
+  topOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
     zIndex: 20,
+    paddingHorizontal: 12,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    padding: 0,
+    margin: 0,
+  },
+  searchResults: {
+    marginTop: 6,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+  },
+  searchResultDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  searchResultText: {
+    flex: 1,
+    gap: 1,
+  },
+  searchResultName: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  searchResultSub: {
+    fontSize: 10,
+  },
+  searchResultScore: {
+    fontSize: 12,
+    fontWeight: '800' as const,
+  },
+  filterScrollWrap: {
+    marginTop: 8,
   },
   filterScroll: {
-    paddingHorizontal: 12,
     gap: 5,
     flexDirection: 'row',
   },
@@ -715,12 +822,6 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 11,
     fontWeight: '700' as const,
-  },
-  mapControlsColumn: {
-    position: 'absolute',
-    right: 12,
-    zIndex: 15,
-    gap: 8,
   },
   recenterBtn: {
     width: 38,
