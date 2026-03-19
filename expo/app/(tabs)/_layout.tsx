@@ -5,16 +5,19 @@ import { Chrome as Home, CirclePlus, Map, Ticket, UserRound } from 'lucide-react
 
 import { useTheme } from '@/providers/ThemeProvider';
 
+const TEAL_DARK = '#1A6B6A';
+const TEAL_ACTIVE = '#35D4CF';
+
 export default function TabLayout() {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.aqua,
-        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: TEAL_ACTIVE,
+        tabBarInactiveTintColor: isDark ? TEAL_DARK : '#5B8792',
         tabBarStyle: {
           position: 'absolute',
           left: 14,
@@ -27,16 +30,11 @@ export default function TabLayout() {
           overflow: 'hidden',
         },
         tabBarItemStyle: {
-          paddingVertical: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '700' as const,
-          marginTop: 4,
+          paddingVertical: 10,
         },
         tabBarBackground: () => (
           <BlurView
-            intensity={60}
+            intensity={80}
             tint={isDark ? 'dark' : 'light'}
             style={{
               position: 'absolute',
@@ -46,9 +44,9 @@ export default function TabLayout() {
               bottom: 0,
               borderRadius: 28,
               overflow: 'hidden',
-              backgroundColor: isDark ? 'rgba(9, 30, 36, 0.92)' : 'rgba(255, 255, 255, 0.94)',
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(123, 220, 219, 0.12)' : 'rgba(0, 0, 0, 0.06)',
+              backgroundColor: isDark ? 'rgba(4, 19, 24, 0.55)' : 'rgba(255, 255, 255, 0.45)',
+              borderWidth: 1.5,
+              borderColor: isDark ? 'rgba(26, 107, 106, 0.5)' : 'rgba(0, 0, 0, 0.08)',
             }}
           />
         ),
@@ -58,40 +56,70 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Feed',
-          tabBarIcon: ({ color, focused }) => <Home color={color} size={focused ? 22 : 20} />,
+          tabBarIcon: ({ focused }) => (
+            <Home
+              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              fill={focused ? TEAL_ACTIVE : 'none'}
+              size={22}
+              strokeWidth={focused ? 2 : 1.5}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="map"
         options={{
           title: 'Map',
-          tabBarIcon: ({ color, focused }) => <Map color={color} size={focused ? 22 : 20} />,
+          tabBarIcon: ({ focused }) => (
+            <Map
+              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              size={22}
+              strokeWidth={focused ? 2 : 1.5}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="post"
         options={{
           title: 'Drop Vibe',
-          tabBarIcon: () => <CirclePlus color={isDark ? colors.background : '#fff'} fill={colors.aqua} size={28} />,
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: '800' as const,
-            marginTop: 2,
-          },
+          tabBarIcon: ({ focused }) => (
+            <CirclePlus
+              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              fill={focused ? TEAL_ACTIVE : 'none'}
+              size={28}
+              strokeWidth={focused ? 2.2 : 1.5}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="tickets"
         options={{
           title: 'Tickets',
-          tabBarIcon: ({ color, focused }) => <Ticket color={color} size={focused ? 22 : 20} />,
+          tabBarIcon: ({ focused }) => (
+            <Ticket
+              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              size={22}
+              strokeWidth={focused ? 2 : 1.5}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => <UserRound color={color} size={focused ? 22 : 20} />,
+          tabBarIcon: ({ focused }) => (
+            <UserRound
+              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              size={22}
+              strokeWidth={focused ? 2 : 1.5}
+            />
+          ),
         }}
       />
     </Tabs>

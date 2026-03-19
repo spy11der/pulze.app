@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -11,6 +12,7 @@ import {
   Text,
   TextInput,
   View,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
@@ -34,14 +36,12 @@ import {
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Image as RNImage } from 'react-native';
-import { Animated } from 'react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import type { PulzeVenue, MapCluster, MapFilterId } from '@/types/venue';
 import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
-import WebMapFallback from '@/components/map/WebMapFallback';
 
 const DENVER_REGION: Region = {
   latitude: 39.7475,
@@ -413,6 +413,7 @@ export default function MapScreen() {
   const { userLocation, isLocating, requestLocation } = useMapLocation();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const searchInputRef = useRef<TextInput | null>(null);
 
   const filteredVenues = useMemo(() => filterVenues(pulzeVenues, activeFilters), [activeFilters]);
   const { clusters, singles } = useMemo(() => clusterVenues(filteredVenues, mapRegion), [filteredVenues, mapRegion]);
@@ -450,9 +451,6 @@ export default function MapScreen() {
       latitudeDelta: 0.015,
       longitudeDelta: 0.015,
     };
-    if (Platform.OS === 'web') {
-      setMapRegion(focusRegion);
-    }
     mapRef.current?.animateToRegion(focusRegion, 400);
     Haptics.selectionAsync().catch(() => {});
   }, []);
@@ -465,14 +463,12 @@ export default function MapScreen() {
       latitudeDelta: mapRegion.latitudeDelta / 2.5,
       longitudeDelta: mapRegion.longitudeDelta / 2.5,
     };
-    if (Platform.OS === 'web') {
-      setMapRegion(zoomRegion);
-    }
     mapRef.current?.animateToRegion(zoomRegion, 400);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, [mapRegion]);
 
   const handleRecenter = useCallback(async () => {
+    console.log('[MapScreen] Recenter pressed, userLocation:', userLocation);
     if (userLocation) {
       const region: Region = {
         latitude: userLocation.latitude,
@@ -480,11 +476,13 @@ export default function MapScreen() {
         latitudeDelta: 0.025,
         longitudeDelta: 0.025,
       };
-      if (Platform.OS === 'web') setMapRegion(region);
       mapRef.current?.animateToRegion(region, 400);
+      Haptics.selectionAsync().catch(() => {});
       return;
     }
+    console.log('[MapScreen] No cached location, requesting fresh...');
     const coords = await requestLocation();
+    console.log('[MapScreen] Got coords from request:', coords);
     if (coords) {
       const region: Region = {
         latitude: coords.latitude,
@@ -492,8 +490,8 @@ export default function MapScreen() {
         latitudeDelta: 0.025,
         longitudeDelta: 0.025,
       };
-      if (Platform.OS === 'web') setMapRegion(region);
       mapRef.current?.animateToRegion(region, 400);
+      Haptics.selectionAsync().catch(() => {});
     }
   }, [userLocation, requestLocation]);
 
@@ -508,6 +506,8 @@ export default function MapScreen() {
   const handleMapPress = useCallback(() => {
     setSelectedId(null);
     setIsSearchFocused(false);
+    setSearchQuery('');
+    Keyboard.dismiss();
   }, []);
 
   const searchResults = useMemo(() => {
@@ -517,111 +517,122 @@ export default function MapScreen() {
       (v) =>
         v.name.toLowerCase().includes(q) ||
         v.neighborhood.toLowerCase().includes(q) ||
-        v.categoryLabel.toLowerCase().includes(q)
-    ).slice(0, 5);
+        v.categoryLabel.toLowerCase().includes(q) ||
+        v.address.toLowerCase().includes(q)
+    ).slice(0, 6);
   }, [searchQuery]);
 
   const handleSearchSelect = useCallback((venue: PulzeVenue) => {
+    console.log('[MapScreen] Search selected:', venue.name);
     setSearchQuery('');
     setIsSearchFocused(false);
-    handlePressVenue(venue.id);
-  }, [handlePressVenue]);
+    Keyboard.dismiss();
+    setSelectedId(venue.id);
+    const focusRegion: Region = {
+      latitude: venue.latitude - 0.003,
+      longitude: venue.longitude,
+      latitudeDelta: 0.015,
+      longitudeDelta: 0.015,
+    };
+    mapRef.current?.animateToRegion(focusRegion, 400);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setIsSearchFocused(false);
+    Keyboard.dismiss();
+  }, []);
 
   const userCoordinate = useMemo(
     () => userLocation ? { latitude: userLocation.latitude, longitude: userLocation.longitude } : null,
     [userLocation]
   );
 
-  const handleSelectVenueWeb = useCallback((venue: PulzeVenue) => {
-    handlePressVenue(venue.id);
-  }, [handlePressVenue]);
-
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="map-screen">
-      {Platform.OS === 'web' ? (
-        <WebMapFallback
-          region={mapRegion}
-          venues={filteredVenues}
-          selectedVenue={selectedVenue}
-          onSelectVenue={handleSelectVenueWeb}
-        />
-      ) : (
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={DENVER_REGION}
-          onRegionChangeComplete={handleRegionChange}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-          showsCompass={false}
-          showsBuildings
-          rotateEnabled
-          pitchEnabled
-          toolbarEnabled={false}
-          onPress={handleMapPress}
-          customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
-          showsUserLocation={false}
-          testID="pulze-map-view"
-        >
-          {HEATMAP_DATA.map((h) => (
-            <Circle
-              key={`heat-${h.id}`}
-              center={h.center}
-              radius={h.radius}
-              fillColor={h.color}
-              strokeColor="transparent"
-              strokeWidth={0}
-            />
-          ))}
-          {singles.map((venue) => (
-            <VibeMarker
-              key={venue.id}
-              venue={venue}
-              onPress={() => handlePressVenue(venue.id)}
-            />
-          ))}
-          {clusters.map((cluster) => (
-            <ClusterBubble
-              key={cluster.id}
-              cluster={cluster}
-              onPress={() => handlePressCluster(cluster)}
-            />
-          ))}
-          {userCoordinate ? (
-            <Marker
-              coordinate={userCoordinate}
-              title="You are here"
-              anchor={{ x: 0.5, y: 0.5 }}
-              tracksViewChanges={false}
-              testID="map-user-marker"
-            >
-              <View style={styles.userOuter}>
-                <View style={styles.userPulse} />
-                <View style={styles.userDot} />
-              </View>
-            </Marker>
-          ) : null}
-        </MapView>
-      )}
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFillObject}
+        initialRegion={DENVER_REGION}
+        onRegionChangeComplete={handleRegionChange}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        showsCompass={false}
+        showsBuildings
+        rotateEnabled
+        pitchEnabled
+        toolbarEnabled={false}
+        onPress={handleMapPress}
+        customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
+        showsUserLocation={false}
+        testID="pulze-map-view"
+      >
+        {HEATMAP_DATA.map((h) => (
+          <Circle
+            key={`heat-${h.id}`}
+            center={h.center}
+            radius={h.radius}
+            fillColor={h.color}
+            strokeColor="transparent"
+            strokeWidth={0}
+          />
+        ))}
+        {singles.map((venue) => (
+          <VibeMarker
+            key={venue.id}
+            venue={venue}
+            onPress={() => handlePressVenue(venue.id)}
+          />
+        ))}
+        {clusters.map((cluster) => (
+          <ClusterBubble
+            key={cluster.id}
+            cluster={cluster}
+            onPress={() => handlePressCluster(cluster)}
+          />
+        ))}
+        {userCoordinate ? (
+          <Marker
+            coordinate={userCoordinate}
+            title="You are here"
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+            testID="map-user-marker"
+          >
+            <View style={styles.userOuter}>
+              <View style={styles.userPulse} />
+              <View style={styles.userDot} />
+            </View>
+          </Marker>
+        ) : null}
+      </MapView>
 
       <View style={[styles.topOverlay, { top: insets.top + 6 }]}>
-        <View style={[styles.searchRow]}>
+        <View style={styles.searchRow}>
           <View style={[
             styles.searchBar,
-            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)' },
+            {
+              backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)',
+              borderColor: isSearchFocused ? colors.aqua + '50' : 'transparent',
+              borderWidth: 1,
+            },
           ]}>
-            <Search color={colors.textMuted} size={15} />
+            <Search color={isSearchFocused ? colors.aqua : colors.textMuted} size={15} />
             <TextInput
+              ref={searchInputRef}
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search venues..."
+              placeholder="Search venues, neighborhoods..."
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onFocus={() => setIsSearchFocused(true)}
               returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
               testID="map-search-input"
             />
             {searchQuery.length > 0 ? (
-              <Pressable onPress={() => { setSearchQuery(''); setIsSearchFocused(false); }} hitSlop={8}>
+              <Pressable onPress={handleClearSearch} hitSlop={8}>
                 <X color={colors.textMuted} size={14} />
               </Pressable>
             ) : null}
@@ -643,41 +654,50 @@ export default function MapScreen() {
           </Pressable>
         </View>
 
-        {isSearchFocused && searchResults.length > 0 ? (
+        {isSearchFocused && searchQuery.trim().length > 0 ? (
           <View style={[
             styles.searchResults,
             { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.96)' : 'rgba(255,255,255,0.98)' },
           ]}>
-            {searchResults.map((venue) => {
-              const vColor = getVibeColor(venue.vibe_score);
-              return (
-                <Pressable
-                  key={venue.id}
-                  onPress={() => handleSearchSelect(venue)}
-                  style={({ pressed }) => [
-                    styles.searchResultItem,
-                    { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  testID={`search-result-${venue.id}`}
-                >
-                  <View style={[styles.searchResultDot, { backgroundColor: vColor }]} />
-                  <View style={styles.searchResultText}>
-                    <Text style={[styles.searchResultName, { color: colors.text }]} numberOfLines={1}>
-                      {venue.name}
-                    </Text>
-                    <Text style={[styles.searchResultSub, { color: colors.textMuted }]} numberOfLines={1}>
-                      {venue.categoryLabel} · {venue.neighborhood}
-                    </Text>
-                  </View>
-                  <Text style={[styles.searchResultScore, { color: vColor }]}>{venue.vibe_score}</Text>
-                </Pressable>
-              );
-            })}
+            {searchResults.length > 0 ? (
+              searchResults.map((venue, idx) => {
+                const vColor = getVibeColor(venue.vibe_score);
+                return (
+                  <Pressable
+                    key={venue.id}
+                    onPress={() => handleSearchSelect(venue)}
+                    style={({ pressed }) => [
+                      styles.searchResultItem,
+                      idx < searchResults.length - 1 && { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderBottomWidth: 1 },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                    testID={`search-result-${venue.id}`}
+                  >
+                    <View style={[styles.searchResultDot, { backgroundColor: vColor }]} />
+                    <View style={styles.searchResultText}>
+                      <Text style={[styles.searchResultName, { color: colors.text }]} numberOfLines={1}>
+                        {venue.name}
+                      </Text>
+                      <Text style={[styles.searchResultSub, { color: colors.textMuted }]} numberOfLines={1}>
+                        {venue.categoryLabel} · {venue.neighborhood}
+                      </Text>
+                    </View>
+                    <View style={styles.searchResultRight}>
+                      <Text style={[styles.searchResultScore, { color: vColor }]}>{venue.vibe_score}</Text>
+                      <Text style={[styles.searchResultEta, { color: colors.textMuted }]}>{venue.eta}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })
+            ) : (
+              <View style={styles.searchEmpty}>
+                <Text style={[styles.searchEmptyText, { color: colors.textMuted }]}>No venues found for "{searchQuery}"</Text>
+              </View>
+            )}
           </View>
         ) : null}
 
-        {!isSearchFocused || searchResults.length === 0 ? (
+        {!isSearchFocused ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -780,8 +800,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
+    paddingVertical: 12,
   },
   searchResultDot: {
     width: 8,
@@ -790,7 +809,7 @@ const styles = StyleSheet.create({
   },
   searchResultText: {
     flex: 1,
-    gap: 1,
+    gap: 2,
   },
   searchResultName: {
     fontSize: 13,
@@ -799,9 +818,24 @@ const styles = StyleSheet.create({
   searchResultSub: {
     fontSize: 10,
   },
+  searchResultRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
   searchResultScore: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800' as const,
+  },
+  searchResultEta: {
+    fontSize: 9,
+  },
+  searchEmpty: {
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  searchEmptyText: {
+    fontSize: 12,
   },
   filterScrollWrap: {
     marginTop: 8,
