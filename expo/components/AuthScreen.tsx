@@ -88,7 +88,7 @@ export function AuthScreen() {
       return;
     }
     if (mode === 'login' && !username.trim()) {
-      setError('Please enter your username');
+      setError('Please enter your email or username');
       return;
     }
     if (mode === 'signup' && !email.trim()) {
@@ -115,9 +115,10 @@ export function AuthScreen() {
         await signup(name.trim(), username.trim(), email.trim(), phone.trim(), password);
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
+    } catch (e: any) {
       console.log('[Auth] Submit error:', e);
-      setError('Something went wrong. Please try again.');
+      const msg = e?.message || 'Something went wrong. Please try again.';
+      setError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -204,11 +205,12 @@ export function AuthScreen() {
               )}
 
               <InputField
-                icon={<AtSign color={colors.textMuted} size={18} />}
-                placeholder="Username"
+                icon={mode === 'login' ? <Mail color={colors.textMuted} size={18} /> : <AtSign color={colors.textMuted} size={18} />}
+                placeholder={mode === 'login' ? 'Email or username' : 'Username'}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
+                keyboardType={mode === 'login' ? 'email-address' : 'default'}
                 inputBg={inputBg}
                 inputBorder={inputBorder}
                 inputFocusBorder={inputFocusBorder}
