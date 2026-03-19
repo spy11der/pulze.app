@@ -1,12 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
-import { Image } from 'expo-image';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Image as RNImage,
   Platform,
   Pressable,
   ScrollView,
@@ -26,22 +23,23 @@ import {
   Wine,
   CalendarDays,
   Coffee,
-  X,
   Navigation,
   Users,
   Clock,
   MapPin,
   ChevronRight,
+  X,
 } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { Image as RNImage } from 'react-native';
+import { Animated } from 'react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import type { PulzeVenue, MapCluster, MapFilterId } from '@/types/venue';
 import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
-
-
-
+import WebMapFallback from '@/components/map/WebMapFallback';
 
 const DENVER_REGION: Region = {
   latitude: 39.7475,
@@ -111,7 +109,6 @@ function getHeatmapRadius(score: number): number {
 
 function filterVenues(venues: PulzeVenue[], filters: MapFilterId[]): PulzeVenue[] {
   if (filters.length === 0 || filters.includes('all')) return venues;
-
   return venues.filter((v) => {
     for (const f of filters) {
       if (f === 'pulze' && v.vibe_score >= 70) return true;
@@ -130,10 +127,7 @@ function clusterVenues(
   region: Region
 ): { clusters: MapCluster[]; singles: PulzeVenue[] } {
   const zoomLevel = region.latitudeDelta;
-
-  if (zoomLevel < 0.02) {
-    return { clusters: [], singles: venues };
-  }
+  if (zoomLevel < 0.02) return { clusters: [], singles: venues };
 
   const cellSize = zoomLevel / 6;
   const grid: Record<string, PulzeVenue[]> = {};
@@ -262,123 +256,7 @@ const ClusterBubble = React.memo(function ClusterBubble({
   );
 });
 
-function WebVibeMarker({
-  venue,
-  isSelected,
-  onPress,
-  xPct,
-  yPct,
-  containerWidth,
-  containerHeight,
-}: {
-  venue: PulzeVenue;
-  isSelected: boolean;
-  onPress: () => void;
-  xPct: number;
-  yPct: number;
-  containerWidth: number;
-  containerHeight: number;
-}) {
-  const color = getVibeColor(venue.vibe_score);
-  const isHot = venue.vibe_score >= 60;
-  const left = xPct * containerWidth;
-  const top = yPct * containerHeight;
-
-  if (xPct < -0.1 || xPct > 1.1 || yPct < -0.1 || yPct > 1.1) return null;
-
-  const mSize = isHot ? 40 : 32;
-  const glowSize = isHot ? 50 : 42;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.webMarkerWrap,
-        { left: left - glowSize / 2, top: top - glowSize / 2, width: glowSize, height: glowSize,
-          zIndex: isSelected ? 20 : isHot ? 10 : 5 },
-      ]}
-    >
-      <View style={[styles.webMarkerGlow, {
-        width: glowSize, height: glowSize, borderRadius: glowSize / 2,
-        backgroundColor: color, opacity: isHot ? 0.3 : 0.2,
-      }]} />
-      <View style={[styles.webMarkerBody, {
-        width: mSize, height: mSize, borderRadius: mSize / 2,
-        borderColor: color, borderWidth: isSelected ? 3 : 2,
-      }]}>
-        <Image
-          source={{ uri: venue.avatar }}
-          style={{ width: mSize - 6, height: mSize - 6, borderRadius: (mSize - 6) / 2 }}
-          contentFit="cover"
-        />
-      </View>
-      <View style={[styles.webMarkerBadge, { backgroundColor: color }]}>
-        {isHot ? <Flame color="#fff" size={6} /> : null}
-        <Text style={styles.webMarkerBadgeText}>{venue.vibe_score}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-const MemoWebMarker = React.memo(WebVibeMarker);
-
-function WebMapFallback({
-  region,
-  venues,
-  selectedVenue,
-  onSelectVenue,
-}: {
-  region: Region;
-  venues: PulzeVenue[];
-  selectedVenue: PulzeVenue | undefined;
-  onSelectVenue: (venue: PulzeVenue) => void;
-}) {
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const tileUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${region.longitude - region.longitudeDelta / 2},${region.latitude - region.latitudeDelta / 2},${region.longitude + region.longitudeDelta / 2},${region.latitude + region.latitudeDelta / 2}&layer=mapnik`;
-
-  const west = region.longitude - region.longitudeDelta / 2;
-  const east = region.longitude + region.longitudeDelta / 2;
-  const north = region.latitude + region.latitudeDelta / 2;
-  const south = region.latitude - region.latitudeDelta / 2;
-
-  const venuePositions = useMemo(() => {
-    return venues.map((venue) => ({
-      venue,
-      xPct: (venue.longitude - west) / (east - west),
-      yPct: (north - venue.latitude) / (north - south),
-    }));
-  }, [venues, west, east, north, south]);
-
-  return (
-    <View
-      style={StyleSheet.absoluteFillObject}
-      onLayout={(e) => setContainerSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
-    >
-      {Platform.OS === 'web' ? (
-        // @ts-ignore
-        <iframe src={tileUrl} style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'auto' }} allowFullScreen loading="lazy" />
-      ) : null}
-      {containerSize.width > 0 ? (
-        <View style={styles.webMarkerLayer} pointerEvents="box-none">
-          {venuePositions.map(({ venue, xPct, yPct }) => (
-            <MemoWebMarker
-              key={venue.id}
-              venue={venue}
-              isSelected={venue.id === selectedVenue?.id}
-              onPress={() => onSelectVenue(venue)}
-              xPct={xPct}
-              yPct={yPct}
-              containerWidth={containerSize.width}
-              containerHeight={containerSize.height}
-            />
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function FilterChip({
+const FilterChip = React.memo(function FilterChip({
   filterId,
   label,
   iconName,
@@ -416,9 +294,7 @@ function FilterChip({
       <Text style={[styles.filterChipText, { color: tColor }]}>{label}</Text>
     </Pressable>
   );
-}
-
-const MemoFilterChip = React.memo(FilterChip);
+});
 
 function BottomSheetCard({
   venue,
@@ -437,15 +313,13 @@ function BottomSheetCard({
   const statusInfo = getStatusInfo(venue.open_status);
   const vibeLabel = getVibeLabel(venue.vibe_score);
 
-  useEffect(() => {
+  React.useEffect(() => {
     Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 55, useNativeDriver: true }).start();
   }, [slideAnim]);
 
   const dismiss = useCallback(() => {
     Animated.timing(slideAnim, { toValue: 300, duration: 160, useNativeDriver: true }).start(() => onClose());
   }, [slideAnim, onClose]);
-
-
 
   const sheetBg = isDark ? 'rgba(8, 22, 28, 0.97)' : 'rgba(255, 255, 255, 0.98)';
 
@@ -510,9 +384,7 @@ function BottomSheetCard({
             <Text style={[styles.sheetDirText, { color: isDark ? '#041318' : '#fff' }]}>Directions</Text>
           </Pressable>
           <Pressable
-            onPress={() => {
-              console.log('[MapScreen] View details for', venue.id);
-            }}
+            onPress={() => console.log('[MapScreen] View details for', venue.id)}
             style={({ pressed }) => [
               styles.sheetDetailBtn,
               { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: colors.border },
@@ -662,7 +534,8 @@ export default function MapScreen() {
           pitchEnabled
           toolbarEnabled={false}
           onPress={handleMapPress}
-          customMapStyle={DARK_MAP_STYLE}
+          customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
+          showsUserLocation={false}
           testID="pulze-map-view"
         >
           {HEATMAP_DATA.map((h) => (
@@ -714,7 +587,7 @@ export default function MapScreen() {
           bounces={false}
         >
           {MAP_FILTERS.map((filter) => (
-            <MemoFilterChip
+            <FilterChip
               key={filter.id}
               filterId={filter.id}
               label={filter.label}
@@ -775,7 +648,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-
   filterBar: {
     position: 'absolute',
     left: 0,
@@ -800,7 +672,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700' as const,
   },
-
   recenterBtn: {
     position: 'absolute',
     right: 12,
@@ -816,7 +687,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-
   legendBar: {
     position: 'absolute',
     left: 12,
@@ -835,7 +705,6 @@ const styles = StyleSheet.create({
   legendLabel: { fontSize: 10, fontWeight: '600' as const },
   legendTrack: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
   legendFill: { flex: 1 },
-
   userOuter: {
     width: 24,
     height: 24,
@@ -857,7 +726,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#67F2E5',
   },
-
   bottomSheet: {
     position: 'absolute',
     left: 8,
@@ -937,43 +805,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sheetDetailText: { fontSize: 11, fontWeight: '700' as const },
-
-  webMarkerLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-    pointerEvents: 'box-none' as const,
-  },
-  webMarkerWrap: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  webMarkerGlow: { position: 'absolute' },
-  webMarkerBody: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0B1820',
-    overflow: 'hidden',
-  },
-  webMarkerBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: -2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 6,
-    minWidth: 16,
-    justifyContent: 'center',
-  },
-  webMarkerBadgeText: {
-    color: '#fff',
-    fontSize: 7,
-    fontWeight: '900' as const,
-  },
-
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.96 }],
