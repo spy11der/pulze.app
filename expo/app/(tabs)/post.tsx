@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -14,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import {
   Camera,
   Check,
@@ -21,6 +23,8 @@ import {
   Globe2,
   Lock,
   MapPin,
+  Navigation,
+  Pencil,
   Send,
   Users,
   X,
@@ -29,6 +33,8 @@ import {
 
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useMapLocation } from '@/hooks/useMapLocation';
+import { useNearbyVenues, type NearbyVenue, type SelectedLocation } from '@/hooks/useNearbyVenues';
 import type { VibeTags } from '@/services/database';
 
 interface TagCategory {
@@ -71,13 +77,7 @@ const privacyOptions: PrivacyOption[] = [
   { id: 'private', label: 'Just me', icon: Lock },
 ];
 
-const venues = [
-  { name: 'Mica Rooftop', neighborhood: 'Warehouse District' },
-  { name: 'Paper Moon Cafe', neighborhood: 'East Garden' },
-  { name: 'Juniper Square', neighborhood: 'North Loop' },
-  { name: 'Harbor Reading Lawn', neighborhood: 'Seaport Edge' },
-  { name: 'Neon Alley', neighborhood: 'Lower East' },
-];
+
 
 function TagChip({
   tag,
@@ -198,13 +198,16 @@ function deriveEnergyScore(tags: VibeTags): number {
 
 export default function PostScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { addVibe, isAddingVibe, preferences } = useData();
+  const { userLocation, isLocating } = useMapLocation();
+  const { nearbyVenues } = useNearbyVenues(userLocation);
 
   const [selectedPrivacy, setSelectedPrivacy] = useState<PrivacyOption['id']>(
     preferences.defaultPrivacy
   );
-  const [selectedVenueIdx, setSelectedVenueIdx] = useState<number>(0);
+  const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
   const [selectedTags, setSelectedTags] = useState<VibeTags>({
     energy: [],
     crowd: [],
@@ -217,6 +220,40 @@ export default function PostScreen() {
   const [mediaUri, setMediaUri] = useState<string>('');
   const [posted, setPosted] = useState<boolean>(false);
   const [showPrivacy, setShowPrivacy] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (nearbyVenues.length > 0 && !selectedLocation) {
+      const v = nearbyVenues[0];
+      console.log('[Post] Auto-selecting nearest venue:', v.name);
+      setSelectedLocation({
+        type: 'venue',
+        venueId: v.id,
+        name: v.name,
+        neighborhood: v.neighborhood,
+        latitude: v.latitude,
+        longitude: v.longitude,
+      });
+    }
+  }, [nearbyVenues, selectedLocation]);
+
+  const handleSelectNearbyVenue = useCallback((venue: NearbyVenue) => {
+    console.log('[Post] Selecting nearby venue:', venue.name);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedLocation({
+      type: 'venue',
+      venueId: venue.id,
+      name: venue.name,
+      neighborhood: venue.neighborhood,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
+    });
+  }, []);
+
+  const handleOpenLocationSelector = useCallback(() => {
+    console.log('[Post] Opening location selector');
+    void Haptics.selectionAsync();
+    router.push('/location-selector');
+  }, [router]);
 
   const totalSelected = useMemo(() => {
     return selectedTags.energy.length + selectedTags.crowd.length + selectedTags.mood.length;
@@ -315,14 +352,16 @@ export default function PostScreen() {
     setMediaUri('');
   }, []);
 
+  const locationName = selectedLocation?.name ?? 'Unknown';
+  const locationNeighborhood = selectedLocation?.neighborhood ?? '';
+
   const handlePostVibe = useCallback(() => {
     if (totalSelected === 0) {
       Alert.alert('Tap some vibes', 'Select at least one tag before posting.');
       return;
     }
 
-    const venue = venues[selectedVenueIdx];
-    console.log('[Post] Saving vibe...', { selectedPrivacy, selectedTags, energyScore, caption, mediaUri });
+    console.log('[Post] Saving vibe...', { selectedPrivacy, selectedTags, energyScore, caption, mediaUri, selectedLocation });
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     addVibe(
@@ -330,8 +369,8 @@ export default function PostScreen() {
         privacy: selectedPrivacy,
         energy: energyScore,
         caption,
-        venue: venue.name,
-        neighborhood: venue.neighborhood,
+        venue: locationName,
+        neighborhood: locationNeighborhood,
         vibeLabel,
         tags: selectedTags,
         mediaUri,
@@ -352,6 +391,7 @@ export default function PostScreen() {
             });
             setCaption('');
             setMediaUri('');
+            setSelectedLocation(null);
             setSelectedPrivacy(preferences.defaultPrivacy);
           }, 2200);
         },
@@ -365,7 +405,9 @@ export default function PostScreen() {
     totalSelected,
     selectedPrivacy,
     selectedTags,
-    selectedVenueIdx,
+    selectedLocation,
+    locationName,
+    locationNeighborhood,
     energyScore,
     vibeLabel,
     caption,
@@ -426,7 +468,7 @@ export default function PostScreen() {
             Vibe dropped
           </Text>
           <Text style={[styles.successSub, { color: colors.textMuted }]}>
-            {totalSelected} tags · {venues[selectedVenueIdx].neighborhood}
+            {totalSelected} tags · {locationNeighborhood || 'Nearby'}
           </Text>
           <View style={styles.successTagRow}>
             {[...selectedTags.energy, ...selectedTags.crowd, ...selectedTags.mood]
@@ -536,21 +578,51 @@ export default function PostScreen() {
             <Text style={[styles.venueLabel, { color: colors.textMuted }]}>
               Location
             </Text>
+            {isLocating && (
+              <ActivityIndicator size="small" color={colors.aqua} style={{ marginLeft: 6 }} />
+            )}
           </View>
+
+          {selectedLocation && (
+            <View style={[styles.selectedLocationCard, { backgroundColor: colors.surface, borderColor: colors.aqua }]}>
+              <View style={[styles.selectedLocationIcon, { backgroundColor: `${colors.aqua}18` }]}>
+                {selectedLocation.type === 'custom' ? (
+                  <Navigation color={colors.aqua} size={16} />
+                ) : (
+                  <MapPin color={colors.aqua} size={16} />
+                )}
+              </View>
+              <View style={styles.selectedLocationInfo}>
+                <Text style={[styles.selectedLocationName, { color: colors.text }]} numberOfLines={1}>
+                  {selectedLocation.name}
+                </Text>
+                {selectedLocation.neighborhood ? (
+                  <Text style={[styles.selectedLocationNeighborhood, { color: colors.textSoft }]} numberOfLines={1}>
+                    {selectedLocation.neighborhood}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={handleOpenLocationSelector}
+                style={[styles.changeLocationBtn, { backgroundColor: `${colors.aqua}14` }]}
+                hitSlop={8}
+              >
+                <Pencil color={colors.aqua} size={13} />
+              </Pressable>
+            </View>
+          )}
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.venueScroll}
           >
-            {venues.map((v, i) => {
-              const active = i === selectedVenueIdx;
+            {nearbyVenues.slice(0, 5).map((v) => {
+              const active = selectedLocation?.venueId === v.id;
               return (
                 <Pressable
-                  key={v.name}
-                  onPress={() => {
-                    void Haptics.selectionAsync();
-                    setSelectedVenueIdx(i);
-                  }}
+                  key={v.id}
+                  onPress={() => handleSelectNearbyVenue(v)}
                   style={[
                     styles.venueChip,
                     active
@@ -571,13 +643,31 @@ export default function PostScreen() {
                       styles.venueChipText,
                       { color: active ? colors.aqua : colors.textMuted },
                     ]}
+                    numberOfLines={1}
                   >
                     {v.name}
                   </Text>
+                  {v.distanceLabel && v.distanceLabel !== 'Here' ? (
+                    <Text style={[styles.venueChipDist, { color: active ? colors.aqua : colors.textSoft }]}>
+                      {v.distanceLabel}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}
           </ScrollView>
+
+          <Pressable
+            onPress={handleOpenLocationSelector}
+            style={styles.changeLinkRow}
+            hitSlop={6}
+            testID="change-location-link"
+          >
+            <Pencil color={colors.textSoft} size={12} />
+            <Text style={[styles.changeLinkText, { color: colors.textSoft }]}>
+              Wrong location? Change it
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.divider}>
@@ -896,6 +986,57 @@ const styles = StyleSheet.create({
   venueChipText: {
     fontSize: 13,
     fontWeight: '700' as const,
+  },
+  venueChipDist: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    marginTop: 1,
+  },
+  selectedLocationCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1.5,
+    gap: 10,
+    marginBottom: 4,
+  },
+  selectedLocationIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  selectedLocationInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  selectedLocationName: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  selectedLocationNeighborhood: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  changeLocationBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  changeLinkRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    marginTop: 4,
+    paddingVertical: 2,
+  },
+  changeLinkText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
   divider: {
     flexDirection: 'row' as const,
