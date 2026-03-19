@@ -42,6 +42,7 @@ import { pulzeVenues } from '@/mocks/venues';
 import type { PulzeVenue, MapCluster, MapFilterId } from '@/types/venue';
 import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
+import WebMapFallback from '@/components/map/WebMapFallback';
 
 const DENVER_REGION: Region = {
   latitude: 39.7475,
@@ -551,61 +552,70 @@ export default function MapScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="map-screen">
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={DENVER_REGION}
-        onRegionChangeComplete={handleRegionChange}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        showsCompass={false}
-        showsBuildings
-        rotateEnabled
-        pitchEnabled
-        toolbarEnabled={false}
-        onPress={handleMapPress}
-        customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
-        showsUserLocation={false}
-        testID="pulze-map-view"
-      >
-        {HEATMAP_DATA.map((h) => (
-          <Circle
-            key={`heat-${h.id}`}
-            center={h.center}
-            radius={h.radius}
-            fillColor={h.color}
-            strokeColor="transparent"
-            strokeWidth={0}
-          />
-        ))}
-        {singles.map((venue) => (
-          <VibeMarker
-            key={venue.id}
-            venue={venue}
-            onPress={() => handlePressVenue(venue.id)}
-          />
-        ))}
-        {clusters.map((cluster) => (
-          <ClusterBubble
-            key={cluster.id}
-            cluster={cluster}
-            onPress={() => handlePressCluster(cluster)}
-          />
-        ))}
-        {userCoordinate ? (
-          <Marker
-            coordinate={userCoordinate}
-            title="You are here"
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-            testID="map-user-marker"
-          >
-            <View style={styles.userOuter}>
-              <View style={styles.userPulse} />
-              <View style={styles.userDot} />
-            </View>
-          </Marker>
-        ) : null}
-      </MapView>
+      {Platform.OS === 'web' ? (
+        <WebMapFallback
+          region={mapRegion}
+          venues={filteredVenues}
+          selectedVenue={selectedVenue}
+          onSelectVenue={(venue) => handlePressVenue(venue.id)}
+        />
+      ) : (
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={DENVER_REGION}
+          onRegionChangeComplete={handleRegionChange}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          showsCompass={false}
+          showsBuildings
+          rotateEnabled
+          pitchEnabled
+          toolbarEnabled={false}
+          onPress={handleMapPress}
+          customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
+          showsUserLocation={false}
+          testID="pulze-map-view"
+        >
+          {HEATMAP_DATA.map((h) => (
+            <Circle
+              key={`heat-${h.id}`}
+              center={h.center}
+              radius={h.radius}
+              fillColor={h.color}
+              strokeColor="transparent"
+              strokeWidth={0}
+            />
+          ))}
+          {singles.map((venue) => (
+            <VibeMarker
+              key={venue.id}
+              venue={venue}
+              onPress={() => handlePressVenue(venue.id)}
+            />
+          ))}
+          {clusters.map((cluster) => (
+            <ClusterBubble
+              key={cluster.id}
+              cluster={cluster}
+              onPress={() => handlePressCluster(cluster)}
+            />
+          ))}
+          {userCoordinate ? (
+            <Marker
+              coordinate={userCoordinate}
+              title="You are here"
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={false}
+              testID="map-user-marker"
+            >
+              <View style={styles.userOuter}>
+                <View style={styles.userPulse} />
+                <View style={styles.userDot} />
+              </View>
+            </Marker>
+          ) : null}
+        </MapView>
+      )}
 
       <View style={[styles.topOverlay, { top: insets.top + 6 }]}>
         <View style={styles.searchRow}>
