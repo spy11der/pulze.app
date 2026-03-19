@@ -22,8 +22,7 @@ export default function TabLayout() {
           position: 'absolute',
           left: 14,
           right: 14,
-          bottom: 2,
-          height: 52,
+          bottom: 0,
           borderTopWidth: 0,
           backgroundColor: 'transparent',
           elevation: 0,
@@ -34,8 +33,6 @@ export default function TabLayout() {
           flex: 1,
           alignItems: 'center' as const,
           justifyContent: 'center' as const,
-          paddingVertical: 0,
-          height: 52,
         },
         tabBarBackground: () => (
           <View
