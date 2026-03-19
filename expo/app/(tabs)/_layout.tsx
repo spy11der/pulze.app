@@ -22,7 +22,7 @@ export default function TabLayout() {
           position: 'absolute',
           left: 14,
           right: 14,
-          bottom: 12,
+          bottom: 8,
           borderTopWidth: 0,
           backgroundColor: 'transparent',
           elevation: 0,
@@ -30,7 +30,7 @@ export default function TabLayout() {
           overflow: 'hidden',
         },
         tabBarItemStyle: {
-          paddingVertical: 4,
+          paddingVertical: 2,
         },
         tabBarBackground: () => (
           <View
@@ -40,7 +40,7 @@ export default function TabLayout() {
               left: 0,
               right: 0,
               bottom: 0,
-              borderRadius: 28,
+              borderRadius: 24,
               overflow: 'hidden',
               backgroundColor: isDark ? 'rgba(0, 20, 25, 0.6)' : 'rgba(240, 245, 248, 0.7)',
               borderWidth: 1,
@@ -58,7 +58,7 @@ export default function TabLayout() {
             <Home
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={22}
+              size={26}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -72,7 +72,7 @@ export default function TabLayout() {
             <Map
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={22}
+              size={26}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -86,7 +86,7 @@ export default function TabLayout() {
             <CirclePlus
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={26}
+              size={30}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -100,7 +100,7 @@ export default function TabLayout() {
             <Ticket
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={22}
+              size={26}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -114,7 +114,7 @@ export default function TabLayout() {
             <UserRound
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={22}
+              size={26}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
