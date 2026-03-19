@@ -57,7 +57,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <Home
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
-              fill={focused ? TEAL_ACTIVE : 'none'}
+              fill="none"
               size={22}
               strokeWidth={focused ? 2 : 1.5}
             />
@@ -71,7 +71,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <Map
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
-              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              fill="none"
               size={22}
               strokeWidth={focused ? 2 : 1.5}
             />
@@ -85,9 +85,9 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <CirclePlus
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
-              fill={focused ? TEAL_ACTIVE : 'none'}
-              size={28}
-              strokeWidth={focused ? 2.2 : 1.5}
+              fill="none"
+              size={26}
+              strokeWidth={focused ? 2 : 1.5}
             />
           ),
         }}
@@ -99,7 +99,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <Ticket
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
-              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              fill="none"
               size={22}
               strokeWidth={focused ? 2 : 1.5}
             />
@@ -113,7 +113,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <UserRound
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
-              fill={focused ? TEAL_ACTIVE + '30' : 'none'}
+              fill="none"
               size={22}
               strokeWidth={focused ? 2 : 1.5}
             />
