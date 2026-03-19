@@ -1,6 +1,15 @@
 import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
+export interface VibeTags {
+  energy: string[];
+  crowd: string[];
+  music: string[];
+  type: string[];
+  mood: string[];
+  wait: string[];
+}
+
 export interface SavedVibe {
   id: string;
   privacy: 'public' | 'friends' | 'private';
@@ -9,6 +18,7 @@ export interface SavedVibe {
   venue: string;
   neighborhood: string;
   vibeLabel: string;
+  tags: VibeTags;
   createdAt: string;
 }
 
@@ -45,6 +55,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       venue TEXT NOT NULL DEFAULT '',
       neighborhood TEXT NOT NULL DEFAULT '',
       vibe_label TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -70,9 +81,11 @@ export async function insertVibe(vibe: Omit<SavedVibe, 'id' | 'createdAt'>): Pro
 
   console.log('[DB] Inserting vibe:', { id, ...vibe });
 
+  const tagsJson = JSON.stringify(vibe.tags ?? {});
+
   await database.runAsync(
-    `INSERT INTO vibes (id, privacy, energy, caption, venue, neighborhood, vibe_label, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO vibes (id, privacy, energy, caption, venue, neighborhood, vibe_label, tags, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     vibe.privacy,
     vibe.energy,
@@ -80,6 +93,7 @@ export async function insertVibe(vibe: Omit<SavedVibe, 'id' | 'createdAt'>): Pro
     vibe.venue,
     vibe.neighborhood,
     vibe.vibeLabel,
+    tagsJson,
     createdAt
   );
 
@@ -98,19 +112,29 @@ export async function getAllVibes(): Promise<SavedVibe[]> {
     venue: string;
     neighborhood: string;
     vibe_label: string;
+    tags: string;
     created_at: string;
   }>('SELECT * FROM vibes ORDER BY created_at DESC');
 
-  return rows.map((row) => ({
-    id: row.id,
-    privacy: row.privacy as SavedVibe['privacy'],
-    energy: row.energy,
-    caption: row.caption,
-    venue: row.venue,
-    neighborhood: row.neighborhood,
-    vibeLabel: row.vibe_label,
-    createdAt: row.created_at,
-  }));
+  return rows.map((row) => {
+    let parsedTags: VibeTags = { energy: [], crowd: [], music: [], type: [], mood: [], wait: [] };
+    try {
+      parsedTags = { ...parsedTags, ...JSON.parse(row.tags || '{}') };
+    } catch (e) {
+      console.log('[DB] Error parsing tags:', e);
+    }
+    return {
+      id: row.id,
+      privacy: row.privacy as SavedVibe['privacy'],
+      energy: row.energy,
+      caption: row.caption,
+      venue: row.venue,
+      neighborhood: row.neighborhood,
+      vibeLabel: row.vibe_label,
+      tags: parsedTags,
+      createdAt: row.created_at,
+    };
+  });
 }
 
 export async function deleteVibe(id: string): Promise<void> {
