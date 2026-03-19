@@ -392,13 +392,22 @@ export default function PostScreen() {
   const currentPrivacy = privacyOptions.find((p) => p.id === selectedPrivacy);
   const PrivacyIcon = currentPrivacy?.icon ?? Globe2;
 
+  const bottomBarHeight = 60 + insets.bottom + 12;
+  const tabBarHeight = 70 + 18;
+
   return (
     <View
       style={[styles.screen, { backgroundColor: colors.background }]}
       testID="post-screen"
     >
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: bottomBarHeight + tabBarHeight + 16,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -592,7 +601,6 @@ export default function PostScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
       </ScrollView>
 
       <View
@@ -600,7 +608,7 @@ export default function PostScreen() {
           styles.bottomBar,
           {
             backgroundColor: colors.background,
-            paddingBottom: insets.bottom + 12,
+            paddingBottom: tabBarHeight + 8,
             borderTopColor: colors.border,
           },
         ]}
