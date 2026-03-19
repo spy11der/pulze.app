@@ -58,7 +58,7 @@ export default function TabLayout() {
             <Home
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={26}
+              size={30}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -72,7 +72,7 @@ export default function TabLayout() {
             <Map
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={26}
+              size={30}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -100,7 +100,7 @@ export default function TabLayout() {
             <Ticket
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={26}
+              size={30}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
@@ -114,7 +114,7 @@ export default function TabLayout() {
             <UserRound
               color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
               fill="none"
-              size={26}
+              size={30}
               strokeWidth={focused ? 2 : 1.5}
             />
           ),
