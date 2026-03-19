@@ -22,7 +22,7 @@ export default function TabLayout() {
           position: 'absolute',
           left: 14,
           right: 14,
-          bottom: 18,
+          bottom: 12,
           borderTopWidth: 0,
           backgroundColor: 'transparent',
           elevation: 0,
@@ -30,7 +30,7 @@ export default function TabLayout() {
           overflow: 'hidden',
         },
         tabBarItemStyle: {
-          paddingVertical: 10,
+          paddingVertical: 4,
         },
         tabBarBackground: () => (
           <View
