@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { BlurView } from 'expo-blur';
+import { View } from 'react-native';
 import { Chrome as Home, CirclePlus, Map, Ticket, UserRound } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -33,9 +33,7 @@ export default function TabLayout() {
           paddingVertical: 10,
         },
         tabBarBackground: () => (
-          <BlurView
-            intensity={80}
-            tint={isDark ? 'dark' : 'light'}
+          <View
             style={{
               position: 'absolute',
               top: 0,
@@ -44,9 +42,9 @@ export default function TabLayout() {
               bottom: 0,
               borderRadius: 28,
               overflow: 'hidden',
-              backgroundColor: isDark ? 'rgba(4, 19, 24, 0.55)' : 'rgba(255, 255, 255, 0.45)',
-              borderWidth: 1.5,
-              borderColor: isDark ? 'rgba(26, 107, 106, 0.5)' : 'rgba(0, 0, 0, 0.08)',
+              backgroundColor: isDark ? 'rgba(0, 20, 25, 0.6)' : 'rgba(240, 245, 248, 0.7)',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(26, 107, 106, 0.35)' : 'rgba(0, 0, 0, 0.06)',
             }}
           />
         ),
