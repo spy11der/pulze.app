@@ -1,9 +1,9 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Keyboard,
   Platform,
   Pressable,
@@ -12,12 +12,10 @@ import {
   Text,
   TextInput,
   View,
-  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import {
-  Flame,
   LocateFixed,
   Search,
   Zap,
@@ -30,7 +28,6 @@ import {
   Navigation,
   Users,
   Clock,
-  MapPin,
   ChevronRight,
   X,
 } from 'lucide-react-native';
@@ -51,63 +48,82 @@ const DENVER_REGION: Region = {
   longitudeDelta: 0.06,
 };
 
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#0a1a22' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0a1a22' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#4a7080' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#6ab0c0' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#4a7080' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#0c2418' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#2a6a48' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#122430' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#16303e' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#183848' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1e4858' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#70a0b0' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#101e28' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#4a7888' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#061018' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#2a4858' }] },
+const CALM_DARK_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#6b7b8d' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#8fa4b8' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1e2d3d' }, { visibility: 'simplified' }] },
+  { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#232840' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#2a3050' }] },
+  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2a3350' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#313860' }] },
+  { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.arterial', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#141828' }] },
+  { featureType: 'water', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+];
+
+const CALM_LIGHT_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#f2f4f8' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8a99a8' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f2f4f8' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#5a6a7a' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e8efe8' }, { visibility: 'simplified' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e8ecf0' }] },
+  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f8f9fb' }] },
+  { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dce6f0' }] },
+  { featureType: 'water', elementType: 'labels', stylers: [{ visibility: 'off' }] },
 ];
 
 function getVibeColor(score: number): string {
-  if (score >= 80) return '#FF4D3A';
-  if (score >= 60) return '#FFAA2E';
-  if (score >= 40) return '#E8D544';
-  if (score >= 20) return '#5BE89E';
-  return '#4DB8E8';
+  if (score >= 80) return '#E85D50';
+  if (score >= 60) return '#E8A040';
+  if (score >= 40) return '#C8B850';
+  if (score >= 20) return '#50B880';
+  return '#5098C0';
+}
+
+function getStatusInfo(status: string): { label: string; color: string } {
+  switch (status) {
+    case 'open': return { label: 'Open', color: '#4CAF78' };
+    case 'closing_soon': return { label: 'Closing Soon', color: '#D4924A' };
+    case 'closed': return { label: 'Closed', color: '#C05050' };
+    default: return { label: 'Unknown', color: '#8899AA' };
+  }
 }
 
 function getVibeLabel(score: number): string {
-  if (score >= 80) return 'On Fire';
+  if (score >= 80) return 'Packed';
   if (score >= 60) return 'Buzzing';
   if (score >= 40) return 'Lively';
   if (score >= 20) return 'Chill';
   return 'Quiet';
 }
 
-function getStatusInfo(status: string): { label: string; color: string } {
-  switch (status) {
-    case 'open': return { label: 'Open', color: '#5BE89E' };
-    case 'closing_soon': return { label: 'Closing Soon', color: '#FFAA2E' };
-    case 'closed': return { label: 'Closed', color: '#FF4D3A' };
-    default: return { label: 'Unknown', color: '#86AEB7' };
-  }
-}
-
-function getHeatmapColor(score: number): string {
-  if (score >= 80) return 'rgba(255, 77, 58, 0.14)';
-  if (score >= 60) return 'rgba(255, 170, 46, 0.10)';
-  if (score >= 40) return 'rgba(232, 213, 68, 0.07)';
-  if (score >= 20) return 'rgba(91, 232, 158, 0.05)';
-  return 'rgba(77, 184, 232, 0.04)';
+function getHeatmapColor(score: number, isDark: boolean): string {
+  const base = isDark ? 0.06 : 0.04;
+  if (score >= 80) return `rgba(232, 93, 80, ${base + 0.04})`;
+  if (score >= 60) return `rgba(232, 160, 64, ${base + 0.02})`;
+  if (score >= 40) return `rgba(200, 184, 80, ${base + 0.01})`;
+  return `rgba(80, 152, 192, ${base})`;
 }
 
 function getHeatmapRadius(score: number): number {
-  if (score >= 80) return 280;
-  if (score >= 60) return 220;
-  if (score >= 40) return 170;
-  return 120;
+  if (score >= 80) return 200;
+  if (score >= 60) return 160;
+  if (score >= 40) return 120;
+  return 80;
 }
 
 function filterVenues(venues: PulzeVenue[], filters: MapFilterId[]): PulzeVenue[] {
@@ -171,25 +187,18 @@ const ICON_MAP: Record<string, React.ComponentType<{ color: string; size: number
   Sparkles, Zap, Moon, UtensilsCrossed, Wine, CalendarDays, Coffee,
 };
 
-const HEATMAP_DATA = pulzeVenues.map((v) => ({
-  id: v.id,
-  center: { latitude: v.latitude, longitude: v.longitude },
-  radius: getHeatmapRadius(v.vibe_score),
-  color: getHeatmapColor(v.vibe_score),
-}));
+const DOT_SIZE = 32;
+const DOT_INNER = 24;
+const DOT_AVATAR = 20;
 
-const MARKER_SIZE = 46;
-const RING_HOT = 36;
-const RING_NORMAL = 30;
-const AVATAR_HOT = 28;
-const AVATAR_NORMAL = 22;
-
-const VibeMarker = React.memo(function VibeMarker({
+const RefinedMarker = React.memo(function RefinedMarker({
   venue,
   onPress,
+  isDark,
 }: {
   venue: PulzeVenue;
   onPress: () => void;
+  isDark: boolean;
 }) {
   const color = getVibeColor(venue.vibe_score);
   const isHot = venue.vibe_score >= 60;
@@ -204,36 +213,48 @@ const VibeMarker = React.memo(function VibeMarker({
       stopPropagation
       testID={`venue-marker-${venue.id}`}
     >
-      <View style={markerStyles.root}>
-        <View style={[markerStyles.glow, { backgroundColor: color, opacity: isHot ? 0.28 : 0.16 }]} />
+      <View style={mStyles.root}>
+        {isHot ? (
+          <View style={[mStyles.pulse, { backgroundColor: color, opacity: 0.15 }]} />
+        ) : null}
         <View style={[
-          markerStyles.ring,
-          isHot ? markerStyles.ringHot : markerStyles.ringNormal,
-          { borderColor: color },
+          mStyles.dot,
+          {
+            backgroundColor: isDark ? '#1e2438' : '#ffffff',
+            borderColor: color,
+            borderWidth: isHot ? 2.5 : 2,
+            shadowColor: color,
+            shadowOpacity: isHot ? 0.3 : 0.15,
+            shadowRadius: isHot ? 8 : 4,
+            shadowOffset: { width: 0, height: 2 },
+          },
         ]}>
           <RNImage
             source={{ uri: venue.avatar }}
-            style={isHot ? markerStyles.avatarHot : markerStyles.avatarNormal}
+            style={mStyles.avatar}
           />
         </View>
-        <View style={[markerStyles.badge, { backgroundColor: color }]}>
-          {isHot ? <Flame color="#fff" size={6} /> : null}
-          <Text style={markerStyles.badgeText}>{venue.vibe_score}</Text>
-        </View>
+        {isHot ? (
+          <View style={[mStyles.scoreBadge, { backgroundColor: color }]}>
+            <Text style={mStyles.scoreText}>{venue.vibe_score}</Text>
+          </View>
+        ) : null}
       </View>
     </Marker>
   );
 }, () => true);
 
-const ClusterBubble = React.memo(function ClusterBubble({
+const ClusterDot = React.memo(function ClusterDot({
   cluster,
   onPress,
+  isDark,
 }: {
   cluster: MapCluster;
   onPress: () => void;
+  isDark: boolean;
 }) {
   const color = getVibeColor(cluster.avgVibeScore);
-  const size = Math.min(50, 32 + cluster.count * 3);
+  const size = Math.min(44, 28 + cluster.count * 2.5);
 
   return (
     <Marker
@@ -243,160 +264,193 @@ const ClusterBubble = React.memo(function ClusterBubble({
       tracksViewChanges={false}
       testID={`cluster-${cluster.id}`}
     >
-      <View style={[markerStyles.clusterRoot, { width: size + 10, height: size + 10 }]}>
-        <View style={[markerStyles.clusterGlow, {
-          width: size + 10, height: size + 10, borderRadius: (size + 10) / 2,
-          backgroundColor: color, opacity: 0.22,
+      <View style={[mStyles.clusterRoot, { width: size + 8, height: size + 8 }]}>
+        <View style={[mStyles.clusterOuter, {
+          width: size + 8, height: size + 8, borderRadius: (size + 8) / 2,
+          backgroundColor: color, opacity: 0.12,
         }]} />
-        <View style={[markerStyles.clusterBody, {
+        <View style={[mStyles.clusterInner, {
           width: size, height: size, borderRadius: size / 2,
-          backgroundColor: color + 'DD', borderColor: color,
+          backgroundColor: isDark ? color + 'CC' : color + 'E0',
         }]}>
-          <Text style={markerStyles.clusterCount}>{cluster.count}</Text>
+          <Text style={mStyles.clusterCount}>{cluster.count}</Text>
         </View>
       </View>
     </Marker>
   );
 });
 
-const FilterChip = React.memo(function FilterChip({
+const FilterPill = React.memo(function FilterPill({
   filterId,
   label,
   iconName,
   isActive,
   onPress,
+  isDark,
+  colors,
 }: {
   filterId: MapFilterId;
   label: string;
   iconName: string;
   isActive: boolean;
   onPress: () => void;
+  isDark: boolean;
+  colors: { aqua: string; coral: string; quiet: string; textMuted: string; text: string };
 }) {
-  const { colors, isDark } = useTheme();
   const IconComp = ICON_MAP[iconName];
 
-  const chipBg = isActive
-    ? filterId === 'pulze' ? colors.coral + '20' : filterId === 'quiet' ? colors.quiet + '20' : colors.aqua + '16'
-    : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  const accentColor = filterId === 'pulze' ? colors.coral
+    : filterId === 'quiet' ? colors.quiet
+    : colors.aqua;
 
-  const chipBorder = isActive
-    ? filterId === 'pulze' ? colors.coral + '40' : filterId === 'quiet' ? colors.quiet + '40' : colors.aqua + '30'
-    : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  const pillBg = isActive
+    ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
+    : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.85)';
 
-  const tColor = isActive
-    ? filterId === 'pulze' ? colors.coral : filterId === 'quiet' ? colors.quiet : colors.aqua
-    : colors.textMuted;
+  const tColor = isActive ? accentColor : isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.filterChip, { backgroundColor: chipBg, borderColor: chipBorder }, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.filterPill,
+        {
+          backgroundColor: pillBg,
+          borderColor: isActive ? accentColor + '40' : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+        },
+        pressed && styles.pressed,
+      ]}
       testID={`map-filter-${filterId}`}
     >
-      {IconComp ? <IconComp color={tColor} size={11} /> : null}
-      <Text style={[styles.filterChipText, { color: tColor }]}>{label}</Text>
+      {IconComp ? <IconComp color={tColor} size={12} /> : null}
+      <Text style={[styles.filterPillText, { color: tColor }]}>{label}</Text>
     </Pressable>
   );
 });
 
-function BottomSheetCard({
+function VenueCard({
   venue,
   onClose,
   onDirections,
   bottomInset,
+  isDark,
+  colors,
 }: {
   venue: PulzeVenue;
   onClose: () => void;
   onDirections: () => void;
   bottomInset: number;
+  isDark: boolean;
+  colors: {
+    text: string; textMuted: string; aqua: string; aquaBright: string;
+    border: string; textSoft: string;
+  };
 }) {
-  const { colors, isDark } = useTheme();
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = useRef(new Animated.Value(400)).current;
   const color = getVibeColor(venue.vibe_score);
   const statusInfo = getStatusInfo(venue.open_status);
   const vibeLabel = getVibeLabel(venue.vibe_score);
 
-  React.useEffect(() => {
-    Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 55, useNativeDriver: true }).start();
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      friction: 10,
+      tension: 50,
+      useNativeDriver: true,
+    }).start();
   }, [slideAnim]);
 
   const dismiss = useCallback(() => {
-    Animated.timing(slideAnim, { toValue: 300, duration: 160, useNativeDriver: true }).start(() => onClose());
+    Animated.timing(slideAnim, {
+      toValue: 400,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => onClose());
   }, [slideAnim, onClose]);
 
-  const sheetBg = isDark ? 'rgba(8, 22, 28, 0.97)' : 'rgba(255, 255, 255, 0.98)';
+  const cardBg = isDark ? 'rgba(22, 26, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)';
+  const subtleBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)';
 
   return (
-    <Animated.View style={[styles.bottomSheet, { bottom: bottomInset, transform: [{ translateY: slideAnim }] }]}>
-      <View style={[styles.sheetInner, { backgroundColor: sheetBg, borderColor: colors.border }]}>
-        <View style={styles.sheetDragZone}>
-          <View style={[styles.sheetHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)' }]} />
+    <Animated.View style={[styles.cardContainer, { bottom: bottomInset, transform: [{ translateY: slideAnim }] }]}>
+      <View style={[styles.card, {
+        backgroundColor: cardBg,
+        shadowColor: isDark ? '#000' : '#2a3a4a',
+        shadowOpacity: isDark ? 0.4 : 0.12,
+      }]}>
+        <View style={styles.cardHandle}>
+          <View style={[styles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
         </View>
 
         <Pressable
           onPress={dismiss}
-          style={[styles.sheetClose, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+          style={[styles.cardClose, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
           testID="sheet-close"
         >
-          <X color={colors.textMuted} size={13} />
+          <X color={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'} size={14} />
         </Pressable>
 
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetAvatarWrap}>
-            <Image source={{ uri: venue.avatar }} style={styles.sheetAvatar} contentFit="cover" />
-            <View style={[styles.sheetAvatarRing, { borderColor: color }]} />
+        <View style={styles.cardHeader}>
+          <View style={styles.cardAvatarWrap}>
+            <Image source={{ uri: venue.avatar }} style={styles.cardAvatar} contentFit="cover" />
+            <View style={[styles.cardAvatarBorder, { borderColor: color + '80' }]} />
           </View>
-          <View style={styles.sheetHeaderText}>
-            <Text style={[styles.sheetName, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
-            <View style={styles.sheetSubRow}>
-              <MapPin color={colors.textMuted} size={9} />
-              <Text style={[styles.sheetSub, { color: colors.textMuted }]} numberOfLines={1}>
-                {venue.categoryLabel} · {venue.neighborhood}
-              </Text>
+          <View style={styles.cardHeaderInfo}>
+            <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
+            <View style={styles.cardMetaRow}>
+              <Text style={[styles.cardCategory, { color: colors.textMuted }]}>{venue.categoryLabel}</Text>
+              <View style={[styles.cardMetaDot, { backgroundColor: colors.textMuted }]} />
+              <Text style={[styles.cardNeighborhood, { color: colors.textMuted }]}>{venue.neighborhood}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.sheetStats}>
-          <View style={[styles.sheetStat, { backgroundColor: color + '12' }]}>
-            <Zap color={color} size={10} />
-            <Text style={[styles.sheetStatVal, { color }]}>{venue.vibe_score}</Text>
-            <Text style={[styles.sheetStatLabel, { color: colors.textMuted }]}>{vibeLabel}</Text>
+        <View style={styles.cardStats}>
+          <View style={[styles.cardStat, { backgroundColor: color + '10' }]}>
+            <Zap color={color} size={11} />
+            <Text style={[styles.cardStatValue, { color }]}>{venue.vibe_score}</Text>
+            <Text style={[styles.cardStatLabel, { color: colors.textSoft }]}>{vibeLabel}</Text>
           </View>
-          <View style={[styles.sheetStat, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-            <Users color={colors.aqua} size={10} />
-            <Text style={[styles.sheetStatVal, { color: colors.text }]}>{venue.people}</Text>
+          <View style={[styles.cardStat, { backgroundColor: subtleBg }]}>
+            <Users color={colors.aqua} size={11} />
+            <Text style={[styles.cardStatValue, { color: colors.text }]}>{venue.people}</Text>
           </View>
-          <View style={[styles.sheetStat, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-            <Clock color={colors.aqua} size={10} />
-            <Text style={[styles.sheetStatVal, { color: colors.text }]}>{venue.eta}</Text>
+          <View style={[styles.cardStat, { backgroundColor: subtleBg }]}>
+            <Clock color={colors.aqua} size={11} />
+            <Text style={[styles.cardStatValue, { color: colors.text }]}>{venue.eta}</Text>
           </View>
-          <View style={[styles.sheetStat, { backgroundColor: statusInfo.color + '12' }]}>
-            <View style={[styles.sheetStatusDot, { backgroundColor: statusInfo.color }]} />
-            <Text style={[styles.sheetStatVal, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+          <View style={[styles.cardStat, { backgroundColor: statusInfo.color + '0C' }]}>
+            <View style={[styles.statusIndicator, { backgroundColor: statusInfo.color }]} />
+            <Text style={[styles.cardStatValue, { color: statusInfo.color }]}>{statusInfo.label}</Text>
           </View>
         </View>
 
-        <View style={styles.sheetActions}>
+        {venue.blurb ? (
+          <Text style={[styles.cardBlurb, { color: colors.textSoft }]} numberOfLines={2}>
+            {venue.blurb}
+          </Text>
+        ) : null}
+
+        <View style={styles.cardActions}>
           <Pressable
             onPress={onDirections}
-            style={({ pressed }) => [styles.sheetDirBtn, { backgroundColor: colors.aquaBright }, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.directionsBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
             testID="sheet-directions"
           >
-            <Navigation color={isDark ? '#041318' : '#fff'} size={12} />
-            <Text style={[styles.sheetDirText, { color: isDark ? '#041318' : '#fff' }]}>Directions</Text>
+            <Navigation color="#fff" size={13} />
+            <Text style={styles.directionsBtnText}>Directions</Text>
           </Pressable>
           <Pressable
             onPress={() => console.log('[MapScreen] View details for', venue.id)}
             style={({ pressed }) => [
-              styles.sheetDetailBtn,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: colors.border },
+              styles.detailsBtn,
+              { backgroundColor: subtleBg, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
               pressed && styles.pressed,
             ]}
             testID="sheet-details"
           >
-            <Text style={[styles.sheetDetailText, { color: colors.text }]}>Details</Text>
-            <ChevronRight color={colors.textMuted} size={12} />
+            <Text style={[styles.detailsBtnText, { color: colors.text }]}>View Details</Text>
+            <ChevronRight color={colors.textMuted} size={13} />
           </Pressable>
         </View>
       </View>
@@ -423,6 +477,13 @@ export default function MapScreen() {
     if (!selectedId) return undefined;
     return pulzeVenues.find((v) => v.id === selectedId);
   }, [selectedId]);
+
+  const heatmapData = useMemo(() => pulzeVenues.map((v) => ({
+    id: v.id,
+    center: { latitude: v.latitude, longitude: v.longitude },
+    radius: getHeatmapRadius(v.vibe_score),
+    color: getHeatmapColor(v.vibe_score, isDark),
+  })), [isDark]);
 
   const handleToggleFilter = useCallback((id: MapFilterId) => {
     Haptics.selectionAsync().catch(() => {});
@@ -551,7 +612,7 @@ export default function MapScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]} testID="map-screen">
+    <View style={styles.screen} testID="map-screen">
       {Platform.OS === 'web' ? (
         <WebMapFallback
           region={mapRegion}
@@ -567,16 +628,19 @@ export default function MapScreen() {
           onRegionChangeComplete={handleRegionChange}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           showsCompass={false}
-          showsBuildings
+          showsBuildings={false}
+          showsTraffic={false}
+          showsIndoors={false}
+          showsPointsOfInterest={false}
           rotateEnabled
           pitchEnabled
           toolbarEnabled={false}
           onPress={handleMapPress}
-          customMapStyle={isDark ? DARK_MAP_STYLE : undefined}
+          customMapStyle={isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE}
           showsUserLocation={false}
           testID="pulze-map-view"
         >
-          {HEATMAP_DATA.map((h) => (
+          {heatmapData.map((h) => (
             <Circle
               key={`heat-${h.id}`}
               center={h.center}
@@ -587,17 +651,19 @@ export default function MapScreen() {
             />
           ))}
           {singles.map((venue) => (
-            <VibeMarker
+            <RefinedMarker
               key={venue.id}
               venue={venue}
               onPress={() => handlePressVenue(venue.id)}
+              isDark={isDark}
             />
           ))}
           {clusters.map((cluster) => (
-            <ClusterBubble
+            <ClusterDot
               key={cluster.id}
               cluster={cluster}
               onPress={() => handlePressCluster(cluster)}
+              isDark={isDark}
             />
           ))}
           {userCoordinate ? (
@@ -608,31 +674,32 @@ export default function MapScreen() {
               tracksViewChanges={false}
               testID="map-user-marker"
             >
-              <View style={styles.userOuter}>
-                <View style={styles.userPulse} />
-                <View style={styles.userDot} />
+              <View style={styles.userMarker}>
+                <View style={styles.userPulseRing} />
+                <View style={styles.userCenter} />
               </View>
             </Marker>
           ) : null}
         </MapView>
       )}
 
-      <View style={[styles.topOverlay, { top: insets.top + 6 }]}>
+      <View style={[styles.topControls, { paddingTop: insets.top + 8 }]}>
         <View style={styles.searchRow}>
           <View style={[
             styles.searchBar,
             {
-              backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)',
-              borderColor: isSearchFocused ? colors.aqua + '50' : 'transparent',
-              borderWidth: 1,
+              backgroundColor: isDark ? 'rgba(22, 26, 42, 0.88)' : 'rgba(255,255,255,0.92)',
+              borderColor: isSearchFocused
+                ? (isDark ? 'rgba(53, 212, 207, 0.3)' : 'rgba(26, 168, 163, 0.3)')
+                : 'transparent',
             },
           ]}>
-            <Search color={isSearchFocused ? colors.aqua : colors.textMuted} size={15} />
+            <Search color={isSearchFocused ? colors.aqua : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')} size={16} />
             <TextInput
               ref={searchInputRef}
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search venues, neighborhoods..."
-              placeholderTextColor={colors.textMuted}
+              placeholder="Search places..."
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onFocus={() => setIsSearchFocused(true)}
@@ -642,8 +709,8 @@ export default function MapScreen() {
               testID="map-search-input"
             />
             {searchQuery.length > 0 ? (
-              <Pressable onPress={handleClearSearch} hitSlop={8}>
-                <X color={colors.textMuted} size={14} />
+              <Pressable onPress={handleClearSearch} hitSlop={10} style={styles.clearBtn}>
+                <X color={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)'} size={14} />
               </Pressable>
             ) : null}
           </View>
@@ -651,7 +718,9 @@ export default function MapScreen() {
             onPress={() => void handleRecenter()}
             style={({ pressed }) => [
               styles.recenterBtn,
-              { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.92)' : 'rgba(255,255,255,0.95)' },
+              {
+                backgroundColor: isDark ? 'rgba(22, 26, 42, 0.88)' : 'rgba(255,255,255,0.92)',
+              },
               pressed && styles.pressed,
             ]}
             testID="map-recenter"
@@ -666,8 +735,10 @@ export default function MapScreen() {
 
         {isSearchFocused && searchQuery.trim().length > 0 ? (
           <View style={[
-            styles.searchResults,
-            { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.96)' : 'rgba(255,255,255,0.98)' },
+            styles.searchDropdown,
+            {
+              backgroundColor: isDark ? 'rgba(22, 26, 42, 0.96)' : 'rgba(255,255,255,0.98)',
+            },
           ]}>
             {searchResults.length > 0 ? (
               searchResults.map((venue, idx) => {
@@ -677,31 +748,36 @@ export default function MapScreen() {
                     key={venue.id}
                     onPress={() => handleSearchSelect(venue)}
                     style={({ pressed }) => [
-                      styles.searchResultItem,
-                      idx < searchResults.length - 1 && { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', borderBottomWidth: 1 },
-                      pressed && { opacity: 0.7 },
+                      styles.searchItem,
+                      idx < searchResults.length - 1 && {
+                        borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                      },
+                      pressed && { opacity: 0.6 },
                     ]}
                     testID={`search-result-${venue.id}`}
                   >
-                    <View style={[styles.searchResultDot, { backgroundColor: vColor }]} />
-                    <View style={styles.searchResultText}>
-                      <Text style={[styles.searchResultName, { color: colors.text }]} numberOfLines={1}>
+                    <View style={[styles.searchItemDot, { backgroundColor: vColor }]} />
+                    <View style={styles.searchItemInfo}>
+                      <Text style={[styles.searchItemName, { color: colors.text }]} numberOfLines={1}>
                         {venue.name}
                       </Text>
-                      <Text style={[styles.searchResultSub, { color: colors.textMuted }]} numberOfLines={1}>
+                      <Text style={[styles.searchItemSub, { color: colors.textMuted }]} numberOfLines={1}>
                         {venue.categoryLabel} · {venue.neighborhood}
                       </Text>
                     </View>
-                    <View style={styles.searchResultRight}>
-                      <Text style={[styles.searchResultScore, { color: vColor }]}>{venue.vibe_score}</Text>
-                      <Text style={[styles.searchResultEta, { color: colors.textMuted }]}>{venue.eta}</Text>
+                    <View style={styles.searchItemRight}>
+                      <Text style={[styles.searchItemScore, { color: vColor }]}>{venue.vibe_score}</Text>
+                      <Text style={[styles.searchItemEta, { color: colors.textMuted }]}>{venue.eta}</Text>
                     </View>
                   </Pressable>
                 );
               })
             ) : (
               <View style={styles.searchEmpty}>
-                <Text style={[styles.searchEmptyText, { color: colors.textMuted }]}>No venues found for "{searchQuery}"</Text>
+                <Text style={[styles.searchEmptyText, { color: colors.textMuted }]}>
+                  No results for "{searchQuery}"
+                </Text>
               </View>
             )}
           </View>
@@ -711,47 +787,34 @@ export default function MapScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterScroll}
+            contentContainerStyle={styles.filterRow}
             bounces={false}
-            style={styles.filterScrollWrap}
+            style={styles.filterScroll}
           >
             {MAP_FILTERS.map((filter) => (
-              <FilterChip
+              <FilterPill
                 key={filter.id}
                 filterId={filter.id}
                 label={filter.label}
                 iconName={filter.icon}
                 isActive={activeFilters.includes(filter.id)}
                 onPress={() => handleToggleFilter(filter.id)}
+                isDark={isDark}
+                colors={colors}
               />
             ))}
           </ScrollView>
         ) : null}
       </View>
 
-      <View style={[styles.legendBar, { bottom: insets.bottom + (selectedVenue ? 180 : 90) }]}>
-        <View style={[styles.legendInner, { backgroundColor: isDark ? 'rgba(8, 22, 28, 0.88)' : 'rgba(255,255,255,0.92)' }]}>
-          <View style={[styles.legendDot, { backgroundColor: '#4DB8E8' }]} />
-          <Text style={[styles.legendLabel, { color: colors.textMuted }]}>Quiet</Text>
-          <View style={styles.legendTrack}>
-            <LinearGradient
-              colors={['#4DB8E8', '#5BE89E', '#E8D544', '#FFAA2E', '#FF4D3A']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.legendFill}
-            />
-          </View>
-          <Text style={[styles.legendLabel, { color: colors.textMuted }]}>Packed</Text>
-          <View style={[styles.legendDot, { backgroundColor: '#FF4D3A' }]} />
-        </View>
-      </View>
-
       {selectedVenue ? (
-        <BottomSheetCard
+        <VenueCard
           venue={selectedVenue}
           onClose={() => setSelectedId(null)}
           onDirections={handleDirections}
           bottomInset={insets.bottom + 80}
+          isDark={isDark}
+          colors={colors}
         />
       ) : null}
     </View>
@@ -761,321 +824,370 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: '#1a1a2e',
   },
-  topOverlay: {
+  topControls: {
     position: 'absolute',
     left: 0,
     right: 0,
+    top: 0,
     zIndex: 20,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   searchBar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    gap: 10,
+    paddingHorizontal: 14,
+    height: 44,
     borderRadius: 22,
+    borderWidth: 1,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '500' as const,
+    fontSize: 15,
+    fontWeight: '400' as const,
     padding: 0,
     margin: 0,
+    letterSpacing: 0.1,
   },
-  searchResults: {
-    marginTop: 6,
-    borderRadius: 14,
+  clearBtn: {
+    padding: 2,
+  },
+  searchDropdown: {
+    marginTop: 8,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 5,
   },
-  searchResultItem: {
+  searchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
-  searchResultDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  searchItemDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  searchResultText: {
+  searchItemInfo: {
     flex: 1,
     gap: 2,
   },
-  searchResultName: {
-    fontSize: 13,
-    fontWeight: '700' as const,
+  searchItemName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    letterSpacing: 0.1,
   },
-  searchResultSub: {
-    fontSize: 10,
+  searchItemSub: {
+    fontSize: 11,
+    letterSpacing: 0.2,
   },
-  searchResultRight: {
+  searchItemRight: {
     alignItems: 'flex-end',
     gap: 2,
   },
-  searchResultScore: {
-    fontSize: 13,
-    fontWeight: '800' as const,
+  searchItemScore: {
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
-  searchResultEta: {
-    fontSize: 9,
+  searchItemEta: {
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
   searchEmpty: {
-    paddingHorizontal: 14,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     alignItems: 'center',
   },
   searchEmptyText: {
-    fontSize: 12,
-  },
-  filterScrollWrap: {
-    marginTop: 8,
+    fontSize: 13,
   },
   filterScroll: {
-    gap: 5,
-    flexDirection: 'row',
+    marginTop: 10,
   },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-  },
-  recenterBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  legendBar: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    zIndex: 10,
-  },
-  legendInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  filterRow: {
     gap: 6,
+    flexDirection: 'row',
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
+    borderWidth: 1,
   },
-  legendDot: { width: 5, height: 5, borderRadius: 3 },
-  legendLabel: { fontSize: 10, fontWeight: '600' as const },
-  legendTrack: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
-  legendFill: { flex: 1 },
-  userOuter: {
-    width: 24,
-    height: 24,
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    letterSpacing: 0.2,
+  },
+  recenterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  userMarker: {
+    width: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  userPulse: {
+  userPulseRing: {
     position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(53, 212, 207, 0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.7)',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(53, 140, 220, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
-  userDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#67F2E5',
+  userCenter: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4A90D9',
+    borderWidth: 1.5,
+    borderColor: '#fff',
   },
-  bottomSheet: {
+  cardContainer: {
     position: 'absolute',
-    left: 8,
-    right: 8,
+    left: 12,
+    right: 12,
     zIndex: 100,
   },
-  sheetInner: {
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    gap: 7,
+  card: {
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  sheetDragZone: { alignItems: 'center', paddingBottom: 2 },
-  sheetHandle: { width: 28, height: 3, borderRadius: 2 },
-  sheetClose: {
+  cardHandle: {
+    alignItems: 'center',
+    paddingBottom: 4,
+  },
+  handleBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+  },
+  cardClose: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  sheetHeader: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingRight: 26,
+    gap: 12,
+    paddingRight: 32,
   },
-  sheetAvatarWrap: { position: 'relative' },
-  sheetAvatar: { width: 30, height: 30, borderRadius: 15 },
-  sheetAvatarRing: {
+  cardAvatarWrap: {
+    position: 'relative',
+  },
+  cardAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  cardAvatarBorder: {
     position: 'absolute',
     top: -2,
     left: -2,
     right: -2,
     bottom: -2,
-    borderRadius: 17,
+    borderRadius: 23,
     borderWidth: 2,
   },
-  sheetHeaderText: { flex: 1, gap: 1 },
-  sheetName: { fontSize: 13, fontWeight: '800' as const },
-  sheetSubRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  sheetSub: { fontSize: 10, flex: 1 },
-  sheetStats: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
-  sheetStat: {
+  cardHeaderInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  cardName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    letterSpacing: -0.2,
+  },
+  cardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    gap: 4,
   },
-  sheetStatVal: { fontSize: 10, fontWeight: '700' as const },
-  sheetStatLabel: { fontSize: 9 },
-  sheetStatusDot: { width: 4, height: 4, borderRadius: 2 },
-  sheetActions: { flexDirection: 'row', gap: 5 },
-  sheetDirBtn: {
+  cardCategory: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  cardMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    opacity: 0.4,
+  },
+  cardNeighborhood: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  cardStats: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  cardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  cardStatValue: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  cardStatLabel: {
+    fontSize: 10,
+    fontWeight: '500' as const,
+  },
+  statusIndicator: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  cardBlurb: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '400' as const,
+    letterSpacing: 0.1,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 2,
+  },
+  directionsBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    borderRadius: 10,
-    paddingVertical: 8,
+    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 11,
   },
-  sheetDirText: { fontSize: 11, fontWeight: '800' as const },
-  sheetDetailBtn: {
+  directionsBtnText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#fff',
+    letterSpacing: 0.1,
+  },
+  detailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 14,
     borderWidth: 1,
   },
-  sheetDetailText: { fontSize: 11, fontWeight: '700' as const },
+  detailsBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
   pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.96 }],
+    opacity: 0.8,
+    transform: [{ scale: 0.97 }],
   },
 });
 
-const markerStyles = StyleSheet.create({
+const mStyles = StyleSheet.create({
   root: {
-    width: MARKER_SIZE,
-    height: MARKER_SIZE,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glow: {
+  pulse: {
     position: 'absolute',
-    width: MARKER_SIZE,
-    height: MARKER_SIZE,
-    borderRadius: MARKER_SIZE / 2,
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
   },
-  ring: {
-    borderWidth: 2,
+  dot: {
+    width: DOT_INNER,
+    height: DOT_INNER,
+    borderRadius: DOT_INNER / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0B1820',
     overflow: 'hidden',
+    elevation: 3,
   },
-  ringHot: {
-    width: RING_HOT,
-    height: RING_HOT,
-    borderRadius: RING_HOT / 2,
+  avatar: {
+    width: DOT_AVATAR,
+    height: DOT_AVATAR,
+    borderRadius: DOT_AVATAR / 2,
   },
-  ringNormal: {
-    width: RING_NORMAL,
-    height: RING_NORMAL,
-    borderRadius: RING_NORMAL / 2,
-  },
-  avatarHot: {
-    width: AVATAR_HOT,
-    height: AVATAR_HOT,
-    borderRadius: AVATAR_HOT / 2,
-  },
-  avatarNormal: {
-    width: AVATAR_NORMAL,
-    height: AVATAR_NORMAL,
-    borderRadius: AVATAR_NORMAL / 2,
-  },
-  badge: {
+  scoreBadge: {
     position: 'absolute',
-    bottom: 1,
-    right: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1,
+    bottom: 0,
+    right: 0,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 6,
-    minWidth: 18,
-    justifyContent: 'center',
+    minWidth: 16,
+    alignItems: 'center',
   },
-  badgeText: {
+  scoreText: {
     color: '#fff',
     fontSize: 7,
-    fontWeight: '900' as const,
+    fontWeight: '800' as const,
   },
   clusterRoot: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clusterGlow: {
+  clusterOuter: {
     position: 'absolute',
   },
-  clusterBody: {
+  clusterInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
   },
   clusterCount: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '900' as const,
+    fontWeight: '800' as const,
   },
 });

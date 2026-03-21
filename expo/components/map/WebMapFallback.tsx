@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Flame } from 'lucide-react-native';
 import type { Region } from 'react-native-maps';
 import type { PulzeVenue } from '@/types/venue';
 
 function getVibeColor(score: number): string {
-  if (score >= 80) return '#FF4D3A';
-  if (score >= 60) return '#FFAA2E';
-  if (score >= 40) return '#E8D544';
-  if (score >= 20) return '#5BE89E';
-  return '#4DB8E8';
+  if (score >= 80) return '#E85D50';
+  if (score >= 60) return '#E8A040';
+  if (score >= 40) return '#C8B850';
+  if (score >= 20) return '#50B880';
+  return '#5098C0';
 }
 
 interface WebMarkerProps {
@@ -22,6 +21,8 @@ interface WebMarkerProps {
   containerWidth: number;
   containerHeight: number;
 }
+
+const DOT_SIZE = 28;
 
 const WebVibeMarker = React.memo(function WebVibeMarker({
   venue,
@@ -39,8 +40,7 @@ const WebVibeMarker = React.memo(function WebVibeMarker({
 
   if (xPct < -0.1 || xPct > 1.1 || yPct < -0.1 || yPct > 1.1) return null;
 
-  const mSize = isHot ? 40 : 32;
-  const glowSize = isHot ? 50 : 42;
+  const outerSize = DOT_SIZE + 8;
 
   return (
     <Pressable
@@ -48,48 +48,51 @@ const WebVibeMarker = React.memo(function WebVibeMarker({
       style={[
         styles.markerWrap,
         {
-          left: left - glowSize / 2,
-          top: top - glowSize / 2,
-          width: glowSize,
-          height: glowSize,
+          left: left - outerSize / 2,
+          top: top - outerSize / 2,
+          width: outerSize,
+          height: outerSize,
           zIndex: isSelected ? 20 : isHot ? 10 : 5,
         },
       ]}
     >
+      {isHot ? (
+        <View
+          style={[
+            styles.markerPulse,
+            {
+              width: outerSize,
+              height: outerSize,
+              borderRadius: outerSize / 2,
+              backgroundColor: color,
+              opacity: 0.15,
+            },
+          ]}
+        />
+      ) : null}
       <View
         style={[
-          styles.markerGlow,
+          styles.markerDot,
           {
-            width: glowSize,
-            height: glowSize,
-            borderRadius: glowSize / 2,
-            backgroundColor: color,
-            opacity: isHot ? 0.3 : 0.2,
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.markerBody,
-          {
-            width: mSize,
-            height: mSize,
-            borderRadius: mSize / 2,
+            width: DOT_SIZE,
+            height: DOT_SIZE,
+            borderRadius: DOT_SIZE / 2,
             borderColor: color,
-            borderWidth: isSelected ? 3 : 2,
+            borderWidth: isSelected ? 2.5 : 2,
           },
         ]}
       >
         <Image
           source={{ uri: venue.avatar }}
-          style={{ width: mSize - 6, height: mSize - 6, borderRadius: (mSize - 6) / 2 }}
+          style={styles.markerAvatar}
           contentFit="cover"
         />
       </View>
-      <View style={[styles.markerBadge, { backgroundColor: color }]}>
-        {isHot ? <Flame color="#fff" size={6} /> : null}
-        <Text style={styles.markerBadgeText}>{venue.vibe_score}</Text>
-      </View>
+      {isHot ? (
+        <View style={[styles.markerBadge, { backgroundColor: color }]}>
+          <Text style={styles.markerBadgeText}>{venue.vibe_score}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 });
@@ -171,31 +174,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  markerGlow: {
+  markerPulse: {
     position: 'absolute',
   },
-  markerBody: {
+  markerDot: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0B1820',
+    backgroundColor: '#1e2438',
     overflow: 'hidden',
+  },
+  markerAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   markerBadge: {
     position: 'absolute',
     bottom: 0,
     right: -2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 1,
     paddingHorizontal: 3,
     paddingVertical: 1,
-    borderRadius: 6,
-    minWidth: 16,
-    justifyContent: 'center',
+    borderRadius: 5,
+    minWidth: 14,
+    alignItems: 'center',
   },
   markerBadgeText: {
     color: '#fff',
     fontSize: 7,
-    fontWeight: '900' as const,
+    fontWeight: '800' as const,
   },
 });
