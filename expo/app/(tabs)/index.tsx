@@ -161,7 +161,7 @@ export default function FeedScreen() {
         <LinearGradient colors={heroGradient} style={[styles.hero, { borderColor: colors.border }]}>
           <View style={styles.topRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.eyebrow, { color: colors.aqua }]}>Pulse</Text>
+              <Text style={[styles.eyebrow, { color: colors.aqua }]}>Pulze</Text>
               <Text style={[styles.heroTitle, { color: colors.text }]}>The city, right now.</Text>
             </View>
             <Pressable onPress={handleLiveBadgePress} testID="live-badge-btn">

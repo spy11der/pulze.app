@@ -97,7 +97,7 @@ export default function ProfileScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Log out',
-      'Are you sure you want to log out of Pulse?',
+      'Are you sure you want to log out of Pulze?',
       [
         { text: 'Cancel', style: 'cancel' },
         {

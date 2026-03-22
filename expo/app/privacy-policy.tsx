@@ -37,7 +37,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="1. Information We Collect" colors={colors}>
           <BulletPoint colors={colors}>
-            <Bold colors={colors}>Account Information:</Bold> When you create a Pulse account, we collect your name, email address, username, and profile photo.
+            <Bold colors={colors}>Account Information:</Bold> When you create a Pulze account, we collect your name, email address, username, and profile photo.
           </BulletPoint>
           <BulletPoint colors={colors}>
             <Bold colors={colors}>Location Data:</Bold> With your permission, we collect precise or approximate location data to show nearby events, venues, and friends on the map. You can control location visibility in Settings.
@@ -49,7 +49,7 @@ export default function PrivacyPolicyScreen() {
             <Bold colors={colors}>Device Information:</Bold> Device type, operating system, unique device identifiers, and crash data for improving app stability.
           </BulletPoint>
           <BulletPoint colors={colors}>
-            <Bold colors={colors}>Usage Data:</Bold> How you interact with Pulse, including features used, time spent, and navigation patterns.
+            <Bold colors={colors}>Usage Data:</Bold> How you interact with Pulze, including features used, time spent, and navigation patterns.
           </BulletPoint>
           <BulletPoint colors={colors}>
             <Bold colors={colors}>Biometric Data:</Bold> If you enable Face ID or fingerprint lock, biometric authentication is processed locally on your device and never sent to our servers.
@@ -58,7 +58,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="2. How We Use Your Information" colors={colors}>
           <Paragraph colors={colors}>We use the information we collect to:</Paragraph>
-          <BulletPoint colors={colors}>Provide, maintain, and improve Pulse's features and services</BulletPoint>
+          <BulletPoint colors={colors}>Provide, maintain, and improve Pulze's features and services</BulletPoint>
           <BulletPoint colors={colors}>Show you relevant events, venues, and experiences near you</BulletPoint>
           <BulletPoint colors={colors}>Connect you with friends and other users</BulletPoint>
           <BulletPoint colors={colors}>Process ticket purchases and wallet transactions</BulletPoint>
@@ -90,7 +90,7 @@ export default function PrivacyPolicyScreen() {
         </Section>
 
         <Section title="5. Your Privacy Controls" colors={colors}>
-          <Paragraph colors={colors}>Pulse gives you control over your data:</Paragraph>
+          <Paragraph colors={colors}>Pulze gives you control over your data:</Paragraph>
           <BulletPoint colors={colors}>
             <Bold colors={colors}>Post Privacy:</Bold> Choose who can see your posts (Public, Friends, or Private).
           </BulletPoint>
@@ -113,13 +113,13 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="7. Children's Privacy" colors={colors}>
           <Paragraph colors={colors}>
-            Pulse is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected data from a child under 13, we will delete it promptly.
+            Pulze is not intended for users under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected data from a child under 13, we will delete it promptly.
           </Paragraph>
         </Section>
 
         <Section title="8. Changes to This Policy" colors={colors}>
           <Paragraph colors={colors}>
-            We may update this Privacy Policy from time to time. We will notify you of material changes through the app or via email. Your continued use of Pulse after changes constitutes acceptance of the updated policy.
+            We may update this Privacy Policy from time to time. We will notify you of material changes through the app or via email. Your continued use of Pulze after changes constitutes acceptance of the updated policy.
           </Paragraph>
         </Section>
 

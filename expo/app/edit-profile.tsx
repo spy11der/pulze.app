@@ -20,8 +20,8 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
-  const [displayName, setDisplayName] = useState<string>('Jordan Pulse');
-  const [username, setUsername] = useState<string>('jordan.pulse');
+  const [displayName, setDisplayName] = useState<string>('Jordan Pulze');
+  const [username, setUsername] = useState<string>('jordan.pulze');
   const [bio, setBio] = useState<string>('City explorer. Finding the best vibes so you don\'t have to.');
 
   const handleSave = useCallback(() => {

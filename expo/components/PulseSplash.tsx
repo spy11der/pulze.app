@@ -97,10 +97,10 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
             },
           ]}
         >
-          <Animated.Text style={styles.logoText}>P</Animated.Text>
+          <Animated.Text style={styles.logoText}>Z</Animated.Text>
         </Animated.View>
       </View>
-      <Animated.Text style={[styles.brandText, { opacity: pulseOpacity }]}>PULSE</Animated.Text>
+      <Animated.Text style={[styles.brandText, { opacity: pulseOpacity }]}>PULZE</Animated.Text>
     </Animated.View>
   );
 }

@@ -1,6 +1,6 @@
 export const PULZE_ID = 'PZ-483921';
-export const PULZE_USERNAME = 'jordan.pulse';
-export const PULZE_DISPLAY_NAME = 'Jordan Pulse';
+export const PULZE_USERNAME = 'jordan.pulze';
+export const PULZE_DISPLAY_NAME = 'Jordan Pulze';
 export const PULZE_BIO = 'City explorer. Finding the best vibes so you don\'t have to.';
 export const PULZE_LOCATION = 'Lower East';
 export const PULZE_AVATAR_INITIALS = 'JP';
