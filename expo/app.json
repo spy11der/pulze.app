@@ -48,16 +48,19 @@
         "expo-router",
         {
           "origin": "https://rork.com/"
-        },
+        }
+      ],
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
       "expo-sqlite",
-    	[
-     		"react-native-maps",      
-    		{
+      [
+        "react-native-maps",
+        {
           "androidGoogleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY",
-      		"iosGoogleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"    
+          "iosGoogleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
         }
+      ]
+    ]
   }
 }
