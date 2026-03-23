@@ -622,12 +622,13 @@ export default function MapScreen() {
         />
       ) : (
         <MapView
- 				  ref={mapRef}
-  			  style={StyleSheet.absoluteFillObject}
- 				  initialRegion={DENVER_REGION}
- 				  onRegionChangeComplete={handleRegionChange}
- 				  provider={PROVIDER_GOOGLE}
- 				  googleMapId="e3408ae820187e43d373a39b"         
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={DENVER_REGION}
+          onRegionChangeComplete={handleRegionChange}
+          provider={PROVIDER_GOOGLE}
+          googleMapId="e3408ae820187e43d373a39b"
+          customMapStyle={isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE}
           showsCompass={false}
           rotateEnabled
           pitchEnabled
