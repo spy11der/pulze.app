@@ -49,7 +49,7 @@ const DENVER_REGION: Region = {
 };
 
 // Paste your Google Map ID here (from Google Cloud Console > Map Management)
-const GOOGLE_MAP_ID = 'PASTE_GOOGLE_MAP_ID_HERE';
+const GOOGLE_MAP_ID = 'e3408ae820187e43d373a39b';
 
 function getVibeColor(score: number): string {
   if (score >= 80) return '#E85D50';
