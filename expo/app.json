@@ -22,6 +22,9 @@
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
         "NSPhotoLibraryUsageDescription": "Pulze needs photo library access so you can share photos in your posts and update your profile picture.",
         "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app and protect your wallet."
+      },
+      "config": {
+        "googleMapsApiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE"
       }
     },
     "android": {
@@ -38,7 +41,12 @@
         "READ_EXTERNAL_STORAGE",
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -53,14 +61,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
-      "expo-sqlite",
-      [
-        "react-native-maps",
-        {
-          "androidGoogleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY",
-          "iosGoogleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
-        }
-      ]
+      "expo-sqlite"
     ]
   }
 }
