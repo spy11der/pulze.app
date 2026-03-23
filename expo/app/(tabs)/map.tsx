@@ -627,12 +627,7 @@ export default function MapScreen() {
  				  initialRegion={DENVER_REGION}
  				  onRegionChangeComplete={handleRegionChange}
  				  provider={PROVIDER_GOOGLE}
- 				  googleMapId="2783466a9a2d6e2483f0e07a"
-          ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={DENVER_REGION}
-          onRegionChangeComplete={handleRegionChange}
-          provider={PROVIDER_GOOGLE}          
+ 				  googleMapId="2783466a9a2d6e2483f0e07a"         
           showsCompass={false}
           rotateEnabled
           pitchEnabled
