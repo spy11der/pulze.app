@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import {
   LocateFixed,
   Search,
@@ -626,9 +626,7 @@ export default function MapScreen() {
           style={StyleSheet.absoluteFillObject}
           initialRegion={DENVER_REGION}
           onRegionChangeComplete={handleRegionChange}
-          provider={PROVIDER_GOOGLE}
-          googleMapId="e3408ae820187e43d373a39b"
-          customMapStyle={isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE}
+          {...(Platform.OS === 'android' ? { customMapStyle: isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE } : {})}
           showsCompass={false}
           rotateEnabled
           pitchEnabled
