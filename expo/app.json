@@ -24,7 +24,7 @@
         "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app and protect your wallet."
       },
       "config": {
-        "googleMapsApiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE"
+        "googleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
       }
     },
     "android": {
@@ -44,7 +44,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE"
+          "apiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
         }
       }
     },
