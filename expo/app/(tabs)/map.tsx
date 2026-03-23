@@ -39,7 +39,7 @@ import { pulzeVenues } from '@/mocks/venues';
 import type { PulzeVenue, MapCluster, MapFilterId } from '@/types/venue';
 import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
-import WebMapFallback from '@/components/map/WebMapFallback';
+import { MapPin } from 'lucide-react-native';
 
 const DENVER_REGION: Region = {
   latitude: 39.7475,
@@ -579,12 +579,13 @@ export default function MapScreen() {
   return (
     <View style={styles.screen} testID="map-screen">
       {Platform.OS === 'web' ? (
-        <WebMapFallback
-          region={mapRegion}
-          venues={filteredVenues}
-          selectedVenue={selectedVenue}
-          onSelectVenue={(venue) => handlePressVenue(venue.id)}
-        />
+        <View style={styles.webPlaceholder}>
+          <View style={styles.webPlaceholderIcon}>
+            <MapPin color="#35D4CF" size={36} />
+          </View>
+          <Text style={styles.webPlaceholderTitle}>Map preview is available on device only.</Text>
+          <Text style={styles.webPlaceholderSub}>Scan the QR code to view the native Google map style.</Text>
+        </View>
       ) : (
         <MapView
           ref={mapRef}
@@ -1090,6 +1091,37 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
     transform: [{ scale: 0.97 }],
+  },
+  webPlaceholder: {
+    flex: 1,
+    backgroundColor: '#0e1524',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  webPlaceholderIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(53, 212, 207, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  webPlaceholderTitle: {
+    color: '#e2e8f0',
+    fontSize: 16,
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
+    marginBottom: 8,
+    letterSpacing: 0.1,
+  },
+  webPlaceholderSub: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 13,
+    textAlign: 'center' as const,
+    lineHeight: 19,
+    letterSpacing: 0.2,
   },
 });
 
