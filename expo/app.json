@@ -53,7 +53,14 @@
       "expo-font",
       "expo-web-browser",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE",
+          "iosGoogleMapsApiKey": "PASTE_GOOGLE_MAPS_API_KEY_HERE"
+        }
+      ]
     ]
   }
 }

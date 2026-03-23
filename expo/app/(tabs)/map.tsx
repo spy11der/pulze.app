@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Circle, Marker, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import {
   LocateFixed,
   Search,
@@ -48,43 +48,8 @@ const DENVER_REGION: Region = {
   longitudeDelta: 0.06,
 };
 
-const CALM_DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1a2e' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#6b7b8d' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#8fa4b8' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1e2d3d' }, { visibility: 'simplified' }] },
-  { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#232840' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#2a3050' }] },
-  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2a3350' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#313860' }] },
-  { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.arterial', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#141828' }] },
-  { featureType: 'water', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-];
-
-const CALM_LIGHT_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#f2f4f8' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8a99a8' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f2f4f8' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#5a6a7a' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e8efe8' }, { visibility: 'simplified' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e8ecf0' }] },
-  { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f8f9fb' }] },
-  { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#dce6f0' }] },
-  { featureType: 'water', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-];
+// Paste your Google Map ID here (from Google Cloud Console > Map Management)
+const GOOGLE_MAP_ID = 'PASTE_GOOGLE_MAP_ID_HERE';
 
 function getVibeColor(score: number): string {
   if (score >= 80) return '#E85D50';
@@ -624,9 +589,10 @@ export default function MapScreen() {
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
+          provider={PROVIDER_GOOGLE}
+          googleMapId={GOOGLE_MAP_ID}
           initialRegion={DENVER_REGION}
           onRegionChangeComplete={handleRegionChange}
-          {...(Platform.OS === 'android' ? { customMapStyle: isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE } : {})}
           showsCompass={false}
           rotateEnabled
           pitchEnabled
