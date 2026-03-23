@@ -622,21 +622,22 @@ export default function MapScreen() {
         />
       ) : (
         <MapView
+ 				  ref={mapRef}
+  			  style={StyleSheet.absoluteFillObject}
+ 				  initialRegion={DENVER_REGION}
+ 				  onRegionChangeComplete={handleRegionChange}
+ 				  provider={PROVIDER_GOOGLE}
+ 				  googleMapId="2783466a9a2d6e2483f0e07a"
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           initialRegion={DENVER_REGION}
           onRegionChangeComplete={handleRegionChange}
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          provider={PROVIDER_GOOGLE}          
           showsCompass={false}
-          showsBuildings={false}
-          showsTraffic={false}
-          showsIndoors={false}
-          showsPointsOfInterest={false}
           rotateEnabled
           pitchEnabled
           toolbarEnabled={false}
           onPress={handleMapPress}
-          customMapStyle={isDark ? CALM_DARK_MAP_STYLE : CALM_LIGHT_MAP_STYLE}
           showsUserLocation={false}
           testID="pulze-map-view"
         >
