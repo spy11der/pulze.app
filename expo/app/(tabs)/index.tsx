@@ -22,21 +22,26 @@ import type { SavedVibe } from '@/services/database';
 type FeedMode = 'everyone' | 'friends' | 'my_vibes';
 
 const VIBE_DESCRIPTIONS: Record<string, string> = {
-  'Packed and rowdy': 'High crowd density with loud, lively energy. Expect movement, noise, and a party atmosphere.',
-  'Electric anticipation': 'Something big is about to happen. The crowd is building and excitement is in the air.',
-  'Creative and social': 'A blend of artistic energy and friendly conversation. Great for meeting people and soaking in culture.',
-  'Calm glow': 'Peaceful and serene. Low energy but warm — perfect for unwinding or a quiet moment.',
-  'Buzzing and weird': 'Offbeat and alive. Expect the unexpected — art, sounds, and people doing their own thing.',
-  'Quiet before the storm': 'Calm now, but about to erupt. Early arrivals setting the stage for a big night ahead.',
+  'Social': 'Friendly and conversational. Great for meeting people and soaking in the scene.',
+  'Chill': 'Relaxed and easy-going. Perfect for unwinding with good company.',
+  'Party': 'High energy, loud music, and packed crowds. Full send tonight.',
+  'Active': 'On the move. The crowd is buzzing with excitement and anticipation.',
+  'Romantic': 'Warm and intimate. Golden light, quiet corners, and good vibes.',
+  'Creative': 'Artistic and inspired. Expect the unexpected — art, sounds, and expression.',
+  'Busy': 'Lots of movement and action. Things are happening fast.',
+  'Quiet': 'Peaceful and calm. Ideal for focus, reading, or escaping the noise.',
 };
 
 function getVibeColor(vibe: string): string {
-  if (vibe.toLowerCase().includes('packed') || vibe.toLowerCase().includes('rowdy')) return '#FF6D5E';
-  if (vibe.toLowerCase().includes('electric') || vibe.toLowerCase().includes('anticipation')) return '#FFBF47';
-  if (vibe.toLowerCase().includes('creative') || vibe.toLowerCase().includes('social')) return '#A5F05C';
-  if (vibe.toLowerCase().includes('calm') || vibe.toLowerCase().includes('glow')) return '#67F2E5';
-  if (vibe.toLowerCase().includes('buzzing') || vibe.toLowerCase().includes('weird')) return '#F56AC5';
-  if (vibe.toLowerCase().includes('quiet') || vibe.toLowerCase().includes('storm')) return '#7EC8E3';
+  const v = vibe.toLowerCase();
+  if (v === 'party') return '#FF6D5E';
+  if (v === 'active') return '#FFBF47';
+  if (v === 'social') return '#A5F05C';
+  if (v === 'romantic') return '#67F2E5';
+  if (v === 'creative') return '#F56AC5';
+  if (v === 'quiet') return '#7EC8E3';
+  if (v === 'chill') return '#5BE89E';
+  if (v === 'busy') return '#FFA264';
   return '#35D4CF';
 }
 
