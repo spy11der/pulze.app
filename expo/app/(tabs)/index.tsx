@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Compass, Database, Eye, Flame, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2, X, Zap } from 'lucide-react-native';
+import { Compass, Database, Eye, Flame, Info, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2, X, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
@@ -20,6 +20,25 @@ import { useTheme } from '@/providers/ThemeProvider';
 import type { SavedVibe } from '@/services/database';
 
 type FeedMode = 'everyone' | 'friends' | 'my_vibes';
+
+const VIBE_DESCRIPTIONS: Record<string, string> = {
+  'Packed and rowdy': 'High crowd density with loud, lively energy. Expect movement, noise, and a party atmosphere.',
+  'Electric anticipation': 'Something big is about to happen. The crowd is building and excitement is in the air.',
+  'Creative and social': 'A blend of artistic energy and friendly conversation. Great for meeting people and soaking in culture.',
+  'Calm glow': 'Peaceful and serene. Low energy but warm — perfect for unwinding or a quiet moment.',
+  'Buzzing and weird': 'Offbeat and alive. Expect the unexpected — art, sounds, and people doing their own thing.',
+  'Quiet before the storm': 'Calm now, but about to erupt. Early arrivals setting the stage for a big night ahead.',
+};
+
+function getVibeColor(vibe: string): string {
+  if (vibe.toLowerCase().includes('packed') || vibe.toLowerCase().includes('rowdy')) return '#FF6D5E';
+  if (vibe.toLowerCase().includes('electric') || vibe.toLowerCase().includes('anticipation')) return '#FFBF47';
+  if (vibe.toLowerCase().includes('creative') || vibe.toLowerCase().includes('social')) return '#A5F05C';
+  if (vibe.toLowerCase().includes('calm') || vibe.toLowerCase().includes('glow')) return '#67F2E5';
+  if (vibe.toLowerCase().includes('buzzing') || vibe.toLowerCase().includes('weird')) return '#F56AC5';
+  if (vibe.toLowerCase().includes('quiet') || vibe.toLowerCase().includes('storm')) return '#7EC8E3';
+  return '#35D4CF';
+}
 
 type FilterId = (typeof feedFilters)[number]['id'];
 
@@ -333,6 +352,66 @@ export default function FeedScreen() {
   );
 }
 
+const VibeChip = React.memo(function VibeChip({ vibe }: { vibe: string }) {
+  const { colors, isDark } = useTheme();
+  const [expanded, setExpanded] = useState<boolean>(false);
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const heightAnim = useRef(new Animated.Value(0)).current;
+  const vibeColor = getVibeColor(vibe);
+  const description = VIBE_DESCRIPTIONS[vibe] ?? 'A unique energy that defines this spot right now.';
+
+  const handlePress = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = !expanded;
+    setExpanded(next);
+    Animated.parallel([
+      Animated.spring(glowAnim, { toValue: next ? 1 : 0, friction: 8, tension: 60, useNativeDriver: false }),
+      Animated.spring(heightAnim, { toValue: next ? 1 : 0, friction: 8, tension: 60, useNativeDriver: false }),
+    ]).start();
+  }, [expanded, glowAnim, heightAnim]);
+
+  const glowBg = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [isDark ? colors.card : colors.card, vibeColor + '28'],
+  });
+  const glowBorder = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['transparent', vibeColor + '60'],
+  });
+  const descHeight = heightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 60],
+  });
+  const descOpacity = heightAnim.interpolate({
+    inputRange: [0, 0.4, 1],
+    outputRange: [0, 0, 1],
+  });
+
+  return (
+    <View style={styles.vibeChipWrapper}>
+      <Pressable onPress={handlePress} testID={`vibe-chip-${vibe}`}>
+        <Animated.View
+          style={[
+            styles.metaChip,
+            {
+              backgroundColor: glowBg,
+              borderColor: glowBorder,
+              borderWidth: 1,
+            },
+          ]}
+        >
+          <Radio color={expanded ? vibeColor : colors.aqua} size={14} />
+          <Text style={[styles.metaChipText, { color: expanded ? vibeColor : colors.text }]}>{vibe}</Text>
+          <Info color={expanded ? vibeColor : colors.textSoft} size={12} />
+        </Animated.View>
+      </Pressable>
+      <Animated.View style={[styles.vibeDescBox, { maxHeight: descHeight, opacity: descOpacity, borderLeftColor: vibeColor }]}>
+        <Text style={[styles.vibeDescText, { color: colors.textMuted }]}>{description}</Text>
+      </Animated.View>
+    </View>
+  );
+});
+
 const StoryCard = React.memo(function StoryCard({
   story,
   vibeScale,
@@ -382,10 +461,7 @@ const StoryCard = React.memo(function StoryCard({
             <MapPinned color={colors.aqua} size={14} />
             <Text style={[styles.metaChipText, { color: colors.text }]}>{story.distance}</Text>
           </View>
-          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
-            <Radio color={colors.aqua} size={14} />
-            <Text style={[styles.metaChipText, { color: colors.text }]}>{story.vibe}</Text>
-          </View>
+          <VibeChip vibe={story.vibe} />
           <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
             <Text style={[styles.metaChipText, { color: colors.text }]}>{story.privacy === 'friends' ? 'Friends details' : 'Public vibe'}</Text>
           </View>
@@ -939,6 +1015,20 @@ const styles = StyleSheet.create({
   cardPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.985 }],
+  },
+  vibeChipWrapper: {
+    gap: 6,
+  },
+  vibeDescBox: {
+    overflow: 'hidden',
+    borderLeftWidth: 3,
+    paddingLeft: 10,
+    paddingRight: 4,
+    marginTop: 2,
+  },
+  vibeDescText: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   eventPromoCard: {
     borderRadius: 16,
