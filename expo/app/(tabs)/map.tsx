@@ -591,7 +591,7 @@ export default function MapScreen() {
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           provider={PROVIDER_GOOGLE}
-          googleMapId={GOOGLE_MAP_ID}
+          mapId={GOOGLE_MAP_ID}
           initialRegion={DENVER_REGION}
           onRegionChangeComplete={handleRegionChange}
           showsCompass={false}
