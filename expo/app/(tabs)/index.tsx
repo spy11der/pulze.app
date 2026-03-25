@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Compass, Database, Eye, Flame, Heart, MapPinned, Radio, Ticket, Trash2, X, Zap } from 'lucide-react-native';
+import { Compass, Database, Eye, Flame, Heart, MapPinned, Radio, Ticket, Trash2, X, Zap, TrendingUp } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
+import { getUrgencyLabel } from '@/utils/urgency';
+import { UrgencyTag } from '@/components/UrgencyTag';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
@@ -242,7 +244,11 @@ export default function FeedScreen() {
               <Ticket color={colors.aqua} size={16} />
               <Text style={[styles.promoTitle, { color: colors.text }]}>Neon Drift: Rooftop After Dark</Text>
             </View>
-            <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · From $25</Text>
+            <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · Lock in from $25</Text>
+            <View style={[styles.promoUrgency, { backgroundColor: '#E8564A14' }]}>
+              <Flame color="#E8564A" size={10} />
+              <Text style={styles.promoUrgencyText}>Filling fast · 82% sold</Text>
+            </View>
           </Pressable>
         )}
 
@@ -254,10 +260,13 @@ export default function FeedScreen() {
           >
             <View style={styles.insightHeader}>
               <Flame color={colors.coral} size={14} />
-              <Text style={[styles.insightLabel, { color: colors.coral }]}>Trending now</Text>
+              <Text style={[styles.insightLabel, { color: colors.coral }]}>Peak now</Text>
             </View>
-            <Text style={[styles.insightTitle, { color: colors.text }]}>Mica Rooftop peaking</Text>
-            <Text style={[styles.insightBody, { color: colors.textMuted }]}>Strongest energy spike in the last 15 min. Crowd level rising fast.</Text>
+            <Text style={[styles.insightTitle, { color: colors.text }]}>Blake Street Tavern is peaking</Text>
+            <Text style={[styles.insightBody, { color: colors.textMuted }]}>+45 people in last 10 min. 300+ inside. 15 min wait at door.</Text>
+            <View style={styles.insightAction}>
+              <Text style={[styles.insightActionText, { color: colors.aqua }]}>Should you go? →</Text>
+            </View>
           </Pressable>
         )}
 
@@ -355,6 +364,16 @@ const StoryCard = React.memo(function StoryCard({
       </View>
 
       <Text style={[styles.storySummary, { color: colors.textSoft }]} numberOfLines={2}>{story.summary}</Text>
+
+      <View style={styles.storyUrgencyRow}>
+        <UrgencyTag urgency={getUrgencyLabel(story.intensity, story.pace === 'packed' ? 200 : story.pace === 'busy' ? 100 : 40, story.pace)} pulse />
+        <View style={[styles.liveIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+          <TrendingUp color={story.intensity >= 70 ? colors.amber : colors.textSoft} size={10} />
+          <Text style={[styles.liveIndicatorText, { color: story.intensity >= 70 ? colors.amber : colors.textSoft }]}>
+            +{Math.max(2, Math.floor(story.intensity * 0.12))} in 10m
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.storyBottom}>
         <View style={[styles.chip, { backgroundColor: vibeColor + '14' }]}>
@@ -756,6 +775,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 24,
   },
+  promoUrgency: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    marginLeft: 24,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  promoUrgencyText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#E8564A',
+  },
   insightCard: {
     borderRadius: 14,
     padding: 14,
@@ -779,6 +814,13 @@ const styles = StyleSheet.create({
   insightBody: {
     fontSize: 13,
     lineHeight: 19,
+  },
+  insightAction: {
+    marginTop: 4,
+  },
+  insightActionText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   sectionHeader: {
     gap: 2,
@@ -828,6 +870,23 @@ const styles = StyleSheet.create({
   storySummary: {
     fontSize: 13,
     lineHeight: 19,
+  },
+  storyUrgencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  liveIndicatorText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   storyBottom: {
     flexDirection: 'row',

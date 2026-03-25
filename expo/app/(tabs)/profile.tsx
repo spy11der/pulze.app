@@ -2,11 +2,16 @@ import React, { useMemo, useCallback } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
+
 import {
   ChevronRight,
   Copy,
   CreditCard,
   Edit3,
+  Flame,
   LogOut,
   Moon,
   QrCode,
@@ -15,9 +20,11 @@ import {
   ShieldCheck,
   Sun,
   Users,
+  Zap,
+  TrendingUp,
+  MapPin,
+  Clock,
 } from 'lucide-react-native';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
 
 import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friends';
 import { useData } from '@/providers/DataProvider';
@@ -108,6 +115,17 @@ export default function ProfileScreen() {
 
   const ThemeIcon = mode === 'dark' ? Moon : Sun;
 
+  const vibeIdentity = useMemo(() => {
+    if (vibeCount === 0) return { label: 'Explorer', color: colors.aqua, description: 'Drop vibes to build your identity' };
+    return { label: 'Prefers high energy', color: colors.coral, description: 'You tend toward packed, buzzing spots' };
+  }, [vibeCount, colors]);
+
+  const recentActivity = useMemo(() => [
+    { action: 'Dropped a vibe', place: 'Blake Street Tavern', time: '2h ago', icon: Zap },
+    { action: 'Saved a spot', place: 'Meow Wolf Denver', time: '5h ago', icon: MapPin },
+    { action: 'Checked crowd level', place: 'Fillmore Auditorium', time: '1d ago', icon: TrendingUp },
+  ], []);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="profile-screen">
       <ScrollView
@@ -190,6 +208,45 @@ export default function ProfileScreen() {
             <Text style={[styles.statValue, { color: colors.text }]}>{mockFriends.length}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
           </Pressable>
+        </View>
+
+        <View style={[styles.vibeIdentityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.vibeIdentityHeader}>
+            <View style={[styles.vibeIdentityIcon, { backgroundColor: vibeIdentity.color + '14' }]}>
+              <Flame color={vibeIdentity.color} size={16} />
+            </View>
+            <View style={styles.vibeIdentityInfo}>
+              <Text style={[styles.vibeIdentityLabel, { color: colors.textMuted }]}>YOUR VIBE IDENTITY</Text>
+              <Text style={[styles.vibeIdentityValue, { color: vibeIdentity.color }]}>{vibeIdentity.label}</Text>
+            </View>
+          </View>
+          <Text style={[styles.vibeIdentityDesc, { color: colors.textSoft }]}>{vibeIdentity.description}</Text>
+          <View style={[styles.currentVibeStatus, { backgroundColor: isDark ? 'rgba(43,191,186,0.08)' : 'rgba(26,158,153,0.06)' }]}>
+            <Zap color={colors.aqua} size={12} />
+            <Text style={[styles.currentVibeText, { color: colors.aqua }]}>Currently exploring Denver</Text>
+          </View>
+        </View>
+
+        <View style={[styles.activitySection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.activityHeader}>
+            <Clock color={colors.aqua} size={16} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
+          </View>
+          {recentActivity.map((item, idx) => {
+            const ActivityIcon = item.icon;
+            return (
+              <View key={idx} style={[styles.activityRow, idx < recentActivity.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+                <View style={[styles.activityIconWrap, { backgroundColor: colors.aqua + '12' }]}>
+                  <ActivityIcon color={colors.aqua} size={14} />
+                </View>
+                <View style={styles.activityInfo}>
+                  <Text style={[styles.activityAction, { color: colors.text }]}>{item.action}</Text>
+                  <Text style={[styles.activityPlace, { color: colors.textMuted }]}>{item.place}</Text>
+                </View>
+                <Text style={[styles.activityTime, { color: colors.textSoft }]}>{item.time}</Text>
+              </View>
+            );
+          })}
         </View>
 
         <Pressable
@@ -559,5 +616,93 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.98 }],
+  },
+  vibeIdentityCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    gap: 10,
+  },
+  vibeIdentityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  vibeIdentityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vibeIdentityInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  vibeIdentityLabel: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase' as const,
+  },
+  vibeIdentityValue: {
+    fontSize: 17,
+    fontWeight: '800' as const,
+  },
+  vibeIdentityDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  currentVibeStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  currentVibeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  activitySection: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    gap: 8,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  activityIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  activityAction: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  activityPlace: {
+    fontSize: 12,
+  },
+  activityTime: {
+    fontSize: 11,
   },
 });

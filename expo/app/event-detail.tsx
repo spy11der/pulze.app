@@ -29,6 +29,10 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { getEventForVenue } from '@/mocks/events';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
+import { DecisionBar } from '@/components/DecisionBar';
+import { LiveActivityBadge } from '@/components/LiveActivityBadge';
+import { UrgencyTag } from '@/components/UrgencyTag';
+import { getUrgencyLabel } from '@/utils/urgency';
 
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -208,6 +212,17 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
+          <UrgencyTag urgency={getUrgencyLabel(event.vibeScore, event.attendingCount)} size="md" pulse />
+
+          <LiveActivityBadge vibeScore={event.vibeScore} peopleCount={event.attendingCount} isDark={isDark} />
+
+          <DecisionBar
+            vibeScore={event.vibeScore}
+            peopleCount={event.attendingCount}
+            eta={event.distanceFromUser}
+            onGoNow={handleDirections}
+          />
+
           <View style={styles.actionsRow}>
             <Pressable
               onPress={handleDirections}
@@ -215,7 +230,7 @@ export default function EventDetailScreen() {
               testID="event-detail-directions"
             >
               <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-              <Text style={[styles.actionBtnText, { color: isDark ? colors.background : '#fff' }]}>Directions</Text>
+              <Text style={[styles.actionBtnText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
             </Pressable>
             <Pressable
               onPress={handleHeart}
@@ -251,7 +266,7 @@ export default function EventDetailScreen() {
           testID="event-detail-tickets"
         >
           <Ticket color={isDark ? colors.background : '#fff'} size={18} />
-          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Get Tickets</Text>
+          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Lock in spot</Text>
         </Pressable>
       </View>
 

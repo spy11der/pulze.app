@@ -184,7 +184,7 @@ export default function VenueBottomSheet({
             testID="venue-sheet-directions"
           >
             <Navigation color={isDark ? '#041318' : '#fff'} size={13} />
-            <Text style={[styles.dirText, { color: isDark ? '#041318' : '#fff' }]}>Directions</Text>
+            <Text style={[styles.dirText, { color: isDark ? '#041318' : '#fff' }]}>Get there now</Text>
           </Pressable>
           <Pressable
             onPress={() => onViewDetails(venue)}

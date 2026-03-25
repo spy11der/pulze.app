@@ -24,6 +24,10 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
+import { DecisionBar } from '@/components/DecisionBar';
+import { LiveActivityBadge } from '@/components/LiveActivityBadge';
+import { UrgencyTag } from '@/components/UrgencyTag';
+import { getUrgencyLabel } from '@/utils/urgency';
 
 function getVibeColor(score: number): string {
   if (score >= 80) return '#E85D50';
@@ -190,6 +194,17 @@ export default function VenueDetailScreen() {
             <Text style={[styles.addressText, { color: colors.text }]}>{venue.address}</Text>
           </View>
 
+          <UrgencyTag urgency={getUrgencyLabel(venue.vibe_score, venue.peopleCount)} size="md" pulse />
+
+          <LiveActivityBadge vibeScore={venue.vibe_score} peopleCount={venue.peopleCount} isDark={isDark} />
+
+          <DecisionBar
+            vibeScore={venue.vibe_score}
+            peopleCount={venue.peopleCount}
+            eta={venue.eta}
+            onGoNow={handleDirections}
+          />
+
           <View style={styles.actionsRow}>
             <Pressable
               onPress={handleDirections}
@@ -197,7 +212,7 @@ export default function VenueDetailScreen() {
               testID="venue-detail-directions"
             >
               <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-              <Text style={[styles.actionBtnText, { color: isDark ? colors.background : '#fff' }]}>Directions</Text>
+              <Text style={[styles.actionBtnText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
             </Pressable>
             <Pressable
               onPress={handleHeart}
@@ -217,7 +232,7 @@ export default function VenueDetailScreen() {
                 fill={hearted ? colors.coral : 'transparent'}
               />
               <Text style={[styles.actionBtnOutlineText, { color: hearted ? colors.coral : colors.textMuted }]}>
-                {hearted ? 'Saved' : 'Save Place'}
+                {hearted ? 'Saved' : 'Save this spot'}
               </Text>
             </Pressable>
           </View>

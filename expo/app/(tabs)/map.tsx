@@ -42,7 +42,9 @@ import { useMapLocation } from '@/hooks/useMapLocation';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
 import { useRouter } from 'expo-router';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, TrendingUp } from 'lucide-react-native';
+import { getUrgencyLabel } from '@/utils/urgency';
+import { UrgencyTag } from '@/components/UrgencyTag';
 
 const DENVER_REGION: Region = {
   latitude: 39.7475,
@@ -438,6 +440,16 @@ function VenueCard({
           </View>
         </View>
 
+        <View style={styles.cardUrgencyRow}>
+          <UrgencyTag urgency={getUrgencyLabel(venue.vibe_score, venue.peopleCount)} pulse />
+          <View style={[styles.cardLiveIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <TrendingUp color={venue.vibe_score >= 70 ? '#E8A830' : colors.textSoft} size={10} />
+            <Text style={[styles.cardLiveText, { color: venue.vibe_score >= 70 ? '#E8A830' : colors.textSoft }]}>
+              +{Math.max(2, Math.floor(venue.peopleCount * 0.08))} in 10m
+            </Text>
+          </View>
+        </View>
+
         {venue.blurb ? (
           <Text style={[styles.cardBlurb, { color: colors.textSoft }]} numberOfLines={2}>
             {venue.blurb}
@@ -465,7 +477,7 @@ function VenueCard({
             testID="sheet-directions"
           >
             <Navigation color="#fff" size={13} />
-            <Text style={styles.directionsBtnText}>Directions</Text>
+            <Text style={styles.directionsBtnText}>Get there now</Text>
           </Pressable>
           <Pressable
             onPress={onDetails}
@@ -1146,6 +1158,24 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
+  },
+  cardUrgencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  cardLiveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  cardLiveText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
   },
   cardBlurb: {
     fontSize: 12,

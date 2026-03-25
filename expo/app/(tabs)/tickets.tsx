@@ -370,7 +370,7 @@ export default function TicketsTab() {
                   testID="tickets-directions-btn"
                 >
                   <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-                  <Text style={[styles.mapActionText, { color: isDark ? colors.background : '#fff' }]}>Directions</Text>
+                  <Text style={[styles.mapActionText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSave}
@@ -421,7 +421,7 @@ export default function TicketsTab() {
           testID="tickets-get-btn"
         >
           <Ticket color={isDark ? colors.background : '#fff'} size={18} />
-          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Get Tickets</Text>
+          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Lock in spot</Text>
         </Pressable>
       </View>
     </View>
