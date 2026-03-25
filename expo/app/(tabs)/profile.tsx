@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Copy,
   CreditCard,
-  Database,
   Edit3,
   LogOut,
   Moon,
@@ -77,11 +76,6 @@ export default function ProfileScreen() {
     console.log('[Profile] Copied Pulze ID:', currentUser.pulzeId);
   }, []);
 
-  const handleThemeBadgePress = useCallback(() => {
-    void Haptics.selectionAsync();
-    router.push('/settings');
-  }, [router]);
-
   const handleStatPress = useCallback((stat: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (stat === 'friends') {
@@ -122,24 +116,24 @@ export default function ProfileScreen() {
       >
         <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.heroTop}>
-            <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.18)' : 'rgba(92, 168, 48, 0.12)' }]}>
+            <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(141, 212, 78, 0.14)' : 'rgba(78, 148, 40, 0.10)' }]}>
               <Text style={[styles.avatarText, { color: colors.lime }]}>{displayName.slice(0, 2).toUpperCase()}</Text>
             </View>
             <View style={styles.heroActions}>
               <Pressable
                 onPress={handleEditProfile}
-                style={({ pressed }) => [styles.heroBtn, { backgroundColor: colors.card, borderColor: colors.border }, pressed && styles.btnPressed]}
+                style={({ pressed }) => [styles.heroBtn, { backgroundColor: colors.aqua }, pressed && styles.btnPressed]}
                 testID="edit-profile-btn"
               >
-                <Edit3 color={colors.aqua} size={16} />
-                <Text style={[styles.heroBtnText, { color: colors.aqua }]}>Edit</Text>
+                <Edit3 color={isDark ? '#060F13' : '#fff'} size={14} />
+                <Text style={[styles.heroBtnText, { color: isDark ? '#060F13' : '#fff' }]}>Edit</Text>
               </Pressable>
               <Pressable
                 onPress={handleOpenSettings}
-                style={({ pressed }) => [styles.heroIconBtn, { backgroundColor: colors.card, borderColor: colors.border }, pressed && styles.btnPressed]}
+                style={({ pressed }) => [styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }, pressed && styles.btnPressed]}
                 testID="settings-btn"
               >
-                <Settings color={colors.textMuted} size={18} />
+                <Settings color={colors.textMuted} size={16} />
               </Pressable>
             </View>
           </View>
@@ -148,23 +142,23 @@ export default function ProfileScreen() {
             <Text style={[styles.handle, { color: colors.textMuted }]}>@{username} · {currentUser.location}</Text>
             <Pressable
               onPress={handleCopyId}
-              style={({ pressed }) => [styles.pulzeIdRow, { backgroundColor: colors.aqua + '14' }, pressed && styles.btnPressed]}
+              style={({ pressed }) => [styles.pulzeIdRow, { backgroundColor: colors.aqua + '10' }, pressed && styles.btnPressed]}
             >
-              <QrCode color={colors.aqua} size={13} />
+              <QrCode color={colors.aqua} size={12} />
               <Text style={[styles.pulzeIdText, { color: colors.aqua }]}>{currentUser.pulzeId}</Text>
-              <Copy color={colors.aqua} size={11} />
+              <Copy color={colors.aqua} size={10} />
             </Pressable>
             <Text style={[styles.bio, { color: colors.textSoft }]}>{currentUser.bio}</Text>
             <View style={styles.badgeRow}>
               <View style={styles.trustedLabel}>
-                <ShieldCheck color={colors.lime} size={13} />
-                <Text style={[styles.trustedLabelText, { color: colors.textSoft }]}>Trusted vibe source</Text>
+                <ShieldCheck color={colors.lime} size={12} />
+                <Text style={[styles.trustedLabelText, { color: colors.textSoft }]}>Trusted source</Text>
               </View>
               <Pressable
-                onPress={handleThemeBadgePress}
-                style={({ pressed }) => [styles.themeBadge, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.1)' : 'rgba(26, 168, 163, 0.08)' }, pressed && styles.btnPressed]}
+                onPress={() => { void Haptics.selectionAsync(); router.push('/settings'); }}
+                style={({ pressed }) => [styles.themeBadge, { backgroundColor: isDark ? 'rgba(43,191,186,0.08)' : 'rgba(26,158,153,0.06)' }, pressed && styles.btnPressed]}
               >
-                <ThemeIcon color={colors.aqua} size={13} />
+                <ThemeIcon color={colors.aqua} size={12} />
                 <Text style={[styles.themeBadgeText, { color: colors.aqua }]}>{mode === 'system' ? 'Auto' : isDark ? 'Dark' : 'Light'}</Text>
               </Pressable>
             </View>
@@ -196,19 +190,6 @@ export default function ProfileScreen() {
             <Text style={[styles.statValue, { color: colors.text }]}>{mockFriends.length}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
           </Pressable>
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert('Local Storage', 'Your vibes and preferences are stored securely on this device using SQLite.');
-            }}
-            style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.btnPressed]}
-            testID="stat-card-4"
-          >
-            <View style={[styles.storageIndicator, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <Database color={colors.aqua} size={16} />
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Local</Text>
-          </Pressable>
         </View>
 
         <Pressable
@@ -217,22 +198,19 @@ export default function ProfileScreen() {
           testID="friends-section"
         >
           <View style={styles.friendsSectionHeader}>
-            <Users color={colors.aqua} size={20} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Friends & Privacy</Text>
-            <View style={styles.friendsCountChip}>
-              <Text style={[styles.friendsCountText, { color: colors.textMuted }]}>{mockFriends.length}</Text>
-            </View>
-            <ChevronRight color={colors.textSoft} size={18} />
+            <Users color={colors.aqua} size={18} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Friends</Text>
+            <View style={{ flex: 1 }} />
+            {mockFriendRequests.length > 0 && (
+              <View style={[styles.requestsBadge, { backgroundColor: colors.coral + '14' }]}>
+                <Text style={[styles.requestsBadgeText, { color: colors.coral }]}>{mockFriendRequests.length} pending</Text>
+              </View>
+            )}
+            <ChevronRight color={colors.textSoft} size={16} />
           </View>
-          {mockFriendRequests.length > 0 && (
-            <View style={[styles.requestsBanner, { backgroundColor: isDark ? 'rgba(255, 109, 94, 0.1)' : 'rgba(224, 85, 69, 0.08)' }]}>
-              <View style={[styles.requestsDot, { backgroundColor: colors.coral }]} />
-              <Text style={[styles.requestsBannerText, { color: colors.coral }]}>{mockFriendRequests.length} pending request{mockFriendRequests.length > 1 ? 's' : ''}</Text>
-            </View>
-          )}
           <View style={styles.tierSummaryRow}>
             {tierDefinitions.map((td) => (
-              <View key={td.id} style={[styles.tierSummaryChip, { backgroundColor: td.color + '1A' }]}>
+              <View key={td.id} style={[styles.tierSummaryChip, { backgroundColor: td.color + '14' }]}>
                 <View style={[styles.tierSummaryDot, { backgroundColor: td.color }]} />
                 <Text style={[styles.tierSummaryLabel, { color: td.color }]}>{tierSummary[td.id] ?? 0}</Text>
               </View>
@@ -243,7 +221,7 @@ export default function ProfileScreen() {
               <Image
                 key={f.id}
                 source={{ uri: f.avatar }}
-                style={[styles.friendAvatarSmall, { marginLeft: i > 0 ? -10 : 0, zIndex: 5 - i, borderColor: colors.surface }]}
+                style={[styles.friendAvatarSmall, { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i, borderColor: colors.surface }]}
               />
             ))}
             {mockFriends.length > 5 && (
@@ -254,57 +232,32 @@ export default function ProfileScreen() {
           </View>
         </Pressable>
 
-        <Pressable
-          onPress={handleOpenWallet}
-          style={({ pressed }) => [styles.walletSection, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.btnPressed]}
-          testID="wallet-section"
-        >
-          <View style={[styles.walletIconWrap, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-            <Shield color={colors.aqua} size={22} />
-          </View>
-          <View style={styles.walletBody}>
-            <Text style={[styles.walletTitle, { color: colors.text }]}>Secure Wallet</Text>
-            <Text style={[styles.walletSubtitle, { color: colors.textMuted }]}>
-              {documents.length > 0 ? `${documents.length} document${documents.length !== 1 ? 's' : ''} stored` : 'Add your ID or license'}
-            </Text>
-          </View>
-          {documents.length > 0 && (
-            <View style={[styles.walletBadge, { backgroundColor: colors.lime + '20' }]}>
-              <CreditCard color={colors.lime} size={13} />
-              <Text style={[styles.walletBadgeText, { color: colors.lime }]}>{documents.length}</Text>
-            </View>
-          )}
-          <ChevronRight color={colors.textSoft} size={18} />
-        </Pressable>
-
-        <Pressable
-          onPress={handleOpenQR}
-          style={({ pressed }) => [styles.qrSection, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.btnPressed]}
-          testID="qr-code-section"
-        >
-          <View style={[styles.qrIconWrap, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-            <QrCode color={colors.aqua} size={22} />
-          </View>
-          <View style={styles.qrBody}>
-            <Text style={[styles.qrTitle, { color: colors.text }]}>My QR Code</Text>
-            <Text style={[styles.qrSubtitle, { color: colors.textMuted }]}>Share your Pulze profile instantly</Text>
-          </View>
-          <ChevronRight color={colors.textSoft} size={18} />
-        </Pressable>
-
         <View style={[styles.menuSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <MenuItem
+            icon={Shield}
+            label="Secure Wallet"
+            sublabel={documents.length > 0 ? `${documents.length} document${documents.length !== 1 ? 's' : ''} stored` : 'Add your ID or license'}
+            onPress={handleOpenWallet}
+            badge={documents.length > 0 ? (
+              <View style={[styles.menuBadge, { backgroundColor: colors.lime + '18' }]}>
+                <CreditCard color={colors.lime} size={11} />
+                <Text style={[styles.menuBadgeText, { color: colors.lime }]}>{documents.length}</Text>
+              </View>
+            ) : undefined}
+          />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
+          <MenuItem
+            icon={QrCode}
+            label="My QR Code"
+            sublabel="Share your profile"
+            onPress={handleOpenQR}
+          />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
           <MenuItem
             icon={Settings}
             label="Settings"
             sublabel="Theme, privacy, security"
             onPress={handleOpenSettings}
-          />
-          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
-          <MenuItem
-            icon={Edit3}
-            label="Edit Profile"
-            sublabel="Name, bio, photo"
-            onPress={handleEditProfile}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
           <MenuItem
@@ -326,12 +279,14 @@ function MenuItem({
   sublabel,
   onPress,
   isDestructive = false,
+  badge,
 }: {
   icon: typeof Settings;
   label: string;
   sublabel: string;
   onPress: () => void;
   isDestructive?: boolean;
+  badge?: React.ReactNode;
 }) {
   const { colors } = useTheme();
   const iconColor = isDestructive ? colors.coral : colors.aqua;
@@ -342,14 +297,15 @@ function MenuItem({
       onPress={onPress}
       style={({ pressed }) => [styles.menuItem, pressed && styles.btnPressed]}
     >
-      <View style={[styles.menuIconWrap, { backgroundColor: isDestructive ? colors.dangerBg : (colors.aqua + '18') }]}>
-        <Icon color={iconColor} size={18} />
+      <View style={[styles.menuIconWrap, { backgroundColor: isDestructive ? colors.dangerBg : (colors.aqua + '12') }]}>
+        <Icon color={iconColor} size={16} />
       </View>
       <View style={styles.menuBody}>
         <Text style={[styles.menuLabel, { color: labelColor }]}>{label}</Text>
         <Text style={[styles.menuSublabel, { color: colors.textSoft }]}>{sublabel}</Text>
       </View>
-      <ChevronRight color={colors.textSoft} size={16} />
+      {badge}
+      <ChevronRight color={colors.textSoft} size={15} />
     </Pressable>
   );
 }
@@ -359,13 +315,13 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 110,
-    gap: 14,
+    gap: 12,
   },
   hero: {
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    gap: 16,
+    gap: 14,
   },
   heroTop: {
     flexDirection: 'row',
@@ -373,14 +329,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800' as const,
   },
   heroActions: {
@@ -390,61 +346,47 @@ const styles = StyleSheet.create({
   heroBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
   heroBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700' as const,
   },
   heroIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   heroBody: {
-    gap: 6,
+    gap: 4,
   },
   name: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800' as const,
   },
   handle: {
-    fontSize: 14,
+    fontSize: 13,
   },
   bio: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: 2,
   },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 6,
+    marginTop: 4,
     gap: 8,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  badgeText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
   },
   trustedLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   trustedLabelText: {
     fontSize: 12,
@@ -453,242 +395,169 @@ const styles = StyleSheet.create({
   themeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 4,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
   },
   themeBadgeText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   statRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    borderRadius: 20,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
     paddingHorizontal: 8,
     borderWidth: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800' as const,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
   },
-  storageIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   friendsSection: {
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    gap: 14,
+    gap: 12,
   },
   friendsSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    flex: 1,
-  },
-  friendsCountChip: {},
-  friendsCountText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
   },
-  requestsBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  requestsBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  requestsDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  requestsBannerText: {
-    fontSize: 13,
+  requestsBadgeText: {
+    fontSize: 11,
     fontWeight: '700' as const,
   },
   tierSummaryRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   tierSummaryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 5,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   tierSummaryDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   tierSummaryLabel: {
-    fontSize: 14,
-    fontWeight: '800' as const,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   friendAvatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   friendAvatarSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 11,
     borderWidth: 2,
   },
   friendAvatarMore: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 11,
     borderWidth: 2,
-    marginLeft: -10,
+    marginLeft: -8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   friendAvatarMoreText: {
-    fontSize: 11,
-    fontWeight: '800' as const,
+    fontSize: 10,
+    fontWeight: '700' as const,
   },
   menuSection: {
-    borderRadius: 24,
-    padding: 6,
+    borderRadius: 16,
+    padding: 4,
     borderWidth: 1,
     overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 18,
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   menuIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuBody: {
     flex: 1,
-    gap: 2,
+    gap: 1,
   },
   menuLabel: {
-    fontSize: 16,
-    fontWeight: '700' as const,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
   menuSublabel: {
-    fontSize: 13,
+    fontSize: 12,
+  },
+  menuBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  menuBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
   },
   menuDivider: {
     height: 1,
-    marginHorizontal: 14,
+    marginHorizontal: 12,
   },
   pulzeIdRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     alignSelf: 'flex-start',
-    marginTop: 4,
+    marginTop: 2,
   },
   pulzeIdText: {
-    fontSize: 13,
-    fontWeight: '800' as const,
-    letterSpacing: 0.8,
-  },
-  walletSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-  },
-  walletIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  walletBody: {
-    flex: 1,
-    gap: 3,
-  },
-  walletTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700' as const,
-  },
-  walletSubtitle: {
-    fontSize: 13,
-  },
-  walletBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  walletBadgeText: {
-    fontSize: 13,
-    fontWeight: '800' as const,
-  },
-  qrSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-  },
-  qrIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrBody: {
-    flex: 1,
-    gap: 3,
-  },
-  qrTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  qrSubtitle: {
-    fontSize: 13,
+    letterSpacing: 0.6,
   },
   btnPressed: {
-    opacity: 0.85,
+    opacity: 0.88,
     transform: [{ scale: 0.98 }],
   },
 });

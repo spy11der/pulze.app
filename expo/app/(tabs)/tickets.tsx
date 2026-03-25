@@ -4,7 +4,6 @@ import {
   Image,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -47,11 +46,8 @@ export default function TicketsTab() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<boolean>(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const vibeGlow = useRef(new Animated.Value(0.6)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
-  const [_liked, setLiked] = useState<boolean>(false);
 
   const event = sampleEvent;
 
@@ -68,28 +64,7 @@ export default function TicketsTab() {
       Animated.timing(heroOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.timing(contentSlide, { toValue: 0, duration: 500, delay: 200, useNativeDriver: true }),
     ]).start();
-
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(vibeGlow, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(vibeGlow, { toValue: 0.6, duration: 1400, useNativeDriver: true }),
-      ])
-    );
-    glow.start();
-
-    return () => {
-      pulse.stop();
-      glow.stop();
-    };
-  }, [heroOpacity, contentSlide, pulseAnim, vibeGlow]);
+  }, [heroOpacity, contentSlide]);
 
   const handleQuantityChange = useCallback((tierId: string, delta: number) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -112,22 +87,6 @@ export default function TicketsTab() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSaved(s => !s);
   }, []);
-
-  const _handleLike = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLiked(l => !l);
-  }, []);
-
-  const _handleShare = useCallback(async () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await Share.share({
-        message: `Check out ${event.title} at ${event.venueName}! ${event.date} ${event.time}`,
-      });
-    } catch (e) {
-      console.log('[Tickets] Share error:', e);
-    }
-  }, [event]);
 
   const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
 
@@ -161,7 +120,6 @@ export default function TicketsTab() {
   }, [selectedTierData, quantities]);
 
   const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
-
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="tickets-tab-screen">
@@ -248,16 +206,14 @@ export default function TicketsTab() {
             </View>
 
             <View style={styles.liveStatsRow}>
-              <Animated.View style={[
+              <View style={[
                 styles.vibeScoreCard,
-                { backgroundColor: isDark ? 'rgba(255, 109, 94, 0.08)' : 'rgba(224, 85, 69, 0.06)', transform: [{ scale: pulseAnim }] },
+                { backgroundColor: isDark ? 'rgba(232, 86, 74, 0.08)' : 'rgba(204, 68, 56, 0.05)' },
               ]}>
-                <Animated.View style={{ opacity: vibeGlow }}>
-                  <Zap color={energyColor} size={22} />
-                </Animated.View>
+                <Zap color={energyColor} size={20} />
                 <Text style={[styles.vibeScoreNum, { color: energyColor }]}>{event.vibeScore}</Text>
                 <Text style={[styles.vibeScoreLabel, { color: colors.textMuted }]}>Vibe</Text>
-              </Animated.View>
+              </View>
 
               <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.08)' : 'rgba(92, 168, 48, 0.06)' }]}>
                 <Users color={colors.lime} size={18} />

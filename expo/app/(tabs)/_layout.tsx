@@ -5,23 +5,23 @@ import { Chrome as Home, CirclePlus, Map, Ticket, UserRound } from 'lucide-react
 
 import { useTheme } from '@/providers/ThemeProvider';
 
-const TEAL_DARK = '#1A6B6A';
-const TEAL_ACTIVE = '#35D4CF';
-
 export default function TabLayout() {
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
+
+  const activeColor = colors.aqua;
+  const inactiveColor = isDark ? '#3D5C66' : '#94ACB6';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarActiveTintColor: TEAL_ACTIVE,
-        tabBarInactiveTintColor: isDark ? TEAL_DARK : '#5B8792',
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
           position: 'absolute',
-          left: 14,
-          right: 14,
+          left: 16,
+          right: 16,
           bottom: 0,
           borderTopWidth: 0,
           backgroundColor: 'transparent',
@@ -42,11 +42,11 @@ export default function TabLayout() {
               left: 0,
               right: 0,
               bottom: 0,
-              borderRadius: 24,
+              borderRadius: 20,
               overflow: 'hidden',
-              backgroundColor: isDark ? 'rgba(0, 20, 25, 0.6)' : 'rgba(240, 245, 248, 0.7)',
+              backgroundColor: isDark ? 'rgba(6, 15, 19, 0.92)' : 'rgba(246, 248, 250, 0.92)',
               borderWidth: 1,
-              borderColor: isDark ? 'rgba(26, 107, 106, 0.35)' : 'rgba(0, 0, 0, 0.06)',
+              borderColor: isDark ? 'rgba(100, 180, 180, 0.08)' : 'rgba(0, 0, 0, 0.04)',
             }}
           />
         ),
@@ -58,10 +58,10 @@ export default function TabLayout() {
           title: 'Feed',
           tabBarIcon: ({ focused }) => (
             <Home
-              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              color={focused ? activeColor : inactiveColor}
               fill="none"
-              size={30}
-              strokeWidth={focused ? 2 : 1.5}
+              size={24}
+              strokeWidth={focused ? 2.2 : 1.6}
             />
           ),
         }}
@@ -72,10 +72,10 @@ export default function TabLayout() {
           title: 'Map',
           tabBarIcon: ({ focused }) => (
             <Map
-              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              color={focused ? activeColor : inactiveColor}
               fill="none"
-              size={30}
-              strokeWidth={focused ? 2 : 1.5}
+              size={24}
+              strokeWidth={focused ? 2.2 : 1.6}
             />
           ),
         }}
@@ -86,10 +86,10 @@ export default function TabLayout() {
           title: 'Drop Vibe',
           tabBarIcon: ({ focused }) => (
             <CirclePlus
-              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              color={focused ? activeColor : inactiveColor}
               fill="none"
-              size={30}
-              strokeWidth={focused ? 2 : 1.5}
+              size={24}
+              strokeWidth={focused ? 2.2 : 1.6}
             />
           ),
         }}
@@ -100,10 +100,10 @@ export default function TabLayout() {
           title: 'Tickets',
           tabBarIcon: ({ focused }) => (
             <Ticket
-              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              color={focused ? activeColor : inactiveColor}
               fill="none"
-              size={30}
-              strokeWidth={focused ? 2 : 1.5}
+              size={24}
+              strokeWidth={focused ? 2.2 : 1.6}
             />
           ),
         }}
@@ -114,10 +114,10 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ focused }) => (
             <UserRound
-              color={focused ? TEAL_ACTIVE : isDark ? TEAL_DARK : '#5B8792'}
+              color={focused ? activeColor : inactiveColor}
               fill="none"
-              size={30}
-              strokeWidth={focused ? 2 : 1.5}
+              size={24}
+              strokeWidth={focused ? 2.2 : 1.6}
             />
           ),
         }}

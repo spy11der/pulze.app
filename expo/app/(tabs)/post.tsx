@@ -891,8 +891,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   successTitle: {
-    fontSize: 24,
-    fontWeight: '800' as const,
+    fontSize: 22,
+    fontWeight: '700' as const,
   },
   successSub: {
     fontSize: 14,
@@ -924,8 +924,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800' as const,
+    fontSize: 20,
+    fontWeight: '700' as const,
   },
   privacyToggle: {
     flexDirection: 'row' as const,
@@ -1225,12 +1225,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 8,
-    borderRadius: 20,
+    borderRadius: 14,
     paddingHorizontal: 24,
     paddingVertical: 14,
   },
   postButtonText: {
     fontSize: 15,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
   },
 });
