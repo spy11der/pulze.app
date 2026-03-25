@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 interface PulseSplashProps {
@@ -90,17 +90,20 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
         />
         <Animated.View
           style={[
-            styles.logoWrap,
+            styles.logoImageWrap,
             {
               transform: [{ scale: pulseScale }],
               opacity: pulseOpacity,
             },
           ]}
         >
-          <Animated.Text style={styles.logoText}>Z</Animated.Text>
+          <Image
+            source={require('@/assets/images/pulze-splash.png')}
+            style={styles.splashImage}
+            resizeMode="contain"
+          />
         </Animated.View>
       </View>
-      <Animated.Text style={[styles.brandText, { opacity: pulseOpacity }]}>PULZE</Animated.Text>
     </Animated.View>
   );
 }
@@ -127,30 +130,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(53, 212, 207, 0.6)',
   },
-  logoWrap: {
-    width: 90,
-    height: 90,
-    borderRadius: 28,
-    backgroundColor: '#35D4CF',
+  logoImageWrap: {
+    width: 120,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#35D4CF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 12,
   },
-  logoText: {
-    fontSize: 48,
-    fontWeight: '900' as const,
-    color: '#041318',
-    letterSpacing: -2,
-  },
-  brandText: {
-    marginTop: 28,
-    fontSize: 18,
-    fontWeight: '800' as const,
-    letterSpacing: 6,
-    color: '#35D4CF',
+  splashImage: {
+    width: 120,
+    height: 120,
   },
 });

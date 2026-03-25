@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, AtSign, Phone } from 'lucide-react-native';
@@ -141,11 +142,11 @@ export function AuthScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View style={[styles.logoSection, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
-            <View style={[styles.logoMark, { backgroundColor: accentColor }]}>
-              <Text style={[styles.logoLetter, { color: colors.background }]}>P</Text>
-              <View style={[styles.logoPulse, { backgroundColor: colors.background }]} />
-            </View>
-            <Text style={[styles.brandName, { color: colors.text }]}>PULSE</Text>
+            <Image
+              source={require('@/assets/images/pulze-logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={[styles.tagline, { color: colors.textMuted }]}>
               {mode === 'login' ? 'Welcome back. Your city awaits.' : 'Find your vibe. Join the pulse.'}
             </Text>
@@ -474,36 +475,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 36,
   },
-  logoMark: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  logoLetter: {
-    fontSize: 38,
-    fontWeight: '900' as const,
-    letterSpacing: -2,
-  },
-  logoPulse: {
-    position: 'absolute',
-    bottom: 14,
-    right: 14,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    opacity: 0.5,
-  },
-  brandName: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    letterSpacing: 5,
+  logoImage: {
+    width: 180,
+    height: 180,
     marginBottom: 8,
   },
   tagline: {
