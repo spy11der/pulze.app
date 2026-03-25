@@ -2,6 +2,7 @@ export interface VibeStory {
   id: string;
   title: string;
   venue: string;
+  venueId: string;
   neighborhood: string;
   vibe: string;
   intensity: number;
@@ -49,6 +50,7 @@ export const vibeStories: VibeStory[] = [
     id: '1',
     title: 'St. Paddy\'s weekend is hitting LoDo early',
     venue: 'Blake Street Tavern',
+    venueId: 'v2',
     neighborhood: 'LoDo',
     vibe: 'Party',
     intensity: 91,
@@ -63,6 +65,7 @@ export const vibeStories: VibeStory[] = [
     id: '2',
     title: 'Fillmore line is already forming',
     venue: 'Fillmore Auditorium',
+    venueId: 'v1',
     neighborhood: 'Capitol Hill',
     vibe: 'Active',
     intensity: 85,
@@ -77,6 +80,7 @@ export const vibeStories: VibeStory[] = [
     id: '3',
     title: 'RiNo First Friday spill-over still going',
     venue: 'Ratio Beerworks',
+    venueId: 'v3',
     neighborhood: 'RiNo Art District',
     vibe: 'Social',
     intensity: 72,
@@ -91,6 +95,7 @@ export const vibeStories: VibeStory[] = [
     id: '4',
     title: 'Wash Park is golden hour goals right now',
     venue: 'Washington Park',
+    venueId: 'v4',
     neighborhood: 'Wash Park',
     vibe: 'Romantic',
     intensity: 28,
@@ -105,6 +110,7 @@ export const vibeStories: VibeStory[] = [
     id: '5',
     title: 'Meow Wolf crowd already lining up',
     venue: 'Meow Wolf Denver',
+    venueId: 'v5',
     neighborhood: 'Sun Valley',
     vibe: 'Creative',
     intensity: 82,
@@ -119,6 +125,7 @@ export const vibeStories: VibeStory[] = [
     id: '6',
     title: 'The Church is prepping for a big night',
     venue: 'The Church Nightclub',
+    venueId: 'v6',
     neighborhood: 'Capitol Hill',
     vibe: 'Quiet',
     intensity: 35,

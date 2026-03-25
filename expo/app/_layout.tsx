@@ -9,6 +9,7 @@ import { AppErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { BiometricAuthProvider } from '@/providers/BiometricAuthProvider';
 import { DataProvider } from '@/providers/DataProvider';
+import { FavoritesProvider } from '@/providers/FavoritesProvider';
 import { SecureWalletProvider } from '@/providers/SecureWalletProvider';
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 import { LockScreen } from '@/components/LockScreen';
@@ -43,6 +44,8 @@ function RootLayoutNav() {
       <Stack.Screen name="privacy-policy" options={{ presentation: 'card' }} />
       <Stack.Screen name="terms-of-service" options={{ presentation: 'card' }} />
       <Stack.Screen name="location-selector" options={{ presentation: 'modal', headerShown: false }} />
+      <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
     </Stack>
   );
 }
@@ -77,6 +80,7 @@ function AppContent() {
 
   return (
     <DataProvider>
+      <FavoritesProvider>
       <SecureWalletProvider>
       <BiometricAuthProvider>
         <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -91,6 +95,7 @@ function AppContent() {
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
       </BiometricAuthProvider>
       </SecureWalletProvider>
+      </FavoritesProvider>
     </DataProvider>
   );
 }

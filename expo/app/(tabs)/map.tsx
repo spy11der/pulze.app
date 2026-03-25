@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,8 +13,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Circle, Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
 import {
+  Heart,
   LocateFixed,
   Search,
   Zap,
@@ -39,6 +39,9 @@ import { pulzeVenues } from '@/mocks/venues';
 import type { PulzeVenue, MapCluster, MapFilterId } from '@/types/venue';
 import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
+import { useFavorites } from '@/providers/FavoritesProvider';
+import { DirectionsSheet } from '@/components/DirectionsSheet';
+import { useRouter } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
 
 const DENVER_REGION: Region = {
@@ -76,19 +79,45 @@ function getVibeLabel(score: number): string {
   return 'Quiet';
 }
 
-function getHeatmapColor(score: number, isDark: boolean): string {
-  const base = isDark ? 0.06 : 0.04;
-  if (score >= 80) return `rgba(232, 93, 80, ${base + 0.04})`;
-  if (score >= 60) return `rgba(232, 160, 64, ${base + 0.02})`;
-  if (score >= 40) return `rgba(200, 184, 80, ${base + 0.01})`;
-  return `rgba(80, 152, 192, ${base})`;
+interface HeatmapPoint {
+  latitude: number;
+  longitude: number;
+  weight: number;
 }
 
-function getHeatmapRadius(score: number): number {
-  if (score >= 80) return 200;
-  if (score >= 60) return 160;
-  if (score >= 40) return 120;
-  return 80;
+const MapHeatmap: React.ComponentType<{
+  points: HeatmapPoint[];
+  radius?: number;
+  opacity?: number;
+  gradient?: { colors: string[]; startPoints: number[]; colorMapSize: number };
+}> | undefined = (() => {
+  try {
+    return (require('react-native-maps') as any).Heatmap;
+  } catch {
+    return undefined;
+  }
+})();
+
+function buildHeatmapPoints(venues: PulzeVenue[]): HeatmapPoint[] {
+  const points: HeatmapPoint[] = [];
+  const offsets = [
+    [0.3, 0.5], [-0.4, 0.2], [0.1, -0.6], [-0.3, -0.4],
+    [0.5, -0.1], [-0.2, 0.6], [0.4, 0.3], [-0.5, -0.2],
+  ];
+  for (const v of venues) {
+    const w = v.vibe_score / 100;
+    points.push({ latitude: v.latitude, longitude: v.longitude, weight: w });
+    const spread = 0.003 * w;
+    const count = Math.ceil(w * 5);
+    for (let i = 0; i < count && i < offsets.length; i++) {
+      points.push({
+        latitude: v.latitude + offsets[i][0] * spread,
+        longitude: v.longitude + offsets[i][1] * spread,
+        weight: w * (0.4 + (i % 3) * 0.15),
+      });
+    }
+  }
+  return points;
 }
 
 function filterVenues(venues: PulzeVenue[], filters: MapFilterId[]): PulzeVenue[] {
@@ -297,6 +326,9 @@ function VenueCard({
   venue,
   onClose,
   onDirections,
+  onDetails,
+  onHeart,
+  isHearted,
   bottomInset,
   isDark,
   colors,
@@ -304,11 +336,14 @@ function VenueCard({
   venue: PulzeVenue;
   onClose: () => void;
   onDirections: () => void;
+  onDetails: () => void;
+  onHeart: () => void;
+  isHearted: boolean;
   bottomInset: number;
   isDark: boolean;
   colors: {
     text: string; textMuted: string; aqua: string; aquaBright: string;
-    border: string; textSoft: string;
+    border: string; textSoft: string; coral: string;
   };
 }) {
   const slideAnim = useRef(new Animated.Value(400)).current;
@@ -347,13 +382,26 @@ function VenueCard({
           <View style={[styles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
         </View>
 
-        <Pressable
-          onPress={dismiss}
-          style={[styles.cardClose, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
-          testID="sheet-close"
-        >
-          <X color={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'} size={14} />
-        </Pressable>
+        <View style={styles.cardTopActions}>
+          <Pressable
+            onPress={onHeart}
+            style={[styles.cardHeartBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+            testID="sheet-heart"
+          >
+            <Heart
+              color={isHearted ? colors.coral : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)')}
+              size={14}
+              fill={isHearted ? colors.coral : 'transparent'}
+            />
+          </Pressable>
+          <Pressable
+            onPress={dismiss}
+            style={[styles.cardClose, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+            testID="sheet-close"
+          >
+            <X color={isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'} size={14} />
+          </Pressable>
+        </View>
 
         <View style={styles.cardHeader}>
           <View style={styles.cardAvatarWrap}>
@@ -398,6 +446,20 @@ function VenueCard({
 
         <View style={styles.cardActions}>
           <Pressable
+            onPress={onHeart}
+            style={({ pressed }) => [
+              styles.heartBtn,
+              {
+                backgroundColor: isHearted ? (isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)') : subtleBg,
+                borderColor: isHearted ? colors.coral + '40' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
+              },
+              pressed && styles.pressed,
+            ]}
+            testID="sheet-heart-action"
+          >
+            <Heart color={isHearted ? colors.coral : colors.textMuted} size={15} fill={isHearted ? colors.coral : 'transparent'} />
+          </Pressable>
+          <Pressable
             onPress={onDirections}
             style={({ pressed }) => [styles.directionsBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
             testID="sheet-directions"
@@ -406,7 +468,7 @@ function VenueCard({
             <Text style={styles.directionsBtnText}>Directions</Text>
           </Pressable>
           <Pressable
-            onPress={() => console.log('[MapScreen] View details for', venue.id)}
+            onPress={onDetails}
             style={({ pressed }) => [
               styles.detailsBtn,
               { backgroundColor: subtleBg, borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
@@ -414,7 +476,7 @@ function VenueCard({
             ]}
             testID="sheet-details"
           >
-            <Text style={[styles.detailsBtnText, { color: colors.text }]}>View Details</Text>
+            <Text style={[styles.detailsBtnText, { color: colors.text }]}>Details</Text>
             <ChevronRight color={colors.textMuted} size={13} />
           </Pressable>
         </View>
@@ -431,6 +493,9 @@ export default function MapScreen() {
   const [activeFilters, setActiveFilters] = useState<MapFilterId[]>(['all']);
   const [mapRegion, setMapRegion] = useState<Region>(DENVER_REGION);
   const { userLocation, isLocating, requestLocation } = useMapLocation();
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const router = useRouter();
+  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
   const searchInputRef = useRef<TextInput | null>(null);
@@ -443,12 +508,7 @@ export default function MapScreen() {
     return pulzeVenues.find((v) => v.id === selectedId);
   }, [selectedId]);
 
-  const heatmapData = useMemo(() => pulzeVenues.map((v) => ({
-    id: v.id,
-    center: { latitude: v.latitude, longitude: v.longitude },
-    radius: getHeatmapRadius(v.vibe_score),
-    color: getHeatmapColor(v.vibe_score, isDark),
-  })), [isDark]);
+  const heatmapPoints = useMemo(() => buildHeatmapPoints(pulzeVenues), []);
 
   const handleToggleFilter = useCallback((id: MapFilterId) => {
     Haptics.selectionAsync().catch(() => {});
@@ -524,11 +584,22 @@ export default function MapScreen() {
 
   const handleDirections = useCallback(() => {
     if (!selectedVenue) return;
-    const url = Platform.OS === 'ios'
-      ? `http://maps.apple.com/?daddr=${selectedVenue.latitude},${selectedVenue.longitude}&dirflg=d`
-      : `https://www.google.com/maps/dir/?api=1&destination=${selectedVenue.latitude},${selectedVenue.longitude}&travelmode=driving`;
-    Linking.openURL(url).catch(() => {});
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDirectionsVisible(true);
   }, [selectedVenue]);
+
+  const handleViewDetails = useCallback(() => {
+    if (!selectedVenue) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    console.log('[MapScreen] Navigating to venue detail:', selectedVenue.id);
+    router.push({ pathname: '/venue-detail', params: { venueId: selectedVenue.id } });
+  }, [selectedVenue, router]);
+
+  const handleHeartVenue = useCallback(() => {
+    if (!selectedVenue) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    toggleFavorite(selectedVenue.id, 'venue', selectedVenue.name);
+  }, [selectedVenue, toggleFavorite]);
 
   const handleMapPress = useCallback(() => {
     setSelectedId(null);
@@ -591,7 +662,6 @@ export default function MapScreen() {
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           provider={PROVIDER_GOOGLE}
-          mapId={GOOGLE_MAP_ID}
           initialRegion={DENVER_REGION}
           onRegionChangeComplete={handleRegionChange}
           showsCompass={false}
@@ -601,17 +671,20 @@ export default function MapScreen() {
           onPress={handleMapPress}
           showsUserLocation={false}
           testID="pulze-map-view"
+          {...({ mapId: GOOGLE_MAP_ID } as any)}
         >
-          {heatmapData.map((h) => (
-            <Circle
-              key={`heat-${h.id}`}
-              center={h.center}
-              radius={h.radius}
-              fillColor={h.color}
-              strokeColor="transparent"
-              strokeWidth={0}
+          {MapHeatmap && heatmapPoints.length > 0 ? (
+            <MapHeatmap
+              points={heatmapPoints}
+              radius={40}
+              opacity={0.7}
+              gradient={{
+                colors: ['rgba(80,152,192,0)', 'rgba(80,184,128,0.4)', 'rgba(200,184,80,0.6)', 'rgba(232,160,64,0.8)', 'rgba(232,93,80,1)'],
+                startPoints: [0.05, 0.25, 0.5, 0.75, 0.95],
+                colorMapSize: 256,
+              }}
             />
-          ))}
+          ) : null}
           {singles.map((venue) => (
             <RefinedMarker
               key={venue.id}
@@ -774,9 +847,23 @@ export default function MapScreen() {
           venue={selectedVenue}
           onClose={() => setSelectedId(null)}
           onDirections={handleDirections}
+          onDetails={handleViewDetails}
+          onHeart={handleHeartVenue}
+          isHearted={isFavorited(selectedVenue.id)}
           bottomInset={insets.bottom + 80}
           isDark={isDark}
           colors={colors}
+        />
+      ) : null}
+
+      {selectedVenue ? (
+        <DirectionsSheet
+          visible={directionsVisible}
+          onClose={() => setDirectionsVisible(false)}
+          latitude={selectedVenue.latitude}
+          longitude={selectedVenue.longitude}
+          address={selectedVenue.address}
+          name={selectedVenue.name}
         />
       ) : null}
     </View>
@@ -961,16 +1048,27 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  cardClose: {
+  cardTopActions: {
     position: 'absolute',
     top: 12,
     right: 12,
+    flexDirection: 'row',
+    gap: 6,
+    zIndex: 10,
+  },
+  cardHeartBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+  },
+  cardClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1059,6 +1157,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingTop: 2,
+  },
+  heartBtn: {
+    width: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
   },
   directionsBtn: {
     flex: 1,

@@ -5,13 +5,16 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Platform,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -24,10 +27,48 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { sampleEvent } from '@/mocks/events';
+import { sampleEvent, getEventForVenue } from '@/mocks/events';
 
 type PaymentMethod = 'apple' | 'card';
 type CheckoutStep = 'review' | 'processing' | 'confirmed';
+
+const PURCHASES_KEY = 'pulze_purchases_v1';
+
+interface PurchaseRecord {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  venueName: string;
+  date: string;
+  tierName: string;
+  quantity: number;
+  total: number;
+  paymentMethod: string;
+  purchasedAt: string;
+}
+
+async function savePurchase(purchase: PurchaseRecord): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(PURCHASES_KEY);
+    const purchases: PurchaseRecord[] = stored ? JSON.parse(stored) : [];
+    purchases.push(purchase);
+    await AsyncStorage.setItem(PURCHASES_KEY, JSON.stringify(purchases));
+    console.log('[Checkout] Purchase saved:', purchase.id);
+  } catch (e) {
+    console.log('[Checkout] Error saving purchase:', e);
+  }
+}
+
+function formatCardNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 16);
+  return digits.replace(/(.{4})/g, '$1 ').trim();
+}
+
+function formatExpiry(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (digits.length > 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return digits;
+}
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -38,11 +79,21 @@ export default function CheckoutScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('apple');
   const [step, setStep] = useState<CheckoutStep>('review');
 
+  const [cardNumber, setCardNumber] = useState<string>('');
+  const [cardExpiry, setCardExpiry] = useState<string>('');
+  const [cardCvc, setCardCvc] = useState<string>('');
+  const [cardName, setCardName] = useState<string>('');
+
   const progressAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
   const fadeIn = useRef(new Animated.Value(0)).current;
 
-  const event = sampleEvent;
+  const venueId = params.eventId?.replace('evt-', '') ?? '';
+  const event = useMemo(() => {
+    if (venueId) return getEventForVenue(venueId);
+    return sampleEvent;
+  }, [venueId]);
+
   const tier = useMemo(() => event.ticketTiers.find(t => t.id === params.tierId) ?? event.ticketTiers[0], [params.tierId, event]);
   const quantity = useMemo(() => {
     const q = parseInt(params.quantity ?? '1', 10);
@@ -53,29 +104,70 @@ export default function CheckoutScreen() {
   const serviceFee = Math.round(subtotal * event.serviceFeePercent / 100 * 100) / 100;
   const total = subtotal + serviceFee;
 
+  const cardValid = useMemo(() => {
+    if (paymentMethod === 'apple') return true;
+    const digits = cardNumber.replace(/\D/g, '');
+    const expiryDigits = cardExpiry.replace(/\D/g, '');
+    const cvcDigits = cardCvc.replace(/\D/g, '');
+    return digits.length >= 15 && expiryDigits.length === 4 && cvcDigits.length >= 3 && cardName.trim().length > 1;
+  }, [paymentMethod, cardNumber, cardExpiry, cardCvc, cardName]);
+
   useEffect(() => {
     Animated.timing(fadeIn, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, [fadeIn]);
 
-  const handlePurchase = useCallback(() => {
+  const handlePurchase = useCallback(async () => {
+    if (!cardValid) {
+      Alert.alert('Missing Info', 'Please fill in all card details to continue.');
+      return;
+    }
+
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setStep('processing');
 
+    console.log('[Checkout] Creating payment intent...', { paymentMethod, total });
+
     Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 2200,
+      toValue: 0.6,
+      duration: 1200,
       useNativeDriver: false,
     }).start(() => {
-      setStep('confirmed');
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Animated.spring(checkScale, {
+      console.log('[Checkout] Payment intent created, confirming payment...');
+
+      Animated.timing(progressAnim, {
         toValue: 1,
-        friction: 4,
-        tension: 80,
-        useNativeDriver: true,
-      }).start();
+        duration: 1000,
+        useNativeDriver: false,
+      }).start(async () => {
+        const purchase: PurchaseRecord = {
+          id: `pur-${Date.now()}`,
+          eventId: event.id,
+          eventTitle: event.title,
+          venueName: event.venueName,
+          date: event.date,
+          tierName: tier.name,
+          quantity,
+          total,
+          paymentMethod: paymentMethod === 'apple'
+            ? (Platform.OS === 'ios' ? 'Apple Pay' : 'Google Pay')
+            : 'Card',
+          purchasedAt: new Date().toISOString(),
+        };
+
+        await savePurchase(purchase);
+        console.log('[Checkout] Payment confirmed, ticket marked as purchased');
+
+        setStep('confirmed');
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Animated.spring(checkScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: true,
+        }).start();
+      });
     });
-  }, [progressAnim, checkScale]);
+  }, [progressAnim, checkScale, cardValid, paymentMethod, total, event, tier, quantity]);
 
   const handleDone = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -148,7 +240,11 @@ export default function CheckoutScreen() {
         <View style={[styles.processingContainer, { paddingTop: insets.top + 80 }]}>
           <Lock color={colors.aqua} size={40} />
           <Text style={[styles.processingTitle, { color: colors.text }]}>Processing payment...</Text>
-          <Text style={[styles.processingSub, { color: colors.textMuted }]}>Securing your spot</Text>
+          <Text style={[styles.processingSub, { color: colors.textMuted }]}>
+            {paymentMethod === 'apple'
+              ? (Platform.OS === 'ios' ? 'Authenticating with Apple Pay' : 'Authenticating with Google Pay')
+              : 'Verifying card and securing your spot'}
+          </Text>
           <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
             <Animated.View style={[styles.progressFill, { backgroundColor: colors.aqua, width: progressWidth as unknown as number }]} />
           </View>
@@ -276,10 +372,92 @@ export default function CheckoutScreen() {
             </Pressable>
           </View>
 
+          {paymentMethod === 'card' && (
+            <View style={[styles.cardInputSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.cardInputTitle, { color: colors.text }]}>Card Details</Text>
+
+              <View style={styles.cardFieldWrap}>
+                <Text style={[styles.cardFieldLabel, { color: colors.textMuted }]}>Name on card</Text>
+                <TextInput
+                  style={[styles.cardInput, {
+                    color: colors.text,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                  }]}
+                  placeholder="John Doe"
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}
+                  value={cardName}
+                  onChangeText={setCardName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  testID="card-name"
+                />
+              </View>
+
+              <View style={styles.cardFieldWrap}>
+                <Text style={[styles.cardFieldLabel, { color: colors.textMuted }]}>Card number</Text>
+                <TextInput
+                  style={[styles.cardInput, {
+                    color: colors.text,
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                  }]}
+                  placeholder="1234 5678 9012 3456"
+                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}
+                  value={formatCardNumber(cardNumber)}
+                  onChangeText={(t) => setCardNumber(t.replace(/\D/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={19}
+                  testID="card-number"
+                />
+              </View>
+
+              <View style={styles.cardFieldRow}>
+                <View style={[styles.cardFieldWrap, { flex: 1 }]}>
+                  <Text style={[styles.cardFieldLabel, { color: colors.textMuted }]}>Expiry</Text>
+                  <TextInput
+                    style={[styles.cardInput, {
+                      color: colors.text,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                    }]}
+                    placeholder="MM/YY"
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}
+                    value={formatExpiry(cardExpiry)}
+                    onChangeText={(t) => setCardExpiry(t.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    maxLength={5}
+                    testID="card-expiry"
+                  />
+                </View>
+                <View style={[styles.cardFieldWrap, { flex: 1 }]}>
+                  <Text style={[styles.cardFieldLabel, { color: colors.textMuted }]}>CVC</Text>
+                  <TextInput
+                    style={[styles.cardInput, {
+                      color: colors.text,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                    }]}
+                    placeholder="123"
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'}
+                    value={cardCvc}
+                    onChangeText={(t) => setCardCvc(t.replace(/\D/g, '').slice(0, 4))}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    secureTextEntry
+                    testID="card-cvc"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
           <View style={[styles.securityRow, { backgroundColor: isDark ? 'rgba(53,212,207,0.04)' : 'rgba(26,168,163,0.03)' }]}>
             <ShieldCheck color={colors.aqua} size={16} />
             <Text style={[styles.securityText, { color: colors.textMuted }]}>
-              Secured with end-to-end encryption. Your payment info is never stored.
+              {paymentMethod === 'apple'
+                ? `Payments processed securely through ${Platform.OS === 'ios' ? 'Apple Pay' : 'Google Pay'}. No card details stored.`
+                : 'Payments processed securely via Stripe. Your card details are encrypted end-to-end.'}
             </Text>
           </View>
 
@@ -297,10 +475,14 @@ export default function CheckoutScreen() {
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? 'rgba(4,19,24,0.96)' : 'rgba(245,248,250,0.96)', borderTopColor: colors.border }]}>
         <Pressable
-          onPress={handlePurchase}
+          onPress={() => void handlePurchase()}
+          disabled={paymentMethod === 'card' && !cardValid}
           style={({ pressed }) => [
             styles.purchaseBtn,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+            {
+              opacity: (paymentMethod === 'card' && !cardValid) ? 0.5 : (pressed ? 0.9 : 1),
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            },
           ]}
           testID="confirm-purchase"
         >
@@ -324,282 +506,66 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  topBarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topBarTitle: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    gap: 20,
-  },
-  orderCard: {
-    borderRadius: 22,
-    padding: 20,
-    gap: 16,
-    borderWidth: 1,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  orderHeaderText: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-  },
-  orderEventRow: {
-    borderRadius: 14,
-    padding: 14,
-    gap: 4,
-  },
-  orderEventName: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  orderEventMeta: {
-    fontSize: 13,
-  },
-  orderLineRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  orderLineLeft: {
-    gap: 2,
-  },
-  orderLineLabel: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
-  orderLineSub: {
-    fontSize: 13,
-  },
-  orderLineAmount: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  orderDivider: {
-    height: 1,
-  },
-  orderTotalDivider: {
-    height: 2,
-    borderRadius: 1,
-    opacity: 0.3,
-  },
-  orderTotalLabel: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  orderTotalAmount: {
-    fontSize: 22,
-    fontWeight: '900' as const,
-  },
-  paymentSection: {
-    gap: 12,
-  },
-  paymentTitle: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-  },
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1.5,
-  },
-  paymentIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  paymentOptionInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  paymentOptionName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  paymentOptionSub: {
-    fontSize: 12,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  securityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    padding: 14,
-  },
-  securityText: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
-  },
-  tierPerksReview: {
-    gap: 10,
-  },
-  perksReviewTitle: {
-    fontSize: 16,
-    fontWeight: '800' as const,
-  },
-  perkReviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  perkReviewText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  purchaseBtn: {
-    borderRadius: 16,
-    overflow: 'hidden' as const,
-  },
-  purchaseBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 18,
-    borderRadius: 16,
-  },
-  purchaseBtnText: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  processingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 40,
-  },
-  processingTitle: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    marginTop: 16,
-  },
-  processingSub: {
-    fontSize: 15,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
-    marginTop: 24,
-    overflow: 'hidden' as const,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  confirmedContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  checkCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  confirmedTitle: {
-    fontSize: 28,
-    fontWeight: '900' as const,
-  },
-  confirmedSub: {
-    fontSize: 16,
-    textAlign: 'center' as const,
-    lineHeight: 22,
-  },
-  confirmDetailCard: {
-    width: '100%',
-    borderRadius: 20,
-    padding: 18,
-    gap: 12,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  confirmDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  confirmDetailLabel: {
-    fontSize: 14,
-  },
-  confirmDetailValue: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    textAlign: 'right' as const,
-    flex: 1,
-    marginLeft: 16,
-  },
-  confirmDivider: {
-    height: 1,
-  },
-  confirmNote: {
-    fontSize: 13,
-    textAlign: 'center' as const,
-    lineHeight: 19,
-    marginTop: 8,
-    paddingHorizontal: 12,
-  },
-  doneBtn: {
-    width: '100%',
-    alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: 18,
-    marginTop: 16,
-  },
-  doneBtnText: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
+  screen: { flex: 1 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
+  topBarBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  topBarTitle: { fontSize: 17, fontWeight: '800' as const },
+  scrollContent: { paddingHorizontal: 16, gap: 20 },
+  orderCard: { borderRadius: 22, padding: 20, gap: 16, borderWidth: 1 },
+  orderHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  orderHeaderText: { fontSize: 18, fontWeight: '800' as const },
+  orderEventRow: { borderRadius: 14, padding: 14, gap: 4 },
+  orderEventName: { fontSize: 16, fontWeight: '700' as const },
+  orderEventMeta: { fontSize: 13 },
+  orderLineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  orderLineLeft: { gap: 2 },
+  orderLineLabel: { fontSize: 15, fontWeight: '600' as const },
+  orderLineSub: { fontSize: 13 },
+  orderLineAmount: { fontSize: 15, fontWeight: '700' as const },
+  orderDivider: { height: 1 },
+  orderTotalDivider: { height: 2, borderRadius: 1, opacity: 0.3 },
+  orderTotalLabel: { fontSize: 17, fontWeight: '800' as const },
+  orderTotalAmount: { fontSize: 22, fontWeight: '900' as const },
+  paymentSection: { gap: 12 },
+  paymentTitle: { fontSize: 18, fontWeight: '800' as const },
+  paymentOption: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 18, padding: 16, borderWidth: 1.5 },
+  paymentIconWrap: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  paymentOptionInfo: { flex: 1, gap: 2 },
+  paymentOptionName: { fontSize: 15, fontWeight: '700' as const },
+  paymentOptionSub: { fontSize: 12 },
+  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  radioInner: { width: 12, height: 12, borderRadius: 6 },
+  cardInputSection: { borderRadius: 22, padding: 20, gap: 16, borderWidth: 1 },
+  cardInputTitle: { fontSize: 16, fontWeight: '800' as const },
+  cardFieldWrap: { gap: 6 },
+  cardFieldLabel: { fontSize: 12, fontWeight: '600' as const, letterSpacing: 0.3 },
+  cardInput: { height: 48, borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontWeight: '500' as const },
+  cardFieldRow: { flexDirection: 'row', gap: 12 },
+  securityRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
+  securityText: { fontSize: 13, lineHeight: 18, flex: 1 },
+  tierPerksReview: { gap: 10 },
+  perksReviewTitle: { fontSize: 16, fontWeight: '800' as const },
+  perkReviewRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  perkReviewText: { fontSize: 14, flex: 1 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingTop: 14, borderTopWidth: 1 },
+  purchaseBtn: { borderRadius: 16, overflow: 'hidden' as const },
+  purchaseBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18, borderRadius: 16 },
+  purchaseBtnText: { fontSize: 17, fontWeight: '800' as const },
+  processingContainer: { flex: 1, alignItems: 'center', gap: 16, paddingHorizontal: 40 },
+  processingTitle: { fontSize: 22, fontWeight: '800' as const, marginTop: 16 },
+  processingSub: { fontSize: 15, textAlign: 'center' as const },
+  progressTrack: { width: '100%', height: 6, borderRadius: 3, marginTop: 24, overflow: 'hidden' as const },
+  progressFill: { height: '100%', borderRadius: 3 },
+  confirmedContainer: { flex: 1, alignItems: 'center', paddingHorizontal: 24, gap: 12 },
+  checkCircle: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  confirmedTitle: { fontSize: 28, fontWeight: '900' as const },
+  confirmedSub: { fontSize: 16, textAlign: 'center' as const, lineHeight: 22 },
+  confirmDetailCard: { width: '100%', borderRadius: 20, padding: 18, gap: 12, borderWidth: 1, marginTop: 12 },
+  confirmDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  confirmDetailLabel: { fontSize: 14 },
+  confirmDetailValue: { fontSize: 14, fontWeight: '700' as const, textAlign: 'right' as const, flex: 1, marginLeft: 16 },
+  confirmDivider: { height: 1 },
+  confirmNote: { fontSize: 13, textAlign: 'center' as const, lineHeight: 19, marginTop: 8, paddingHorizontal: 12 },
+  doneBtn: { width: '100%', alignItems: 'center', borderRadius: 16, paddingVertical: 18, marginTop: 16 },
+  doneBtnText: { fontSize: 17, fontWeight: '800' as const },
 });

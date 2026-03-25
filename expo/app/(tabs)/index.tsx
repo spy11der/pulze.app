@@ -11,12 +11,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Compass, Database, Eye, Flame, Info, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2, X, Zap } from 'lucide-react-native';
+import { Compass, Database, Eye, Flame, Heart, Info, MapPinned, Radio, SlidersHorizontal, Ticket, Trash2, X, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useFavorites } from '@/providers/FavoritesProvider';
 import type { SavedVibe } from '@/services/database';
 
 type FeedMode = 'everyone' | 'friends' | 'my_vibes';
@@ -68,6 +69,7 @@ export default function FeedScreen() {
   const vibeOpacity = useRef<Animated.Value>(new Animated.Value(0.6)).current;
 
   const { vibes, removeVibe, vibeCount } = useData();
+  const { isFavorited, toggleFavorite } = useFavorites();
   const router = useRouter();
   const [vibeModalVisible, setVibeModalVisible] = useState<boolean>(false);
   const [vibeModalScore, setVibeModalScore] = useState<number>(0);
@@ -153,10 +155,10 @@ export default function FeedScreen() {
     router.push('/(tabs)/map');
   }, [router]);
 
-  const handleStoryPress = useCallback((storyId: string) => {
+  const handleStoryPress = useCallback((venueId: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(tabs)/map');
-    console.log('[Feed] Story pressed, navigating to map', { storyId });
+    router.push({ pathname: '/venue-detail', params: { venueId } });
+    console.log('[Feed] Story pressed, navigating to venue detail', { venueId });
   }, [router]);
 
   const handleVibePress = useCallback((storyId: string, intensity: number, venue: string) => {
@@ -167,10 +169,10 @@ export default function FeedScreen() {
     console.log('[Feed] Vibe score pressed, showing explanation', { storyId, intensity });
   }, []);
 
-  const handleSignalPress = useCallback((storyId: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    console.log('[Feed] Media signal pressed, opening source details', { storyId });
-  }, []);
+  const handleStoryHeart = useCallback((venueId: string, venueName: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    toggleFavorite(venueId, 'venue', venueName);
+  }, [toggleFavorite]);
 
   const heroGradient: [string, string] = isDark
     ? ['#09232B', '#041318']
@@ -338,9 +340,10 @@ export default function FeedScreen() {
                 story={story}
                 vibeScale={vibeScale}
                 vibeOpacity={vibeOpacity}
-                onPress={() => handleStoryPress(story.id)}
+                isHearted={isFavorited(story.venueId)}
+                onPress={() => handleStoryPress(story.venueId)}
                 onVibePress={() => handleVibePress(story.id, story.intensity, story.venue)}
-                onSignalPress={() => handleSignalPress(story.id)}
+                onHeartPress={() => handleStoryHeart(story.venueId, story.venue)}
               />
             ))}
           </>
@@ -421,16 +424,18 @@ const StoryCard = React.memo(function StoryCard({
   story,
   vibeScale,
   vibeOpacity,
+  isHearted,
   onPress,
   onVibePress,
-  onSignalPress,
+  onHeartPress,
 }: {
   story: (typeof vibeStories)[number];
   vibeScale: Animated.Value;
   vibeOpacity: Animated.Value;
+  isHearted: boolean;
   onPress: () => void;
   onVibePress: () => void;
-  onSignalPress: () => void;
+  onHeartPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
   return (
@@ -467,19 +472,38 @@ const StoryCard = React.memo(function StoryCard({
             <Text style={[styles.metaChipText, { color: colors.text }]}>{story.distance}</Text>
           </View>
           <VibeChip vibe={story.vibe} />
-          <View style={[styles.metaChip, { backgroundColor: colors.card }]}>
-            <Text style={[styles.metaChipText, { color: colors.text }]}>{story.privacy === 'friends' ? 'Friends details' : 'Public vibe'}</Text>
-          </View>
+          <Pressable
+            onPress={onHeartPress}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.metaChip,
+              {
+                backgroundColor: isHearted
+                  ? (isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)')
+                  : colors.card,
+              },
+              pressed && { opacity: 0.7 },
+            ]}
+            testID={`story-heart-${story.id}`}
+          >
+            <Heart
+              color={isHearted ? colors.coral : colors.textMuted}
+              size={13}
+              fill={isHearted ? colors.coral : 'transparent'}
+            />
+            <Text style={[styles.metaChipText, { color: isHearted ? colors.coral : colors.text }]}>
+              {isHearted ? 'Saved' : 'Save'}
+            </Text>
+          </Pressable>
         </View>
       </Pressable>
-      <Pressable
-        onPress={onSignalPress}
-        style={({ pressed }) => [styles.signalCard, { backgroundColor: isDark ? '#123642' : '#E0F0F5' }, pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }]}
+      <View
+        style={[styles.signalCard, { backgroundColor: isDark ? '#123642' : '#E0F0F5' }]}
         testID={`story-signal-${story.id}`}
       >
         <Text style={[styles.signalLabel, { color: colors.aqua }]}>Media signal</Text>
         <Text style={[styles.signalText, { color: colors.textMuted }]}>{story.mediaLabel}</Text>
-      </Pressable>
+      </View>
     </View>
   );
 });

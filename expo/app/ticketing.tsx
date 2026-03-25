@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import {
   Animated,
   Image,
-  Linking,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -21,7 +19,6 @@ import {
   Bookmark,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Heart,
   MapPin,
@@ -40,6 +37,7 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { venues, getEventForVenue } from '@/mocks/events';
 import type { TicketTier } from '@/mocks/events';
+import { DirectionsSheet } from '@/components/DirectionsSheet';
 
 const TM_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? '';
 
@@ -208,15 +206,12 @@ export default function TicketingScreen() {
     }
   }, [event]);
 
+  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
+
   const handleDirections = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const url = Platform.select({
-      ios: `maps://app?daddr=${event.venueLatitude},${event.venueLongitude}`,
-      android: `google.navigation:q=${event.venueLatitude},${event.venueLongitude}`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${event.venueLatitude},${event.venueLongitude}`,
-    });
-    if (url) void Linking.openURL(url);
-  }, [event]);
+    setDirectionsVisible(true);
+  }, []);
 
   const handleGetTickets = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -416,10 +411,7 @@ export default function TicketingScreen() {
               </View>
             )}
 
-            <Pressable
-              onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
+            <View
               style={[styles.hostCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
               testID="host-card"
             >
@@ -431,8 +423,7 @@ export default function TicketingScreen() {
                 </View>
                 <Text style={[styles.hostLabel, { color: colors.textMuted }]}>Organizer</Text>
               </View>
-              <ChevronRight color={colors.textSoft} size={18} />
-            </Pressable>
+            </View>
 
             <View style={styles.sectionBlock}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
@@ -454,15 +445,14 @@ export default function TicketingScreen() {
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Lineup</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lineupScroll}>
                   {event.lineup.map(guest => (
-                    <Pressable
+                    <View
                       key={guest.id}
-                      onPress={() => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
                       style={[styles.lineupCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     >
                       <Image source={{ uri: guest.avatar }} style={styles.lineupAvatar} />
                       <Text style={[styles.lineupName, { color: colors.text }]}>{guest.name}</Text>
                       <Text style={[styles.lineupRole, { color: colors.textMuted }]}>{guest.role}</Text>
-                    </Pressable>
+                    </View>
                   ))}
                 </ScrollView>
               </View>
@@ -565,6 +555,14 @@ export default function TicketingScreen() {
           <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Get Tickets</Text>
         </Pressable>
       </View>
+      <DirectionsSheet
+        visible={directionsVisible}
+        onClose={() => setDirectionsVisible(false)}
+        latitude={event.venueLatitude}
+        longitude={event.venueLongitude}
+        address={event.venueAddress}
+        name={event.venueName}
+      />
     </View>
   );
 }

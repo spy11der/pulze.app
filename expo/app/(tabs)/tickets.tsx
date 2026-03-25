@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import {
   Animated,
   Image,
-  Linking,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -19,7 +17,6 @@ import {
   Bookmark,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Heart,
   MapPin,
@@ -38,6 +35,7 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { sampleEvent, artistListings } from '@/mocks/events';
 import type { TicketTier, ArtistListing } from '@/mocks/events';
+import { DirectionsSheet } from '@/components/DirectionsSheet';
 
 export default function TicketsTab() {
   const insets = useSafeAreaInsets();
@@ -131,15 +129,12 @@ export default function TicketsTab() {
     }
   }, [event]);
 
+  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
+
   const handleDirections = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const url = Platform.select({
-      ios: `maps://app?daddr=${event.venueLatitude},${event.venueLongitude}`,
-      android: `google.navigation:q=${event.venueLatitude},${event.venueLongitude}`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${event.venueLatitude},${event.venueLongitude}`,
-    });
-    if (url) void Linking.openURL(url);
-  }, [event]);
+    setDirectionsVisible(true);
+  }, []);
 
   const handleGetTickets = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -320,8 +315,7 @@ export default function TicketsTab() {
               </View>
             )}
 
-            <Pressable
-              onPress={() => void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+            <View
               style={[styles.hostCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
               testID="tickets-host-card"
             >
@@ -333,8 +327,7 @@ export default function TicketsTab() {
                 </View>
                 <Text style={[styles.hostLabel, { color: colors.textMuted }]}>Organizer</Text>
               </View>
-              <ChevronRight color={colors.textSoft} size={18} />
-            </Pressable>
+            </View>
 
             <View style={styles.sectionBlock}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
@@ -437,6 +430,15 @@ export default function TicketsTab() {
           </View>
         </Animated.View>
       </ScrollView>
+
+      <DirectionsSheet
+        visible={directionsVisible}
+        onClose={() => setDirectionsVisible(false)}
+        latitude={event.venueLatitude}
+        longitude={event.venueLongitude}
+        address={event.venueAddress}
+        name={event.venueName}
+      />
 
       <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 90, backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)', borderTopColor: colors.border }]}>
         <View style={styles.stickyInfo}>
