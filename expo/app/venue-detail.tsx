@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -75,9 +75,16 @@ export default function VenueDetailScreen() {
     toggleFavorite(venue.id, 'venue', venue.name);
   }, [venue, toggleFavorite]);
 
+  const scrollRef = useRef<ScrollView>(null);
+
   const handleDirections = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setDirectionsVisible(true);
+  }, []);
+
+  const handleGoNow = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    scrollRef.current?.scrollTo({ y: 400, animated: true });
   }, []);
 
   if (!venue) {
@@ -105,8 +112,9 @@ export default function VenueDetailScreen() {
 
       {venue.photo ? (
         <View style={styles.heroContainer}>
-          <Image source={{ uri: venue.photo }} style={styles.heroImage} />
-          <View style={styles.heroOverlay} />
+          <Image source={{ uri: `${venue.photo}&crop=center&fit=crop` }} style={styles.heroImage} />
+          <View style={styles.heroGradientTop} />
+          <View style={[styles.heroOverlay, { backgroundColor: isDark ? 'rgba(6,15,19,0.5)' : 'rgba(0,0,0,0.2)' }]} />
         </View>
       ) : (
         <View style={[styles.heroPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
@@ -136,6 +144,7 @@ export default function VenueDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
       >
@@ -202,7 +211,7 @@ export default function VenueDetailScreen() {
             vibeScore={venue.vibe_score}
             peopleCount={venue.peopleCount}
             eta={venue.eta}
-            onGoNow={handleDirections}
+            onGoNow={handleGoNow}
           />
 
           <View style={styles.actionsRow}>
@@ -253,9 +262,10 @@ export default function VenueDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  heroContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, zIndex: 1 },
+  heroContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 260, zIndex: 1, overflow: 'hidden' as const },
   heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)' },
+  heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120, backgroundColor: 'transparent' },
+  heroGradientTop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
   heroPlaceholder: { position: 'absolute', top: 0, left: 0, right: 0, height: 180, zIndex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   topBarBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

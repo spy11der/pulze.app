@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight, TrendingUp, Users, Zap } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { getDecision, parseEtaMinutes } from '@/utils/urgency';
+import { getDecision, parseEtaMinutes, generateLiveActivity } from '@/utils/urgency';
 import type { DecisionInfo } from '@/utils/urgency';
 
 interface DecisionBarProps {
@@ -20,6 +20,7 @@ export const DecisionBar = React.memo(function DecisionBar({
 }: DecisionBarProps) {
   const etaMinutes = parseEtaMinutes(eta);
   const decision = useMemo(() => getDecision(vibeScore, peopleCount, etaMinutes), [vibeScore, peopleCount, etaMinutes]);
+  const activity = useMemo(() => generateLiveActivity(vibeScore, peopleCount), [vibeScore, peopleCount]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -34,8 +35,8 @@ export const DecisionBar = React.memo(function DecisionBar({
     if (decision.action === 'GO_NOW') {
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.03, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.02, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
         ])
       );
       loop.start();
@@ -53,13 +54,51 @@ export const DecisionBar = React.memo(function DecisionBar({
     }
   };
 
+  const cardBg = decision.action === 'GO_NOW'
+    ? 'rgba(46,173,106,0.08)'
+    : decision.action === 'WAIT'
+      ? 'rgba(240,192,48,0.06)'
+      : 'rgba(208,64,64,0.06)';
+
+  const cardBorder = decision.action === 'GO_NOW'
+    ? 'rgba(46,173,106,0.18)'
+    : decision.action === 'WAIT'
+      ? 'rgba(240,192,48,0.14)'
+      : 'rgba(208,64,64,0.14)';
+
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <Text style={styles.sectionLabel}>SHOULD YOU GO?</Text>
-      <View style={styles.barRow}>
+
+      <View style={[styles.decisionCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Zap color={vibeScore >= 70 ? '#E8A830' : '#7BA3AD'} size={14} />
+            <Text style={[styles.statValue, { color: vibeScore >= 70 ? '#E8A830' : '#B0C8D0' }]}>{vibeScore}</Text>
+            <Text style={styles.statMeta}>energy</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <TrendingUp color="#2BBFBA" size={14} />
+            <Text style={[styles.statValue, { color: '#B0C8D0' }]}>+{activity.recentPeople}</Text>
+            <Text style={styles.statMeta}>recently</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Users color={activity.friendsNearby > 0 ? '#2BBFBA' : '#7BA3AD'} size={14} />
+            <Text style={[styles.statValue, { color: activity.friendsNearby > 0 ? '#2BBFBA' : '#B0C8D0' }]}>
+              {activity.friendsNearby}
+            </Text>
+            <Text style={styles.statMeta}>friends</Text>
+          </View>
+        </View>
+
+        <Text style={[styles.reasonText, { color: decision.action === 'GO_NOW' ? '#8DD4A0' : decision.action === 'WAIT' ? '#D4C080' : '#D09090' }]}>
+          {decision.action === 'GO_NOW' ? 'This is the move right now' : decision.reason}
+        </Text>
+
         <DecisionButton decision={decision} pulseAnim={decision.action === 'GO_NOW' ? pulseAnim : undefined} onPress={handlePress} />
       </View>
-      <Text style={styles.reason}>{decision.reason}</Text>
     </Animated.View>
   );
 });
@@ -76,7 +115,7 @@ function DecisionButton({
   const scale = pulseAnim ?? new Animated.Value(1);
 
   return (
-    <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
+    <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
@@ -95,7 +134,7 @@ function DecisionButton({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 10,
   },
   sectionLabel: {
     fontSize: 10,
@@ -103,14 +142,48 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     color: '#7BA3AD',
   },
-  barRow: {
-    flexDirection: 'row',
-    gap: 8,
+  decisionCard: {
+    borderRadius: 18,
+    padding: 16,
+    gap: 14,
+    borderWidth: 1,
+  },
+  statsRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-around' as const,
+  },
+  statItem: {
+    alignItems: 'center' as const,
+    gap: 4,
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+  },
+  statMeta: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    color: '#7BA3AD',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(123,163,173,0.15)',
+  },
+  reasonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
+    lineHeight: 20,
   },
   decisionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     gap: 8,
     borderRadius: 14,
     paddingVertical: 16,
@@ -119,11 +192,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800' as const,
     letterSpacing: 1.2,
-  },
-  reason: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#7BA3AD',
   },
   pressed: {
     opacity: 0.9,

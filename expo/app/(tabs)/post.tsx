@@ -22,6 +22,7 @@ import {
   Check,
   ChevronRight,
   Globe2,
+  ImagePlus,
   Lock,
   MapPin,
   Navigation,
@@ -44,6 +45,7 @@ interface TagCategory {
   key: keyof Pick<VibeTags, 'energy' | 'crowd' | 'mood'>;
   label: string;
   color: string;
+  glowColor: string;
   tags: string[];
   step: number;
 }
@@ -53,6 +55,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     key: 'energy',
     label: 'Energy',
     color: '#A5F05C',
+    glowColor: 'rgba(165,240,92,',
     tags: ['chill', 'steady', 'turnt', 'packed'],
     step: 1,
   },
@@ -60,6 +63,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     key: 'crowd',
     label: 'Crowd',
     color: '#35D4CF',
+    glowColor: 'rgba(53,212,207,',
     tags: ['empty', 'light', 'medium', 'full'],
     step: 2,
   },
@@ -67,6 +71,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     key: 'mood',
     label: 'Mood',
     color: '#FF6D5E',
+    glowColor: 'rgba(255,109,94,',
     tags: ['good vibes', 'lit', 'relaxed', 'upscale'],
     step: 3,
   },
@@ -85,11 +90,10 @@ const privacyOptions: PrivacyOption[] = [
 ];
 
 function getVibeIntensityLabel(score: number): string {
-  if (score <= 20) return 'Mellow';
-  if (score <= 40) return 'Easy going';
-  if (score <= 60) return 'Warming up';
-  if (score <= 80) return 'Fired up';
-  return 'Maximum energy';
+  if (score <= 30) return 'Calm';
+  if (score <= 60) return 'Building';
+  if (score <= 80) return 'Active';
+  return 'Fired up';
 }
 
 function getVibeGradientColor(score: number, isDark: boolean): string {
@@ -103,6 +107,7 @@ function TagChip({
   tag,
   selected,
   accentColor,
+  glowColor,
   onPress,
   colors,
   isDark,
@@ -111,6 +116,7 @@ function TagChip({
   tag: string;
   selected: boolean;
   accentColor: string;
+  glowColor: string;
   onPress: () => void;
   colors: ReturnType<typeof useTheme>['colors'];
   isDark: boolean;
@@ -130,7 +136,7 @@ function TagChip({
   const handlePress = useCallback(() => {
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 1.08,
+        toValue: 1.12,
         duration: 80,
         useNativeDriver: true,
       }),
@@ -147,18 +153,21 @@ function TagChip({
   const bgColor = glowAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      colors.card,
-      isDark ? `${accentColor}25` : `${accentColor}18`,
+      isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+      isDark ? `${glowColor}0.18)` : `${glowColor}0.12)`,
     ],
   });
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.border, accentColor],
+    outputRange: [
+      isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+      accentColor,
+    ],
   });
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.4 : 1 }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.35 : 1 }}>
       <Pressable onPress={handlePress} testID={`tag-${tag}`}>
         <Animated.View
           style={[
@@ -171,12 +180,17 @@ function TagChip({
           ]}
         >
           {selected && (
-            <View style={[styles.tagGlow, { backgroundColor: `${accentColor}12` }]} />
+            <View style={[styles.tagCheckIcon, { backgroundColor: accentColor }]}>
+              <Check color="#fff" size={10} />
+            </View>
           )}
           <Text
             style={[
               styles.tagText,
-              { color: selected ? accentColor : colors.textMuted },
+              {
+                color: selected ? accentColor : colors.textMuted,
+                fontWeight: selected ? '700' as const : '500' as const,
+              },
             ]}
           >
             {tag}
@@ -202,6 +216,7 @@ function VibeMeter({
 }) {
   const fillAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   const fillTarget = totalSelected > 0 ? score / 100 : 0;
   useEffect(() => {
@@ -219,14 +234,14 @@ function VibeMeter({
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.02,
-            duration: 800,
+            toValue: 1.015,
+            duration: 900,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 800,
+            duration: 900,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
@@ -239,6 +254,22 @@ function VibeMeter({
     }
     return undefined;
   }, [shouldPulse, pulseAnim]);
+
+  useEffect(() => {
+    if (totalSelected > 0) {
+      const shimmer = Animated.loop(
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        })
+      );
+      shimmer.start();
+      return () => shimmer.stop();
+    }
+    return undefined;
+  }, [totalSelected, shimmerAnim]);
 
   const fillWidth = fillAnim.interpolate({
     inputRange: [0, 1],
@@ -253,21 +284,41 @@ function VibeMeter({
         ? colors.amber
         : '#FF6D5E';
 
+  const intensityLabel = getVibeIntensityLabel(score);
+
   return (
-    <Animated.View style={[styles.vibeMeterWrap, { transform: [{ scale: pulseAnim }] }]}>
+    <Animated.View
+      style={[
+        styles.vibeMeterCard,
+        {
+          backgroundColor: isDark ? '#0A1820' : '#F0F4F6',
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+          transform: [{ scale: pulseAnim }],
+        },
+      ]}
+    >
       <View style={styles.vibeMeterHeader}>
         <View style={styles.vibeMeterLeft}>
-          <Radio color={meterColor} size={14} />
+          <View style={[styles.vibeMeterIconWrap, { backgroundColor: `${meterColor}18` }]}>
+            <Radio color={meterColor} size={14} />
+          </View>
           <Text style={[styles.vibeMeterLabel, { color: colors.textMuted }]}>
             VIBE METER
           </Text>
         </View>
-        <Text style={[styles.vibeMeterScore, { color: meterColor }]}>
-          {totalSelected > 0 ? score : '—'}
-        </Text>
+        <View style={styles.vibeMeterRight}>
+          <Text style={[styles.vibeMeterScore, { color: meterColor }]}>
+            {totalSelected > 0 ? score : '—'}
+          </Text>
+          {totalSelected > 0 && (
+            <Text style={[styles.vibeMeterIntensityBadge, { color: meterColor, backgroundColor: `${meterColor}14` }]}>
+              {intensityLabel}
+            </Text>
+          )}
+        </View>
       </View>
 
-      <View style={[styles.vibeMeterTrack, { backgroundColor: isDark ? '#0A1A20' : '#DCE4E8' }]}>
+      <View style={[styles.vibeMeterTrack, { backgroundColor: isDark ? '#060F13' : '#DCE4E8' }]}>
         <Animated.View
           style={[
             styles.vibeMeterFill,
@@ -284,16 +335,25 @@ function VibeMeter({
               styles.vibeMeterTick,
               {
                 left: `${tick}%`,
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
               },
             ]}
           />
         ))}
       </View>
 
-      <Text style={[styles.vibeMeterIntensity, { color: totalSelected > 0 ? meterColor : colors.textSoft }]}>
-        {totalSelected > 0 ? getVibeIntensityLabel(score) : 'Select tags to charge the meter'}
-      </Text>
+      <View style={styles.vibeMeterLabelsRow}>
+        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Calm</Text>
+        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Building</Text>
+        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Active</Text>
+        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Fired up</Text>
+      </View>
+
+      {totalSelected === 0 && (
+        <Text style={[styles.vibeMeterHint, { color: colors.textSoft }]}>
+          Select tags above to charge the meter
+        </Text>
+      )}
     </Animated.View>
   );
 }
@@ -334,110 +394,68 @@ function LivePreviewCard({
   return (
     <Animated.View
       style={[
-        styles.livePreview,
+        styles.livePreviewCard,
         {
-          backgroundColor: bgTint,
+          backgroundColor: isDark ? '#0A1820' : '#F0F4F6',
           borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
           opacity: fadeAnim,
         },
       ]}
     >
       <View style={styles.livePreviewHeader}>
-        <Sparkles color={colors.aqua} size={14} />
+        <View style={[styles.livePreviewIconWrap, { backgroundColor: `${colors.aqua}14` }]}>
+          <Sparkles color={colors.aqua} size={12} />
+        </View>
         <Text style={[styles.livePreviewTitle, { color: colors.textMuted }]}>
-          LIVE PREVIEW
+          THIS IS HOW OTHERS WILL SEE YOUR VIBE
         </Text>
       </View>
 
-      <View style={styles.livePreviewBody}>
-        {mediaUri ? (
-          <Image source={{ uri: mediaUri }} style={styles.livePreviewImage} />
-        ) : null}
-
-        <View style={styles.livePreviewContent}>
-          {locationName ? (
-            <Text style={[styles.livePreviewLocation, { color: colors.textSoft }]} numberOfLines={1}>
-              {locationName}
-            </Text>
+      <View style={[styles.livePreviewInner, { backgroundColor: bgTint, borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+        <View style={styles.livePreviewBody}>
+          {mediaUri ? (
+            <Image source={{ uri: mediaUri }} style={styles.livePreviewImage} />
           ) : null}
 
-          {allTags.length > 0 && (
-            <View style={styles.livePreviewTags}>
-              {allTags.slice(0, 4).map((t) => (
-                <View
-                  key={t}
-                  style={[styles.livePreviewTag, { backgroundColor: `${colors.aqua}18` }]}
-                >
-                  <Text style={[styles.livePreviewTagText, { color: colors.aqua }]}>{t}</Text>
-                </View>
-              ))}
+          <View style={styles.livePreviewContent}>
+            {locationName ? (
+              <View style={styles.livePreviewLocRow}>
+                <MapPin color={colors.textSoft} size={11} />
+                <Text style={[styles.livePreviewLocation, { color: colors.textSoft }]} numberOfLines={1}>
+                  {locationName}
+                </Text>
+              </View>
+            ) : null}
+
+            {allTags.length > 0 && (
+              <View style={styles.livePreviewTags}>
+                {allTags.slice(0, 4).map((t) => (
+                  <View
+                    key={t}
+                    style={[styles.livePreviewTag, { backgroundColor: `${colors.aqua}14` }]}
+                  >
+                    <Text style={[styles.livePreviewTagText, { color: colors.aqua }]}>{t}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {caption ? (
+              <Text style={[styles.livePreviewCaption, { color: colors.text }]} numberOfLines={2}>
+                "{caption}"
+              </Text>
+            ) : null}
+
+            <View style={styles.livePreviewFooter}>
+              <View style={[styles.livePreviewScoreDot, { backgroundColor: score > 60 ? '#FF6D5E' : '#35D4CF' }]} />
+              <Text style={[styles.livePreviewScoreLabel, { color: colors.textMuted }]}>
+                {score} · {getVibeIntensityLabel(score)}
+              </Text>
             </View>
-          )}
-
-          {caption ? (
-            <Text style={[styles.livePreviewCaption, { color: colors.text }]} numberOfLines={2}>
-              "{caption}"
-            </Text>
-          ) : null}
-
-          <View style={styles.livePreviewFooter}>
-            <View style={[styles.livePreviewScoreDot, { backgroundColor: score > 60 ? '#FF6D5E' : '#35D4CF' }]} />
-            <Text style={[styles.livePreviewScoreLabel, { color: colors.textMuted }]}>
-              {score} · {getVibeIntensityLabel(score)}
-            </Text>
           </View>
         </View>
       </View>
     </Animated.View>
-  );
-}
-
-function StepIndicator({
-  currentStep,
-  colors,
-}: {
-  currentStep: number;
-  colors: ReturnType<typeof useTheme>['colors'];
-}) {
-  return (
-    <View style={styles.stepRow}>
-      {[1, 2, 3].map((step) => (
-        <View key={step} style={styles.stepItem}>
-          <View
-            style={[
-              styles.stepDot,
-              step < currentStep
-                ? { backgroundColor: colors.aqua }
-                : step === currentStep
-                  ? { backgroundColor: colors.aqua, transform: [{ scale: 1.3 }] }
-                  : { backgroundColor: colors.border },
-            ]}
-          />
-          <Text
-            style={[
-              styles.stepLabel,
-              {
-                color: step <= currentStep ? colors.aqua : colors.textSoft,
-                fontWeight: step === currentStep ? '700' as const : '500' as const,
-              },
-            ]}
-          >
-            {TAG_CATEGORIES[step - 1].label}
-          </Text>
-        </View>
-      ))}
-      <View style={[styles.stepLine, { backgroundColor: colors.border }]}>
-        <View
-          style={[
-            styles.stepLineFill,
-            {
-              backgroundColor: colors.aqua,
-              width: `${Math.min(100, ((currentStep - 1) / 2) * 100)}%`,
-            },
-          ]}
-        />
-      </View>
-    </View>
   );
 }
 
@@ -849,7 +867,7 @@ export default function PostScreen() {
                 Drop a vibe
               </Text>
               <Text style={[styles.headerSubtitle, { color: colors.textSoft }]}>
-                What's happening right now?
+                Capture what's happening right now
               </Text>
             </View>
           </View>
@@ -968,7 +986,7 @@ export default function PostScreen() {
                   >
                     {v.name}
                   </Text>
-                  {v.distanceLabel && v.distanceLabel !== 'Here' ? (
+                  {v.distanceLabel && v.distanceLabel !== 'Nearby' ? (
                     <Text style={[styles.venueChipDist, { color: active ? colors.aqua : colors.textSoft }]}>
                       {v.distanceLabel}
                     </Text>
@@ -986,47 +1004,59 @@ export default function PostScreen() {
           >
             <Pencil color={colors.textSoft} size={12} />
             <Text style={[styles.changeLinkText, { color: colors.textSoft }]}>
-              Wrong location? Change it
+              Not your location? Tap to fix
             </Text>
           </Pressable>
         </View>
 
-        <StepIndicator currentStep={currentStep} colors={colors} />
+        <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(165,240,92,0.06)' : 'rgba(92,168,48,0.06)' }]}>
+          <Zap color="#A5F05C" size={13} />
+          <Text style={[styles.realTimeNoteText, { color: isDark ? '#A5F05C' : '#4E9428' }]}>
+            We prioritize real-time energy — what's happening right now, not earlier.
+          </Text>
+        </View>
 
         {TAG_CATEGORIES.map((cat) => {
           const isActive = cat.step <= currentStep;
           const isCurrentStep = cat.step === currentStep;
+          const hasSelections = selectedTags[cat.key].length > 0;
+
           return (
             <View
               key={cat.key}
               style={[
-                styles.tagSection,
-                isCurrentStep && {
-                  backgroundColor: isDark ? `${cat.color}08` : `${cat.color}06`,
-                  borderRadius: 16,
-                  padding: 14,
-                  marginHorizontal: -14,
+                styles.tagCard,
+                {
+                  backgroundColor: isDark
+                    ? (hasSelections ? `${cat.glowColor}0.06)` : 'rgba(255,255,255,0.025)')
+                    : (hasSelections ? `${cat.glowColor}0.05)` : 'rgba(0,0,0,0.02)'),
+                  borderColor: hasSelections
+                    ? `${cat.glowColor}0.2)`
+                    : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
                 },
               ]}
             >
-              <View style={styles.tagSectionHeader}>
-                <View style={[styles.tagDot, { backgroundColor: isActive ? cat.color : colors.textSoft }]} />
-                <Text style={[styles.tagSectionLabel, { color: isActive ? colors.text : colors.textSoft }]}>
-                  {cat.label}
-                </Text>
-                {isCurrentStep && (
-                  <View style={[styles.currentBadge, { backgroundColor: `${cat.color}20` }]}>
-                    <Text style={[styles.currentBadgeText, { color: cat.color }]}>next</Text>
-                  </View>
-                )}
-                {selectedTags[cat.key].length > 0 && (
-                  <View style={[styles.tagCount, { backgroundColor: `${cat.color}22` }]}>
-                    <Text style={[styles.tagCountText, { color: cat.color }]}>
+              <View style={styles.tagCardHeader}>
+                <View style={styles.tagCardHeaderLeft}>
+                  <View style={[styles.tagCardDot, { backgroundColor: isActive ? cat.color : colors.textSoft }]} />
+                  <Text style={[styles.tagCardLabel, { color: isActive ? colors.text : colors.textSoft }]}>
+                    {cat.label}
+                  </Text>
+                  {isCurrentStep && !hasSelections && (
+                    <View style={[styles.nextBadge, { backgroundColor: `${cat.color}20` }]}>
+                      <Text style={[styles.nextBadgeText, { color: cat.color }]}>next</Text>
+                    </View>
+                  )}
+                </View>
+                {hasSelections && (
+                  <View style={[styles.tagCardCount, { backgroundColor: `${cat.color}20` }]}>
+                    <Text style={[styles.tagCardCountText, { color: cat.color }]}>
                       {selectedTags[cat.key].length}
                     </Text>
                   </View>
                 )}
               </View>
+
               <View style={styles.tagRow}>
                 {cat.tags.map((tag) => (
                   <MemoTagChip
@@ -1034,6 +1064,7 @@ export default function PostScreen() {
                     tag={tag}
                     selected={selectedTags[cat.key].includes(tag)}
                     accentColor={cat.color}
+                    glowColor={cat.glowColor}
                     onPress={() => handleTagToggle(cat.key, tag)}
                     colors={colors}
                     isDark={isDark}
@@ -1052,53 +1083,82 @@ export default function PostScreen() {
           isDark={isDark}
         />
 
-        <View style={styles.mediaSection}>
+        <View
+          style={[
+            styles.mediaCommentCard,
+            {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.02)',
+              borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+            },
+          ]}
+        >
           {mediaUri ? (
-            <View style={styles.mediaPreviewWrap}>
+            <View style={styles.mediaPreviewSection}>
               <Image
                 source={{ uri: mediaUri }}
-                style={[styles.mediaPreview, { borderColor: colors.border }]}
+                style={[styles.mediaPreview, { borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
               />
-              <Pressable
-                onPress={handleRemoveMedia}
-                style={[styles.mediaRemoveBtn, { backgroundColor: colors.coral }]}
-              >
-                <X color="#fff" size={14} />
-              </Pressable>
-              <Pressable
-                onPress={handleMediaAction}
-                style={[styles.mediaChangeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <Camera color={colors.textMuted} size={14} />
-                <Text style={[styles.mediaChangeBtnText, { color: colors.textMuted }]}>Change</Text>
-              </Pressable>
+              <View style={styles.mediaActions}>
+                <Pressable
+                  onPress={handleMediaAction}
+                  style={[styles.mediaActionBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+                >
+                  <Camera color={colors.textMuted} size={14} />
+                  <Text style={[styles.mediaActionBtnText, { color: colors.textMuted }]}>Change</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleRemoveMedia}
+                  style={[styles.mediaActionBtn, { backgroundColor: isDark ? 'rgba(232,86,74,0.12)' : 'rgba(224,85,69,0.08)' }]}
+                >
+                  <X color={colors.coral} size={14} />
+                  <Text style={[styles.mediaActionBtnText, { color: colors.coral }]}>Remove</Text>
+                </Pressable>
+              </View>
             </View>
           ) : (
             <Pressable
               onPress={handleMediaAction}
-              style={[styles.mediaAddBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={({ pressed }) => [
+                styles.mediaAddBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(43,191,186,0.06)' : 'rgba(26,158,153,0.05)',
+                  borderColor: isDark ? 'rgba(43,191,186,0.15)' : 'rgba(26,158,153,0.12)',
+                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
             >
-              <Camera color={colors.aqua} size={18} />
-              <Text style={[styles.mediaAddText, { color: colors.textMuted }]}>Add a photo or video</Text>
+              <View style={[styles.mediaAddIconWrap, { backgroundColor: `${colors.aqua}18` }]}>
+                <ImagePlus color={colors.aqua} size={20} />
+              </View>
+              <Text style={[styles.mediaAddText, { color: colors.text }]}>Add a photo or video</Text>
+              <Text style={[styles.mediaAddHint, { color: colors.textSoft }]}>Optional, but makes your vibe more real</Text>
             </Pressable>
           )}
-        </View>
 
-        <View style={[styles.captionWrap, { backgroundColor: colors.card, borderColor: canSubmit ? `${colors.aqua}30` : colors.border }]}>
-          <TextInput
-            style={[styles.captionInput, { color: colors.text }]}
-            placeholder="What's it actually like right now?"
-            placeholderTextColor={colors.textSoft}
-            value={caption}
-            onChangeText={(t) => setCaption(t.slice(0, 120))}
-            maxLength={120}
-            multiline
-            returnKeyType="done"
-            testID="caption-input"
-          />
-          <Text style={[styles.captionCount, { color: colors.textSoft }]}>
-            {caption.length}/120
-          </Text>
+          <View style={[styles.commentDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]} />
+
+          <View style={styles.commentSection}>
+            <TextInput
+              style={[styles.captionInput, { color: colors.text }]}
+              placeholder="Tell people what it actually feels like right now…"
+              placeholderTextColor={colors.textSoft}
+              value={caption}
+              onChangeText={(t) => setCaption(t.slice(0, 120))}
+              maxLength={120}
+              multiline
+              returnKeyType="done"
+              testID="caption-input"
+            />
+            <View style={styles.captionFooter}>
+              <Text style={[styles.captionHelper, { color: colors.textSoft }]}>
+                Quick, real-time context helps others decide faster
+              </Text>
+              <Text style={[styles.captionCount, { color: colors.textSoft }]}>
+                {caption.length}/120
+              </Text>
+            </View>
+          </View>
         </View>
 
         <LivePreviewCard
@@ -1116,9 +1176,9 @@ export default function PostScreen() {
         style={[
           styles.bottomBar,
           {
-            backgroundColor: isDark ? 'rgba(6,15,19,0.95)' : 'rgba(246,248,250,0.95)',
+            backgroundColor: isDark ? 'rgba(6,15,19,0.96)' : 'rgba(246,248,250,0.96)',
             paddingBottom: tabBarHeight + 8,
-            borderTopColor: colors.border,
+            borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
           },
         ]}
       >
@@ -1136,7 +1196,7 @@ export default function PostScreen() {
             style={({ pressed }) => [
               styles.postButton,
               {
-                backgroundColor: canSubmit ? colors.aqua : colors.card,
+                backgroundColor: canSubmit ? colors.aqua : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
                 opacity: isAddingVibe ? 0.6 : pressed ? 0.9 : 1,
                 transform: [{ scale: pressed && canSubmit ? 0.95 : 1 }],
               },
@@ -1168,7 +1228,7 @@ export default function PostScreen() {
                 },
               ]}
             >
-              {isAddingVibe ? 'Sending...' : canSubmit ? 'Send vibe to city' : 'Select tags first'}
+              {isAddingVibe ? 'Sending...' : canSubmit ? 'Update the map' : 'Select tags first'}
             </Text>
           </Pressable>
         </Animated.View>
@@ -1181,7 +1241,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: {
     paddingHorizontal: 18,
-    gap: 16,
+    gap: 18,
   },
   successScreen: {
     alignItems: 'center' as const,
@@ -1253,6 +1313,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 10,
+    flex: 1,
   },
   headerIconWrap: {
     width: 38,
@@ -1381,77 +1442,66 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600' as const,
   },
-  stepRow: {
+  realTimeNote: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  realTimeNoteText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    flex: 1,
+    lineHeight: 17,
+  },
+  tagCard: {
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+  },
+  tagCardHeader: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    position: 'relative' as const,
   },
-  stepItem: {
-    alignItems: 'center' as const,
-    gap: 4,
-    zIndex: 2,
-  },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  stepLabel: {
-    fontSize: 11,
-  },
-  stepLine: {
-    position: 'absolute' as const,
-    left: 40,
-    right: 40,
-    top: 10,
-    height: 2,
-    borderRadius: 1,
-    zIndex: 1,
-  },
-  stepLineFill: {
-    height: '100%',
-    borderRadius: 1,
-  },
-  tagSection: {
-    gap: 10,
-  },
-  tagSectionHeader: {
+  tagCardHeaderLeft: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 8,
   },
-  tagDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  tagCardDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  tagSectionLabel: {
-    fontSize: 14,
+  tagCardLabel: {
+    fontSize: 15,
     fontWeight: '700' as const,
   },
-  currentBadge: {
+  nextBadge: {
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
     marginLeft: 4,
   },
-  currentBadgeText: {
+  nextBadgeText: {
     fontSize: 10,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.8,
   },
-  tagCount: {
+  tagCardCount: {
     borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginLeft: 'auto' as const,
+    width: 22,
+    height: 22,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  tagCountText: {
-    fontSize: 11,
+  tagCardCountText: {
+    fontSize: 12,
     fontWeight: '800' as const,
   },
   tagRow: {
@@ -1460,26 +1510,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tagChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 11,
     overflow: 'hidden' as const,
   },
-  tagGlow: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 14,
+  tagCheckIcon: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   tagText: {
     fontSize: 14,
-    fontWeight: '600' as const,
   },
-  vibeMeterWrap: {
-    gap: 8,
-    paddingVertical: 4,
+  vibeMeterCard: {
+    borderRadius: 18,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
   },
   vibeMeterHeader: {
     flexDirection: 'row' as const,
@@ -1489,26 +1542,46 @@ const styles = StyleSheet.create({
   vibeMeterLeft: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 6,
+    gap: 8,
+  },
+  vibeMeterIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   vibeMeterLabel: {
     fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 1.5,
   },
+  vibeMeterRight: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
   vibeMeterScore: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800' as const,
   },
+  vibeMeterIntensityBadge: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: 'hidden' as const,
+  },
   vibeMeterTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 12,
+    borderRadius: 6,
     overflow: 'hidden' as const,
     position: 'relative' as const,
   },
   vibeMeterFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 6,
   },
   vibeMeterTick: {
     position: 'absolute' as const,
@@ -1516,25 +1589,134 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 1,
   },
-  vibeMeterIntensity: {
+  vibeMeterLabelsRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 2,
+  },
+  vibeMeterRangeLabel: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+  },
+  vibeMeterHint: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    textAlign: 'center' as const,
+    marginTop: 2,
+  },
+  mediaCommentCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden' as const,
+  },
+  mediaPreviewSection: {
+    padding: 14,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  mediaPreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  mediaActions: {
+    flex: 1,
+    gap: 8,
+  },
+  mediaActionBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  mediaActionBtnText: {
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  livePreview: {
+  mediaAddBtn: {
+    alignItems: 'center' as const,
+    gap: 8,
+    padding: 22,
+    margin: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed' as const,
+  },
+  mediaAddIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  mediaAddText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  mediaAddHint: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  commentDivider: {
+    height: 1,
+    marginHorizontal: 14,
+  },
+  commentSection: {
+    padding: 14,
+    gap: 6,
+  },
+  captionInput: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    paddingVertical: 0,
+    minHeight: 44,
+  },
+  captionFooter: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  captionHelper: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+    flex: 1,
+  },
+  captionCount: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    marginLeft: 8,
+  },
+  livePreviewCard: {
     borderRadius: 18,
-    padding: 16,
+    padding: 14,
     gap: 12,
     borderWidth: 1,
   },
   livePreviewHeader: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 6,
+    gap: 8,
+  },
+  livePreviewIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   livePreviewTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700' as const,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
+  },
+  livePreviewInner: {
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
   },
   livePreviewBody: {
     flexDirection: 'row' as const,
@@ -1548,6 +1730,11 @@ const styles = StyleSheet.create({
   livePreviewContent: {
     flex: 1,
     gap: 6,
+  },
+  livePreviewLocRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
   },
   livePreviewLocation: {
     fontSize: 12,
@@ -1586,75 +1773,6 @@ const styles = StyleSheet.create({
   livePreviewScoreLabel: {
     fontSize: 11,
     fontWeight: '600' as const,
-  },
-  mediaSection: {
-    marginTop: 2,
-  },
-  mediaAddBtn: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 10,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed' as const,
-  },
-  mediaAddText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  mediaPreviewWrap: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  mediaPreview: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  mediaRemoveBtn: {
-    position: 'absolute' as const,
-    top: -6,
-    left: 62,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  mediaChangeBtn: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  mediaChangeBtnText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  captionWrap: {
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    gap: 4,
-  },
-  captionInput: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    paddingVertical: 0,
-    minHeight: 40,
-  },
-  captionCount: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    textAlign: 'right' as const,
   },
   bottomBar: {
     position: 'absolute' as const,

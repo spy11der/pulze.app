@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -58,9 +58,16 @@ export default function EventDetailScreen() {
     toggleFavorite(event.id, 'event', event.title);
   }, [event, toggleFavorite]);
 
+  const scrollRef = useRef<ScrollView>(null);
+
   const handleDirections = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setDirectionsVisible(true);
+  }, []);
+
+  const handleGoNow = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    scrollRef.current?.scrollTo({ y: 500, animated: true });
   }, []);
 
   const handleGetTickets = useCallback(() => {
@@ -74,7 +81,8 @@ export default function EventDetailScreen() {
 
       <View style={styles.heroContainer}>
         <Image source={{ uri: event.heroImage }} style={styles.heroImage} />
-        <View style={styles.heroGradient} />
+        <View style={styles.heroGradientTop} />
+        <View style={[styles.heroGradient, { backgroundColor: isDark ? 'rgba(6,15,19,0.5)' : 'rgba(0,0,0,0.2)' }]} />
       </View>
 
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
@@ -99,6 +107,7 @@ export default function EventDetailScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
       >
@@ -220,7 +229,7 @@ export default function EventDetailScreen() {
             vibeScore={event.vibeScore}
             peopleCount={event.attendingCount}
             eta={event.distanceFromUser}
-            onGoNow={handleDirections}
+            onGoNow={handleGoNow}
           />
 
           <View style={styles.actionsRow}>
@@ -284,9 +293,10 @@ export default function EventDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  heroContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 280, zIndex: 1 },
+  heroContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 280, zIndex: 1, overflow: 'hidden' as const },
   heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100, backgroundColor: 'rgba(0,0,0,0.2)' },
+  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
+  heroGradientTop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
   topBarBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   content: { position: 'relative', zIndex: 2 },

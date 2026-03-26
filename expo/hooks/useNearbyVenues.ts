@@ -27,11 +27,12 @@ function haversineDistance(
 }
 
 function formatDistance(meters: number): string {
-  if (meters < 100) return 'Here';
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  const km = meters / 1000;
-  if (km < 10) return `${km.toFixed(1)}km`;
-  return `${Math.round(km)}km`;
+  if (meters < 150) return 'Nearby';
+  const miles = meters / 1609.34;
+  if (miles < 0.2) return 'Nearby';
+  if (miles < 10) return `${miles.toFixed(1)} mi`;
+  if (miles < 100) return `${Math.round(miles)} mi`;
+  return 'Nearby';
 }
 
 export function getNearbyVenues(
