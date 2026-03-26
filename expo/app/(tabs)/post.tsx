@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Easing,
   Image,
   Platform,
   Pressable,
@@ -25,7 +26,9 @@ import {
   MapPin,
   Navigation,
   Pencil,
+  Radio,
   Send,
+  Sparkles,
   Users,
   X,
   Zap,
@@ -42,6 +45,7 @@ interface TagCategory {
   label: string;
   color: string;
   tags: string[];
+  step: number;
 }
 
 const TAG_CATEGORIES: TagCategory[] = [
@@ -50,18 +54,21 @@ const TAG_CATEGORIES: TagCategory[] = [
     label: 'Energy',
     color: '#A5F05C',
     tags: ['chill', 'steady', 'turnt', 'packed'],
+    step: 1,
   },
   {
     key: 'crowd',
     label: 'Crowd',
     color: '#35D4CF',
     tags: ['empty', 'light', 'medium', 'full'],
+    step: 2,
   },
   {
     key: 'mood',
     label: 'Mood',
     color: '#FF6D5E',
     tags: ['good vibes', 'lit', 'relaxed', 'upscale'],
+    step: 3,
   },
 ];
 
@@ -77,7 +84,20 @@ const privacyOptions: PrivacyOption[] = [
   { id: 'private', label: 'Just me', icon: Lock },
 ];
 
+function getVibeIntensityLabel(score: number): string {
+  if (score <= 20) return 'Mellow';
+  if (score <= 40) return 'Easy going';
+  if (score <= 60) return 'Warming up';
+  if (score <= 80) return 'Fired up';
+  return 'Maximum energy';
+}
 
+function getVibeGradientColor(score: number, isDark: boolean): string {
+  if (score <= 25) return isDark ? '#1A3A2A' : '#D4EDD8';
+  if (score <= 50) return isDark ? '#1A2E3A' : '#D4E5ED';
+  if (score <= 75) return isDark ? '#2A1E3A' : '#E5D4ED';
+  return isDark ? '#3A1A1A' : '#EDD4D4';
+}
 
 function TagChip({
   tag,
@@ -86,6 +106,7 @@ function TagChip({
   onPress,
   colors,
   isDark,
+  dimmed,
 }: {
   tag: string;
   selected: boolean;
@@ -93,14 +114,24 @@ function TagChip({
   onPress: () => void;
   colors: ReturnType<typeof useTheme>['colors'];
   isDark: boolean;
+  dimmed: boolean;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(glowAnim, {
+      toValue: selected ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [selected, glowAnim]);
 
   const handlePress = useCallback(() => {
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 0.88,
-        duration: 60,
+        toValue: 1.08,
+        duration: 80,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
@@ -113,35 +144,44 @@ function TagChip({
     onPress();
   }, [onPress, scaleAnim]);
 
+  const bgColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      colors.card,
+      isDark ? `${accentColor}25` : `${accentColor}18`,
+    ],
+  });
+
+  const borderColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, accentColor],
+  });
+
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Pressable
-        onPress={handlePress}
-        style={[
-          styles.tagChip,
-          selected
-            ? {
-                backgroundColor: isDark
-                  ? `${accentColor}22`
-                  : `${accentColor}18`,
-                borderColor: accentColor,
-                borderWidth: 1.5,
-              }
-            : {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderWidth: 1,
-              },
-        ]}
-      >
-        <Text
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.4 : 1 }}>
+      <Pressable onPress={handlePress} testID={`tag-${tag}`}>
+        <Animated.View
           style={[
-            styles.tagText,
-            { color: selected ? accentColor : colors.textMuted },
+            styles.tagChip,
+            {
+              backgroundColor: bgColor,
+              borderColor: borderColor,
+              borderWidth: selected ? 1.5 : 1,
+            },
           ]}
         >
-          {tag}
-        </Text>
+          {selected && (
+            <View style={[styles.tagGlow, { backgroundColor: `${accentColor}12` }]} />
+          )}
+          <Text
+            style={[
+              styles.tagText,
+              { color: selected ? accentColor : colors.textMuted },
+            ]}
+          >
+            {tag}
+          </Text>
+        </Animated.View>
       </Pressable>
     </Animated.View>
   );
@@ -149,34 +189,273 @@ function TagChip({
 
 const MemoTagChip = React.memo(TagChip);
 
+function VibeMeter({
+  score,
+  totalSelected,
+  colors,
+  isDark,
+}: {
+  score: number;
+  totalSelected: number;
+  colors: ReturnType<typeof useTheme>['colors'];
+  isDark: boolean;
+}) {
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const fillTarget = totalSelected > 0 ? score / 100 : 0;
+  useEffect(() => {
+    Animated.spring(fillAnim, {
+      toValue: fillTarget,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: false,
+    }).start();
+  }, [fillTarget, fillAnim]);
+
+  const shouldPulse = score > 70;
+  useEffect(() => {
+    if (shouldPulse) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.02,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return undefined;
+  }, [shouldPulse, pulseAnim]);
+
+  const fillWidth = fillAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  const meterColor = score <= 30
+    ? '#A5F05C'
+    : score <= 60
+      ? '#35D4CF'
+      : score <= 80
+        ? colors.amber
+        : '#FF6D5E';
+
+  return (
+    <Animated.View style={[styles.vibeMeterWrap, { transform: [{ scale: pulseAnim }] }]}>
+      <View style={styles.vibeMeterHeader}>
+        <View style={styles.vibeMeterLeft}>
+          <Radio color={meterColor} size={14} />
+          <Text style={[styles.vibeMeterLabel, { color: colors.textMuted }]}>
+            VIBE METER
+          </Text>
+        </View>
+        <Text style={[styles.vibeMeterScore, { color: meterColor }]}>
+          {totalSelected > 0 ? score : '—'}
+        </Text>
+      </View>
+
+      <View style={[styles.vibeMeterTrack, { backgroundColor: isDark ? '#0A1A20' : '#DCE4E8' }]}>
+        <Animated.View
+          style={[
+            styles.vibeMeterFill,
+            {
+              width: fillWidth,
+              backgroundColor: meterColor,
+            },
+          ]}
+        />
+        {[25, 50, 75].map((tick) => (
+          <View
+            key={tick}
+            style={[
+              styles.vibeMeterTick,
+              {
+                left: `${tick}%`,
+                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      <Text style={[styles.vibeMeterIntensity, { color: totalSelected > 0 ? meterColor : colors.textSoft }]}>
+        {totalSelected > 0 ? getVibeIntensityLabel(score) : 'Select tags to charge the meter'}
+      </Text>
+    </Animated.View>
+  );
+}
+
+function LivePreviewCard({
+  tags,
+  score,
+  caption,
+  locationName,
+  mediaUri,
+  colors,
+  isDark,
+}: {
+  tags: VibeTags;
+  score: number;
+  caption: string;
+  locationName: string;
+  mediaUri: string;
+  colors: ReturnType<typeof useTheme>['colors'];
+  isDark: boolean;
+}) {
+  const allTags = [...tags.energy, ...tags.crowd, ...tags.mood];
+  const hasTags = allTags.length > 0;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: hasTags ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [hasTags, fadeAnim]);
+
+  if (allTags.length === 0 && !mediaUri) return null;
+
+  const bgTint = getVibeGradientColor(score, isDark);
+
+  return (
+    <Animated.View
+      style={[
+        styles.livePreview,
+        {
+          backgroundColor: bgTint,
+          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+          opacity: fadeAnim,
+        },
+      ]}
+    >
+      <View style={styles.livePreviewHeader}>
+        <Sparkles color={colors.aqua} size={14} />
+        <Text style={[styles.livePreviewTitle, { color: colors.textMuted }]}>
+          LIVE PREVIEW
+        </Text>
+      </View>
+
+      <View style={styles.livePreviewBody}>
+        {mediaUri ? (
+          <Image source={{ uri: mediaUri }} style={styles.livePreviewImage} />
+        ) : null}
+
+        <View style={styles.livePreviewContent}>
+          {locationName ? (
+            <Text style={[styles.livePreviewLocation, { color: colors.textSoft }]} numberOfLines={1}>
+              {locationName}
+            </Text>
+          ) : null}
+
+          {allTags.length > 0 && (
+            <View style={styles.livePreviewTags}>
+              {allTags.slice(0, 4).map((t) => (
+                <View
+                  key={t}
+                  style={[styles.livePreviewTag, { backgroundColor: `${colors.aqua}18` }]}
+                >
+                  <Text style={[styles.livePreviewTagText, { color: colors.aqua }]}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {caption ? (
+            <Text style={[styles.livePreviewCaption, { color: colors.text }]} numberOfLines={2}>
+              "{caption}"
+            </Text>
+          ) : null}
+
+          <View style={styles.livePreviewFooter}>
+            <View style={[styles.livePreviewScoreDot, { backgroundColor: score > 60 ? '#FF6D5E' : '#35D4CF' }]} />
+            <Text style={[styles.livePreviewScoreLabel, { color: colors.textMuted }]}>
+              {score} · {getVibeIntensityLabel(score)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+function StepIndicator({
+  currentStep,
+  colors,
+}: {
+  currentStep: number;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) {
+  return (
+    <View style={styles.stepRow}>
+      {[1, 2, 3].map((step) => (
+        <View key={step} style={styles.stepItem}>
+          <View
+            style={[
+              styles.stepDot,
+              step < currentStep
+                ? { backgroundColor: colors.aqua }
+                : step === currentStep
+                  ? { backgroundColor: colors.aqua, transform: [{ scale: 1.3 }] }
+                  : { backgroundColor: colors.border },
+            ]}
+          />
+          <Text
+            style={[
+              styles.stepLabel,
+              {
+                color: step <= currentStep ? colors.aqua : colors.textSoft,
+                fontWeight: step === currentStep ? '700' as const : '500' as const,
+              },
+            ]}
+          >
+            {TAG_CATEGORIES[step - 1].label}
+          </Text>
+        </View>
+      ))}
+      <View style={[styles.stepLine, { backgroundColor: colors.border }]}>
+        <View
+          style={[
+            styles.stepLineFill,
+            {
+              backgroundColor: colors.aqua,
+              width: `${Math.min(100, ((currentStep - 1) / 2) * 100)}%`,
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
 function deriveVibeLabel(tags: VibeTags): string {
-  const allTags = [
-    ...tags.energy,
-    ...tags.crowd,
-    ...tags.mood,
-  ];
+  const allTags = [...tags.energy, ...tags.crowd, ...tags.mood];
   if (allTags.length === 0) return 'No vibe yet';
   return allTags.slice(0, 3).join(' · ');
 }
 
 function deriveEnergyScore(tags: VibeTags): number {
   const energyMap: Record<string, number> = {
-    chill: 25,
-    steady: 50,
-    turnt: 78,
-    packed: 95,
+    chill: 25, steady: 50, turnt: 78, packed: 95,
   };
   const crowdMap: Record<string, number> = {
-    empty: 10,
-    light: 30,
-    medium: 55,
-    full: 80,
+    empty: 10, light: 30, medium: 55, full: 80,
   };
   const moodMap: Record<string, number> = {
-    relaxed: 25,
-    'good vibes': 55,
-    upscale: 60,
-    lit: 85,
+    relaxed: 25, 'good vibes': 55, upscale: 60, lit: 85,
   };
 
   let total = 0;
@@ -209,12 +488,7 @@ export default function PostScreen() {
   );
   const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
   const [selectedTags, setSelectedTags] = useState<VibeTags>({
-    energy: [],
-    crowd: [],
-    mood: [],
-    music: [],
-    type: [],
-    wait: [],
+    energy: [], crowd: [], mood: [], music: [], type: [], wait: [],
   });
   const [caption, setCaption] = useState<string>('');
   const [mediaUri, setMediaUri] = useState<string>('');
@@ -259,8 +533,17 @@ export default function PostScreen() {
     return selectedTags.energy.length + selectedTags.crowd.length + selectedTags.mood.length;
   }, [selectedTags]);
 
+  const currentStep = useMemo(() => {
+    if (selectedTags.mood.length > 0) return 4;
+    if (selectedTags.crowd.length > 0) return 3;
+    if (selectedTags.energy.length > 0) return 2;
+    return 1;
+  }, [selectedTags]);
+
   const vibeLabel = useMemo(() => deriveVibeLabel(selectedTags), [selectedTags]);
   const energyScore = useMemo(() => deriveEnergyScore(selectedTags), [selectedTags]);
+
+  const canSubmit = totalSelected > 0;
 
   const handleTagToggle = useCallback(
     (category: keyof VibeTags, tag: string) => {
@@ -355,14 +638,48 @@ export default function PostScreen() {
   const locationName = selectedLocation?.name ?? 'Unknown';
   const locationNeighborhood = selectedLocation?.neighborhood ?? '';
 
+  const submitPulseAnim = useRef(new Animated.Value(1)).current;
+  const submitGlowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (canSubmit) {
+      const glow = Animated.loop(
+        Animated.sequence([
+          Animated.timing(submitGlowAnim, {
+            toValue: 1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(submitGlowAnim, {
+            toValue: 0,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      glow.start();
+      return () => glow.stop();
+    } else {
+      submitGlowAnim.setValue(0);
+    }
+    return undefined;
+  }, [canSubmit, submitGlowAnim]);
+
   const handlePostVibe = useCallback(() => {
-    if (totalSelected === 0) {
+    if (!canSubmit) {
       Alert.alert('Tap some vibes', 'Select at least one tag before posting.');
       return;
     }
 
     console.log('[Post] Saving vibe...', { selectedPrivacy, selectedTags, energyScore, caption, mediaUri, selectedLocation });
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    Animated.sequence([
+      Animated.timing(submitPulseAnim, { toValue: 0.92, duration: 100, useNativeDriver: true }),
+      Animated.spring(submitPulseAnim, { toValue: 1, friction: 3, tension: 200, useNativeDriver: true }),
+    ]).start();
 
     addVibe(
       {
@@ -378,22 +695,18 @@ export default function PostScreen() {
       {
         onSuccess: () => {
           console.log('[Post] Vibe saved successfully');
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setPosted(true);
           setTimeout(() => {
             setPosted(false);
             setSelectedTags({
-              energy: [],
-              crowd: [],
-              mood: [],
-              music: [],
-              type: [],
-              wait: [],
+              energy: [], crowd: [], mood: [], music: [], type: [], wait: [],
             });
             setCaption('');
             setMediaUri('');
             setSelectedLocation(null);
             setSelectedPrivacy(preferences.defaultPrivacy);
-          }, 2200);
+          }, 2800);
         },
         onError: (err) => {
           console.log('[Post] Error saving vibe:', err);
@@ -402,43 +715,44 @@ export default function PostScreen() {
       }
     );
   }, [
-    totalSelected,
-    selectedPrivacy,
-    selectedTags,
-    selectedLocation,
-    locationName,
-    locationNeighborhood,
-    energyScore,
-    vibeLabel,
-    caption,
-    mediaUri,
-    addVibe,
-    preferences.defaultPrivacy,
+    canSubmit, selectedPrivacy, selectedTags, selectedLocation,
+    locationName, locationNeighborhood, energyScore, vibeLabel,
+    caption, mediaUri, addVibe, preferences.defaultPrivacy, submitPulseAnim,
   ]);
 
-  const successScale = useRef(new Animated.Value(0.8)).current;
+  const successScale = useRef(new Animated.Value(0.7)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
+  const successRingScale = useRef(new Animated.Value(0.5)).current;
+  const successRingOpacity = useRef(new Animated.Value(0)).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (posted) {
       Animated.parallel([
         Animated.spring(successScale, {
-          toValue: 1,
-          friction: 5,
-          tension: 200,
-          useNativeDriver: true,
+          toValue: 1, friction: 5, tension: 200, useNativeDriver: true,
         }),
         Animated.timing(successOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
+          toValue: 1, duration: 250, useNativeDriver: true,
         }),
+        Animated.sequence([
+          Animated.delay(200),
+          Animated.parallel([
+            Animated.timing(successRingScale, {
+              toValue: 2.5, duration: 600, easing: Easing.out(Easing.ease), useNativeDriver: true,
+            }),
+            Animated.timing(successRingOpacity, {
+              toValue: 0, duration: 600, useNativeDriver: true,
+            }),
+          ]),
+        ]),
       ]).start();
     } else {
-      successScale.setValue(0.8);
+      successScale.setValue(0.7);
       successOpacity.setValue(0);
+      successRingScale.setValue(0.5);
+      successRingOpacity.setValue(1);
     }
-  }, [posted, successScale, successOpacity]);
+  }, [posted, successScale, successOpacity, successRingScale, successRingOpacity]);
 
   if (posted) {
     return (
@@ -452,10 +766,21 @@ export default function PostScreen() {
       >
         <Animated.View
           style={[
+            styles.successRing,
+            {
+              borderColor: colors.aqua,
+              transform: [{ scale: successRingScale }],
+              opacity: successRingOpacity,
+            },
+          ]}
+        />
+
+        <Animated.View
+          style={[
             styles.successCard,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              backgroundColor: isDark ? '#0C1E26' : colors.surface,
+              borderColor: `${colors.aqua}30`,
               transform: [{ scale: successScale }],
               opacity: successOpacity,
             },
@@ -465,10 +790,10 @@ export default function PostScreen() {
             <Check color={isDark ? colors.background : '#fff'} size={32} />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>
-            Vibe dropped
+            +1 signal added
           </Text>
           <Text style={[styles.successSub, { color: colors.textMuted }]}>
-            {totalSelected} tags · {locationNeighborhood || 'Nearby'}
+            Your vibe is live · {locationNeighborhood || 'Nearby'}
           </Text>
           <View style={styles.successTagRow}>
             {[...selectedTags.energy, ...selectedTags.crowd, ...selectedTags.mood]
@@ -476,16 +801,16 @@ export default function PostScreen() {
               .map((t) => (
                 <View
                   key={t}
-                  style={[
-                    styles.successTag,
-                    { backgroundColor: `${colors.aqua}20` },
-                  ]}
+                  style={[styles.successTag, { backgroundColor: `${colors.aqua}18` }]}
                 >
-                  <Text style={[styles.successTagText, { color: colors.aqua }]}>
-                    {t}
-                  </Text>
+                  <Text style={[styles.successTagText, { color: colors.aqua }]}>{t}</Text>
                 </View>
               ))}
+          </View>
+          <View style={[styles.successScoreBadge, { backgroundColor: `${colors.aqua}12` }]}>
+            <Text style={[styles.successScoreText, { color: colors.aqua }]}>
+              {energyScore} · {getVibeIntensityLabel(energyScore)}
+            </Text>
           </View>
         </Animated.View>
       </View>
@@ -495,12 +820,12 @@ export default function PostScreen() {
   const currentPrivacy = privacyOptions.find((p) => p.id === selectedPrivacy);
   const PrivacyIcon = currentPrivacy?.icon ?? Globe2;
 
-  const bottomBarHeight = 60 + insets.bottom + 12;
   const tabBarHeight = 70 + 18;
+  const bgTint = totalSelected > 0 ? getVibeGradientColor(energyScore, isDark) : colors.background;
 
   return (
     <View
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={[styles.screen, { backgroundColor: bgTint }]}
       testID="post-screen"
     >
       <ScrollView
@@ -508,7 +833,7 @@ export default function PostScreen() {
           styles.content,
           {
             paddingTop: insets.top + 12,
-            paddingBottom: bottomBarHeight + tabBarHeight + 16,
+            paddingBottom: 100 + tabBarHeight,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -516,10 +841,17 @@ export default function PostScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Zap color={colors.aqua} size={20} fill={colors.aqua} />
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
-              Drop a vibe
-            </Text>
+            <View style={[styles.headerIconWrap, { backgroundColor: `${colors.aqua}18` }]}>
+              <Zap color={colors.aqua} size={18} fill={colors.aqua} />
+            </View>
+            <View>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>
+                Drop a vibe
+              </Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSoft }]}>
+                What's happening right now?
+              </Text>
+            </View>
           </View>
           <Pressable
             onPress={() => {
@@ -584,7 +916,7 @@ export default function PostScreen() {
           </View>
 
           {selectedLocation && (
-            <View style={[styles.selectedLocationCard, { backgroundColor: colors.surface, borderColor: colors.aqua }]}>
+            <View style={[styles.selectedLocationCard, { backgroundColor: colors.surface, borderColor: `${colors.aqua}40` }]}>
               <View style={[styles.selectedLocationIcon, { backgroundColor: `${colors.aqua}18` }]}>
                 {selectedLocation.type === 'custom' ? (
                   <Navigation color={colors.aqua} size={16} />
@@ -626,23 +958,12 @@ export default function PostScreen() {
                   style={[
                     styles.venueChip,
                     active
-                      ? {
-                          backgroundColor: isDark
-                            ? `${colors.aqua}18`
-                            : `${colors.aqua}12`,
-                          borderColor: colors.aqua,
-                        }
-                      : {
-                          backgroundColor: colors.card,
-                          borderColor: colors.border,
-                        },
+                      ? { backgroundColor: `${colors.aqua}18`, borderColor: colors.aqua }
+                      : { backgroundColor: colors.card, borderColor: colors.border },
                   ]}
                 >
                   <Text
-                    style={[
-                      styles.venueChipText,
-                      { color: active ? colors.aqua : colors.textMuted },
-                    ]}
+                    style={[styles.venueChipText, { color: active ? colors.aqua : colors.textMuted }]}
                     numberOfLines={1}
                   >
                     {v.name}
@@ -670,51 +991,66 @@ export default function PostScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.divider}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dividerText, { color: colors.textSoft }]}>
-            tap the vibe
-          </Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        </View>
+        <StepIndicator currentStep={currentStep} colors={colors} />
 
-        {TAG_CATEGORIES.map((cat) => (
-          <View key={cat.key} style={styles.tagSection}>
-            <View style={styles.tagSectionHeader}>
-              <View
-                style={[styles.tagDot, { backgroundColor: cat.color }]}
-              />
-              <Text style={[styles.tagSectionLabel, { color: colors.text }]}>
-                {cat.label}
-              </Text>
-              {selectedTags[cat.key].length > 0 && (
-                <View
-                  style={[
-                    styles.tagCount,
-                    { backgroundColor: `${cat.color}22` },
-                  ]}
-                >
-                  <Text style={[styles.tagCountText, { color: cat.color }]}>
-                    {selectedTags[cat.key].length}
-                  </Text>
-                </View>
-              )}
+        {TAG_CATEGORIES.map((cat) => {
+          const isActive = cat.step <= currentStep;
+          const isCurrentStep = cat.step === currentStep;
+          return (
+            <View
+              key={cat.key}
+              style={[
+                styles.tagSection,
+                isCurrentStep && {
+                  backgroundColor: isDark ? `${cat.color}08` : `${cat.color}06`,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginHorizontal: -14,
+                },
+              ]}
+            >
+              <View style={styles.tagSectionHeader}>
+                <View style={[styles.tagDot, { backgroundColor: isActive ? cat.color : colors.textSoft }]} />
+                <Text style={[styles.tagSectionLabel, { color: isActive ? colors.text : colors.textSoft }]}>
+                  {cat.label}
+                </Text>
+                {isCurrentStep && (
+                  <View style={[styles.currentBadge, { backgroundColor: `${cat.color}20` }]}>
+                    <Text style={[styles.currentBadgeText, { color: cat.color }]}>next</Text>
+                  </View>
+                )}
+                {selectedTags[cat.key].length > 0 && (
+                  <View style={[styles.tagCount, { backgroundColor: `${cat.color}22` }]}>
+                    <Text style={[styles.tagCountText, { color: cat.color }]}>
+                      {selectedTags[cat.key].length}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.tagRow}>
+                {cat.tags.map((tag) => (
+                  <MemoTagChip
+                    key={tag}
+                    tag={tag}
+                    selected={selectedTags[cat.key].includes(tag)}
+                    accentColor={cat.color}
+                    onPress={() => handleTagToggle(cat.key, tag)}
+                    colors={colors}
+                    isDark={isDark}
+                    dimmed={!isActive}
+                  />
+                ))}
+              </View>
             </View>
-            <View style={styles.tagRow}>
-              {cat.tags.map((tag) => (
-                <MemoTagChip
-                  key={tag}
-                  tag={tag}
-                  selected={selectedTags[cat.key].includes(tag)}
-                  accentColor={cat.color}
-                  onPress={() => handleTagToggle(cat.key, tag)}
-                  colors={colors}
-                  isDark={isDark}
-                />
-              ))}
-            </View>
-          </View>
-        ))}
+          );
+        })}
+
+        <VibeMeter
+          score={energyScore}
+          totalSelected={totalSelected}
+          colors={colors}
+          isDark={isDark}
+        />
 
         <View style={styles.mediaSection}>
           {mediaUri ? (
@@ -738,126 +1074,104 @@ export default function PostScreen() {
               </Pressable>
             </View>
           ) : (
-            <View style={styles.mediaButtonRow}>
-              <Pressable
-                onPress={handleMediaAction}
-                style={[styles.mediaAddBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <Camera color={colors.aqua} size={18} />
-                <Text style={[styles.mediaAddText, { color: colors.textMuted }]}>Add photo or video</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={handleMediaAction}
+              style={[styles.mediaAddBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Camera color={colors.aqua} size={18} />
+              <Text style={[styles.mediaAddText, { color: colors.textMuted }]}>Add a photo or video</Text>
+            </Pressable>
           )}
         </View>
 
-        <View style={[styles.captionWrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.captionWrap, { backgroundColor: colors.card, borderColor: canSubmit ? `${colors.aqua}30` : colors.border }]}>
           <TextInput
             style={[styles.captionInput, { color: colors.text }]}
-            placeholder="what's the vibe?"
+            placeholder="What's it actually like right now?"
             placeholderTextColor={colors.textSoft}
             value={caption}
-            onChangeText={(t) => setCaption(t.slice(0, 80))}
-            maxLength={80}
+            onChangeText={(t) => setCaption(t.slice(0, 120))}
+            maxLength={120}
+            multiline
             returnKeyType="done"
             testID="caption-input"
           />
           <Text style={[styles.captionCount, { color: colors.textSoft }]}>
-            {caption.length}/80
+            {caption.length}/120
           </Text>
         </View>
 
-        {totalSelected > 0 && (
-          <View
-            style={[
-              styles.previewStrip,
-              {
-                backgroundColor: isDark ? '#0E2A33' : '#E4F1F5',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.previewRow}>
-              <Text style={[styles.previewLabel, { color: colors.textSoft }]}>
-                VIBE PREVIEW
-              </Text>
-              <View
-                style={[
-                  styles.previewScoreBadge,
-                  { backgroundColor: `${colors.aqua}20` },
-                ]}
-              >
-                <Text
-                  style={[styles.previewScoreText, { color: colors.aqua }]}
-                >
-                  {energyScore}
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.previewValue, { color: colors.text }]}>
-              {vibeLabel}
-            </Text>
-          </View>
-        )}
+        <LivePreviewCard
+          tags={selectedTags}
+          score={energyScore}
+          caption={caption}
+          locationName={locationName}
+          mediaUri={mediaUri}
+          colors={colors}
+          isDark={isDark}
+        />
       </ScrollView>
 
       <View
         style={[
           styles.bottomBar,
           {
-            backgroundColor: colors.background,
+            backgroundColor: isDark ? 'rgba(6,15,19,0.95)' : 'rgba(246,248,250,0.95)',
             paddingBottom: tabBarHeight + 8,
             borderTopColor: colors.border,
           },
         ]}
       >
         <View style={styles.bottomInfo}>
-          <Text style={[styles.bottomCount, { color: colors.text }]}>
+          <Text style={[styles.bottomCount, { color: canSubmit ? colors.aqua : colors.textSoft }]}>
             {totalSelected}
           </Text>
           <Text style={[styles.bottomCountLabel, { color: colors.textMuted }]}>
-            {totalSelected === 1 ? 'tag' : 'tags'}
+            {totalSelected === 1 ? 'signal' : 'signals'}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.postButton,
-            {
-              backgroundColor:
-                totalSelected > 0 ? colors.aqua : colors.card,
-              opacity: isAddingVibe ? 0.6 : pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.97 : 1 }],
-            },
-          ]}
-          onPress={handlePostVibe}
-          disabled={isAddingVibe}
-          testID="publish-vibe-button"
-        >
-          <Send
-            color={
-              totalSelected > 0
-                ? isDark
-                  ? colors.background
-                  : '#fff'
-                : colors.textSoft
-            }
-            size={18}
-          />
-          <Text
-            style={[
-              styles.postButtonText,
+
+        <Animated.View style={{ transform: [{ scale: submitPulseAnim }] }}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.postButton,
               {
-                color:
-                  totalSelected > 0
-                    ? isDark
-                      ? colors.background
-                      : '#fff'
-                    : colors.textSoft,
+                backgroundColor: canSubmit ? colors.aqua : colors.card,
+                opacity: isAddingVibe ? 0.6 : pressed ? 0.9 : 1,
+                transform: [{ scale: pressed && canSubmit ? 0.95 : 1 }],
               },
             ]}
+            onPress={handlePostVibe}
+            disabled={isAddingVibe || !canSubmit}
+            testID="publish-vibe-button"
           >
-            {isAddingVibe ? 'Dropping...' : 'Drop vibe'}
-          </Text>
-        </Pressable>
+            {canSubmit ? (
+              <Animated.View
+                style={[
+                  styles.postButtonGlow,
+                  {
+                    opacity: submitGlowAnim,
+                    backgroundColor: 'rgba(255,255,255,0.12)',
+                  },
+                ]}
+              />
+            ) : null}
+            <Send
+              color={canSubmit ? (isDark ? colors.background : '#fff') : colors.textSoft}
+              size={18}
+            />
+            <Text
+              style={[
+                styles.postButtonText,
+                {
+                  color: canSubmit ? (isDark ? colors.background : '#fff') : colors.textSoft,
+                },
+              ]}
+            >
+              {isAddingVibe ? 'Sending...' : canSubmit ? 'Send vibe to city' : 'Select tags first'}
+            </Text>
+          </Pressable>
+        </Animated.View>
       </View>
     </View>
   );
@@ -874,25 +1188,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center' as const,
     padding: 32,
   },
+  successRing: {
+    position: 'absolute' as const,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+  },
   successCard: {
     borderRadius: 28,
     borderWidth: 1,
     padding: 36,
     alignItems: 'center' as const,
-    gap: 14,
+    gap: 12,
     width: '100%',
   },
   successIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   successTitle: {
-    fontSize: 22,
-    fontWeight: '700' as const,
+    fontSize: 24,
+    fontWeight: '800' as const,
   },
   successSub: {
     fontSize: 14,
@@ -902,7 +1223,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap' as const,
     justifyContent: 'center' as const,
     gap: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   successTag: {
     borderRadius: 12,
@@ -913,6 +1234,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700' as const,
   },
+  successScoreBadge: {
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  successScoreText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
   header: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -921,11 +1252,23 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 8,
+    gap: 10,
+  },
+  headerIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 1,
   },
   privacyToggle: {
     flexDirection: 'row' as const,
@@ -1038,20 +1381,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600' as const,
   },
-  divider: {
+  stepRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 10,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    position: 'relative' as const,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
+  stepItem: {
+    alignItems: 'center' as const,
+    gap: 4,
+    zIndex: 2,
   },
-  dividerText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1.5,
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  stepLabel: {
+    fontSize: 11,
+  },
+  stepLine: {
+    position: 'absolute' as const,
+    left: 40,
+    right: 40,
+    top: 10,
+    height: 2,
+    borderRadius: 1,
+    zIndex: 1,
+  },
+  stepLineFill: {
+    height: '100%',
+    borderRadius: 1,
   },
   tagSection: {
     gap: 10,
@@ -1070,11 +1432,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
   },
+  currentBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 4,
+  },
+  currentBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+  },
   tagCount: {
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    marginLeft: 4,
+    marginLeft: 'auto' as const,
   },
   tagCountText: {
     fontSize: 11,
@@ -1087,18 +1461,134 @@ const styles = StyleSheet.create({
   },
   tagChip: {
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    overflow: 'hidden' as const,
+  },
+  tagGlow: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
   },
   tagText: {
     fontSize: 14,
     fontWeight: '600' as const,
   },
-  mediaSection: {
+  vibeMeterWrap: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  vibeMeterHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+  },
+  vibeMeterLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  vibeMeterLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.5,
+  },
+  vibeMeterScore: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+  },
+  vibeMeterTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden' as const,
+    position: 'relative' as const,
+  },
+  vibeMeterFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  vibeMeterTick: {
+    position: 'absolute' as const,
+    top: 0,
+    bottom: 0,
+    width: 1,
+  },
+  vibeMeterIntensity: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  livePreview: {
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+  },
+  livePreviewHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+  },
+  livePreviewTitle: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+  },
+  livePreviewBody: {
+    flexDirection: 'row' as const,
+    gap: 12,
+  },
+  livePreviewImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+  },
+  livePreviewContent: {
+    flex: 1,
+    gap: 6,
+  },
+  livePreviewLocation: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  livePreviewTags: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 4,
+  },
+  livePreviewTag: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  livePreviewTagText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  livePreviewCaption: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    fontStyle: 'italic' as const,
+  },
+  livePreviewFooter: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
     marginTop: 2,
   },
-  mediaButtonRow: {
-    flexDirection: 'row' as const,
+  livePreviewScoreDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  livePreviewScoreLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  mediaSection: {
+    marginTop: 2,
   },
   mediaAddBtn: {
     flexDirection: 'row' as const,
@@ -1149,52 +1639,22 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   captionWrap: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    gap: 8,
+    gap: 4,
   },
   captionInput: {
-    flex: 1,
     fontSize: 14,
     fontWeight: '500' as const,
     paddingVertical: 0,
+    minHeight: 40,
   },
   captionCount: {
     fontSize: 11,
     fontWeight: '600' as const,
-  },
-  previewStrip: {
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
-    borderWidth: 1,
-  },
-  previewRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-  },
-  previewLabel: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    letterSpacing: 1.5,
-  },
-  previewValue: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  previewScoreBadge: {
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  previewScoreText: {
-    fontSize: 15,
-    fontWeight: '800' as const,
+    textAlign: 'right' as const,
   },
   bottomBar: {
     position: 'absolute' as const,
@@ -1205,7 +1665,7 @@ const styles = StyleSheet.create({
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 14,
     borderTopWidth: 1,
   },
   bottomInfo: {
@@ -1225,9 +1685,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 8,
-    borderRadius: 14,
-    paddingHorizontal: 24,
+    borderRadius: 16,
+    paddingHorizontal: 22,
     paddingVertical: 14,
+    overflow: 'hidden' as const,
+  },
+  postButtonGlow: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
   },
   postButtonText: {
     fontSize: 15,
