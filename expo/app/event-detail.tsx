@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -29,7 +29,6 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { getEventForVenue } from '@/mocks/events';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
-import { DecisionBar } from '@/components/DecisionBar';
 import { LiveActivityBadge } from '@/components/LiveActivityBadge';
 import { UrgencyTag } from '@/components/UrgencyTag';
 import { getUrgencyLabel } from '@/utils/urgency';
@@ -58,16 +57,9 @@ export default function EventDetailScreen() {
     toggleFavorite(event.id, 'event', event.title);
   }, [event, toggleFavorite]);
 
-  const scrollRef = useRef<ScrollView>(null);
-
   const handleDirections = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setDirectionsVisible(true);
-  }, []);
-
-  const handleGoNow = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    scrollRef.current?.scrollTo({ y: 500, animated: true });
   }, []);
 
   const handleGetTickets = useCallback(() => {
@@ -79,55 +71,52 @@ export default function EventDetailScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="event-detail-screen">
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.heroContainer}>
-        <Image source={{ uri: event.heroImage }} style={styles.heroImage} />
-        <View style={styles.heroGradientTop} />
-        <View style={[styles.heroGradient, { backgroundColor: isDark ? 'rgba(6,15,19,0.5)' : 'rgba(0,0,0,0.2)' }]} />
-      </View>
-
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable
-          onPress={handleBack}
-          style={[styles.topBarBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.85)' }]}
-          testID="event-detail-back"
-        >
-          <ArrowLeft color={isDark ? '#fff' : '#000'} size={20} />
-        </Pressable>
-        <Pressable
-          onPress={handleHeart}
-          style={[styles.topBarBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.85)' }]}
-          testID="event-detail-heart"
-        >
-          <Heart
-            color={hearted ? colors.coral : (isDark ? '#fff' : '#000')}
-            size={20}
-            fill={hearted ? colors.coral : 'transparent'}
-          />
-        </Pressable>
-      </View>
-
       <ScrollView
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
       >
-        <View style={{ height: 250 }} />
+        <View style={styles.heroContainer}>
+          <Image source={{ uri: event.heroImage }} style={styles.heroImage} />
+          <View style={styles.heroGradient} />
+          <View style={styles.heroNameOverlay}>
+            <Text style={styles.heroTitle} numberOfLines={2}>{event.title}</Text>
+            <Text style={styles.heroTagline}>{event.tagline}</Text>
+          </View>
+        </View>
 
-        <View style={styles.mainContent}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <Pressable
+            onPress={handleBack}
+            style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            testID="event-detail-back"
+          >
+            <ArrowLeft color="#fff" size={20} />
+          </Pressable>
+          <Pressable
+            onPress={handleHeart}
+            style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            testID="event-detail-heart"
+          >
+            <Heart
+              color={hearted ? '#FF6B6B' : '#fff'}
+              size={20}
+              fill={hearted ? '#FF6B6B' : 'transparent'}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.body}>
           <View style={styles.tagsRow}>
-            {event.tags.slice(0, 4).map((tag) => (
-              <View key={tag} style={[styles.tagPill, { backgroundColor: isDark ? 'rgba(53,212,207,0.1)' : 'rgba(26,168,163,0.08)' }]}>
+            {event.tags.slice(0, 3).map((tag) => (
+              <View key={tag} style={[styles.tagPill, { backgroundColor: isDark ? 'rgba(43,191,186,0.10)' : 'rgba(26,158,153,0.08)' }]}>
                 <Text style={[styles.tagText, { color: colors.aqua }]}>{tag}</Text>
               </View>
             ))}
           </View>
 
-          <Text style={[styles.eventTitle, { color: colors.text }]}>{event.title}</Text>
-          <Text style={[styles.eventTagline, { color: colors.textMuted }]}>{event.tagline}</Text>
-
           <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.infoRow}>
-              <Calendar color={colors.aqua} size={18} />
+              <Calendar color={colors.aqua} size={16} />
               <View style={styles.infoText}>
                 <Text style={[styles.infoLabel, { color: colors.text }]}>{event.date}</Text>
                 <Text style={[styles.infoSub, { color: colors.textMuted }]}>{event.time}</Text>
@@ -135,7 +124,7 @@ export default function EventDetailScreen() {
             </View>
             <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
             <View style={styles.infoRow}>
-              <MapPin color={colors.aqua} size={18} />
+              <MapPin color={colors.aqua} size={16} />
               <View style={styles.infoText}>
                 <Text style={[styles.infoLabel, { color: colors.text }]}>{event.venueName}</Text>
                 <Text style={[styles.infoSub, { color: colors.textMuted }]}>{event.venueAddress}</Text>
@@ -143,7 +132,7 @@ export default function EventDetailScreen() {
             </View>
             <View style={[styles.infoDivider, { backgroundColor: colors.border }]} />
             <View style={styles.infoRow}>
-              <Clock color={colors.aqua} size={18} />
+              <Clock color={colors.aqua} size={16} />
               <View style={styles.infoText}>
                 <Text style={[styles.infoLabel, { color: colors.text }]}>Doors open {event.doorsOpen}</Text>
                 <Text style={[styles.infoSub, { color: colors.textMuted }]}>{event.distanceFromUser}</Text>
@@ -152,18 +141,18 @@ export default function EventDetailScreen() {
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,109,94,0.08)' : 'rgba(224,85,69,0.06)' }]}>
-              <Zap color={energyColor} size={18} />
-              <Text style={[styles.statValue, { color: energyColor }]}>{event.vibeScore}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Vibe</Text>
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+              <Zap color={energyColor} size={15} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{event.vibeScore}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Energy</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(165,240,92,0.08)' : 'rgba(92,168,48,0.06)' }]}>
-              <Users color={colors.lime} size={18} />
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+              <Users color={colors.aqua} size={15} />
               <Text style={[styles.statValue, { color: colors.text }]}>{event.attendingCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Going</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,191,71,0.08)' : 'rgba(204,142,0,0.06)' }]}>
-              <Heart color={colors.amber} size={18} />
+            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+              <Heart color={colors.amber} size={15} />
               <Text style={[styles.statValue, { color: colors.text }]}>{event.interestedCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Interested</Text>
             </View>
@@ -201,11 +190,11 @@ export default function EventDetailScreen() {
 
           <View style={[styles.insightCard, { backgroundColor: isDark ? '#0F2A34' : '#E4F0F4' }]}>
             <View style={styles.insightHeader}>
-              <Sparkles color={colors.aqua} size={16} />
-              <Text style={[styles.insightTitle, { color: colors.aqua }]}>Pulze Insights</Text>
+              <Sparkles color={colors.aqua} size={14} />
+              <Text style={[styles.insightHeaderText, { color: colors.aqua }]}>Pulze Insights</Text>
             </View>
             <View style={styles.insightRow}>
-              <Clock color={colors.textMuted} size={14} />
+              <Clock color={colors.textMuted} size={13} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.insightLabel, { color: colors.text }]}>Best time to arrive</Text>
                 <Text style={[styles.insightValue, { color: colors.textMuted }]}>{event.bestTimeToArrive}</Text>
@@ -213,38 +202,32 @@ export default function EventDetailScreen() {
             </View>
             <View style={[styles.insightDivider, { backgroundColor: colors.border }]} />
             <View style={styles.insightRow}>
-              <TrendingUp color={colors.textMuted} size={14} />
+              <TrendingUp color={colors.textMuted} size={13} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.insightLabel, { color: colors.text }]}>Current vibe around venue</Text>
+                <Text style={[styles.insightLabel, { color: colors.text }]}>Area vibe right now</Text>
                 <Text style={[styles.insightValue, { color: colors.textMuted }]}>{event.currentVibeAround}</Text>
               </View>
             </View>
           </View>
 
-          <UrgencyTag urgency={getUrgencyLabel(event.vibeScore, event.attendingCount)} size="md" pulse />
-
-          <LiveActivityBadge vibeScore={event.vibeScore} peopleCount={event.attendingCount} isDark={isDark} />
-
-          <DecisionBar
-            vibeScore={event.vibeScore}
-            peopleCount={event.attendingCount}
-            eta={event.distanceFromUser}
-            onGoNow={handleGoNow}
-          />
+          <View style={styles.insightsRow}>
+            <UrgencyTag urgency={getUrgencyLabel(event.vibeScore, event.attendingCount)} size="md" pulse />
+            <LiveActivityBadge vibeScore={event.vibeScore} peopleCount={event.attendingCount} isDark={isDark} />
+          </View>
 
           <View style={styles.actionsRow}>
             <Pressable
               onPress={handleDirections}
-              style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
               testID="event-detail-directions"
             >
               <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-              <Text style={[styles.actionBtnText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
+              <Text style={[styles.primaryBtnText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
             </Pressable>
             <Pressable
               onPress={handleHeart}
               style={({ pressed }) => [
-                styles.actionBtnOutline,
+                styles.secondaryBtn,
                 {
                   borderColor: hearted ? colors.coral : colors.border,
                   backgroundColor: hearted ? (isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)') : 'transparent',
@@ -254,7 +237,7 @@ export default function EventDetailScreen() {
               testID="event-detail-interested"
             >
               <Heart color={hearted ? colors.coral : colors.textMuted} size={16} fill={hearted ? colors.coral : 'transparent'} />
-              <Text style={[styles.actionBtnOutlineText, { color: hearted ? colors.coral : colors.textMuted }]}>
+              <Text style={[styles.secondaryBtnText, { color: hearted ? colors.coral : colors.textMuted }]}>
                 {hearted ? 'Interested' : 'Interested?'}
               </Text>
             </Pressable>
@@ -292,57 +275,286 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  heroContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 280, zIndex: 1, overflow: 'hidden' as const },
-  heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
-  heroGradientTop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
-  topBar: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12 },
-  topBarBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  content: { position: 'relative', zIndex: 2 },
-  mainContent: { paddingHorizontal: 16, gap: 16 },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tagPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  tagText: { fontSize: 12, fontWeight: '700' as const },
-  eventTitle: { fontSize: 24, fontWeight: '700' as const, lineHeight: 30, letterSpacing: -0.2 },
-  eventTagline: { fontSize: 15, lineHeight: 21, marginTop: -4 },
-  infoCard: { borderRadius: 20, padding: 18, gap: 14, borderWidth: 1 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  infoText: { flex: 1, gap: 2 },
-  infoLabel: { fontSize: 15, fontWeight: '700' as const },
-  infoSub: { fontSize: 13 },
-  infoDivider: { height: 1, marginLeft: 32 },
-  statsRow: { flexDirection: 'row', gap: 10 },
-  statCard: { flex: 1, borderRadius: 18, padding: 14, alignItems: 'center', gap: 6 },
-  statValue: { fontSize: 20, fontWeight: '700' as const },
-  statLabel: { fontSize: 11, fontWeight: '700' as const, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
-  sectionBlock: { gap: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '700' as const },
-  sectionBody: { fontSize: 15, lineHeight: 23 },
-  expectRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingLeft: 4 },
-  expectText: { fontSize: 15, lineHeight: 22, flex: 1 },
-  lineupScroll: { gap: 12, paddingRight: 4 },
-  lineupCard: { alignItems: 'center', gap: 8, borderRadius: 20, padding: 16, width: 120, borderWidth: 1 },
-  lineupAvatar: { width: 56, height: 56, borderRadius: 28 },
-  lineupName: { fontSize: 14, fontWeight: '700' as const, textAlign: 'center' as const },
-  lineupRole: { fontSize: 12, textAlign: 'center' as const },
-  insightCard: { borderRadius: 20, padding: 18, gap: 14 },
-  insightHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  insightTitle: { fontSize: 12, fontWeight: '700' as const, textTransform: 'uppercase' as const, letterSpacing: 1 },
-  insightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  insightLabel: { fontSize: 14, fontWeight: '700' as const },
-  insightValue: { fontSize: 13, lineHeight: 19, marginTop: 2 },
-  insightDivider: { height: 1, marginLeft: 24 },
-  actionsRow: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14 },
-  actionBtnText: { fontSize: 15, fontWeight: '700' as const },
-  actionBtnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14, borderWidth: 1 },
-  actionBtnOutlineText: { fontSize: 15, fontWeight: '600' as const },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  stickyBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, borderTopWidth: 1 },
-  stickyInfo: { gap: 2 },
-  stickyPrice: { fontSize: 20, fontWeight: '800' as const },
-  stickyMeta: { fontSize: 13 },
-  stickyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, paddingHorizontal: 24, paddingVertical: 16 },
-  stickyBtnText: { fontSize: 15, fontWeight: '700' as const },
+  screen: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+  },
+  heroContainer: {
+    width: '100%',
+    height: 300,
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+  },
+  heroNameOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+    marginTop: 12,
+    lineHeight: 28,
+  },
+  heroTagline: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  topBarBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 16,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tagPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  infoCard: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoText: {
+    flex: 1,
+    gap: 2,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  infoSub: {
+    fontSize: 13,
+  },
+  infoDivider: {
+    height: 1,
+    marginLeft: 28,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  sectionBlock: {
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  sectionBody: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  expectRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingLeft: 2,
+  },
+  expectText: {
+    fontSize: 14,
+    lineHeight: 21,
+    flex: 1,
+  },
+  lineupScroll: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  lineupCard: {
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 16,
+    padding: 14,
+    width: 110,
+    borderWidth: 1,
+  },
+  lineupAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  lineupName: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    textAlign: 'center' as const,
+  },
+  lineupRole: {
+    fontSize: 11,
+    textAlign: 'center' as const,
+  },
+  insightCard: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  insightHeaderText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+  },
+  insightRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  insightLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  insightValue: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  insightDivider: {
+    height: 1,
+    marginLeft: 23,
+  },
+  insightsRow: {
+    gap: 8,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  primaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  primaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  secondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+  secondaryBtnText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
+  stickyBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  stickyInfo: {
+    gap: 2,
+  },
+  stickyPrice: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+  },
+  stickyMeta: {
+    fontSize: 13,
+  },
+  stickyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+  },
+  stickyBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
 });

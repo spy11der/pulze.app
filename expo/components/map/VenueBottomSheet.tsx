@@ -10,6 +10,7 @@ import {
 import { Image } from 'expo-image';
 import {
   Clock,
+  Heart,
   MapPin,
   Navigation,
   Users,
@@ -17,6 +18,7 @@ import {
   Zap,
   ChevronRight,
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/providers/ThemeProvider';
 import type { PulzeVenue } from '@/types/venue';
 
@@ -54,6 +56,8 @@ interface VenueBottomSheetProps {
   onClose: () => void;
   onViewDetails: (venue: PulzeVenue) => void;
   onDirections: (venue: PulzeVenue) => void;
+  onHeart?: (venue: PulzeVenue) => void;
+  isHearted?: boolean;
   bottomInset: number;
 }
 
@@ -62,6 +66,8 @@ export default function VenueBottomSheet({
   onClose,
   onViewDetails,
   onDirections,
+  onHeart,
+  isHearted = false,
   bottomInset,
 }: VenueBottomSheetProps) {
   const { colors, isDark } = useTheme();
@@ -173,25 +179,58 @@ export default function VenueBottomSheet({
           </View>
         </View>
 
+        {venue.blurb ? (
+          <Text style={[styles.blurb, { color: colors.textSoft }]} numberOfLines={2}>{venue.blurb}</Text>
+        ) : null}
+
         <View style={styles.actions}>
+          {onHeart && (
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onHeart(venue);
+              }}
+              style={({ pressed }) => [
+                styles.heartBtn,
+                {
+                  backgroundColor: isHearted
+                    ? (isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)')
+                    : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                },
+                pressed && styles.pressed,
+              ]}
+              testID="venue-sheet-heart"
+            >
+              <Heart
+                color={isHearted ? '#FF6B6B' : colors.textMuted}
+                size={15}
+                fill={isHearted ? '#FF6B6B' : 'transparent'}
+              />
+            </Pressable>
+          )}
           <Pressable
-            onPress={() => onDirections(venue)}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onDirections(venue);
+            }}
             style={({ pressed }) => [
               styles.dirBtn,
-              { backgroundColor: colors.aquaBright },
+              { backgroundColor: colors.aqua },
               pressed && styles.pressed,
             ]}
             testID="venue-sheet-directions"
           >
             <Navigation color={isDark ? '#041318' : '#fff'} size={13} />
-            <Text style={[styles.dirText, { color: isDark ? '#041318' : '#fff' }]}>Get there now</Text>
+            <Text style={[styles.dirText, { color: isDark ? '#041318' : '#fff' }]}>Directions</Text>
           </Pressable>
           <Pressable
-            onPress={() => onViewDetails(venue)}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onViewDetails(venue);
+            }}
             style={({ pressed }) => [
               styles.detailBtn,
               {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                 borderColor: colors.border,
               },
               pressed && styles.pressed,
@@ -309,6 +348,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
+  blurb: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  heartBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dirBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -316,24 +366,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
     borderRadius: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
   },
   dirText: {
-    fontSize: 12,
-    fontWeight: '800' as const,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   detailBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
   },
   detailText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   pressed: {
     opacity: 0.85,

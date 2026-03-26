@@ -12,6 +12,9 @@ export interface VibeStory {
   summary: string;
   tags: string[];
   mediaLabel: string;
+  image?: string;
+  likes: number;
+  comments: number;
 }
 
 export interface MapVenue {
@@ -57,9 +60,12 @@ export const vibeStories: VibeStory[] = [
     pace: 'packed',
     privacy: 'public',
     distance: '6 min',
-    summary: '300+ people. Wait time ~15 min at door. Multiple groups moving between venues on Blake.',
-    tags: ['st patricks', 'bar crawl', 'crowded'],
+    summary: '300+ people inside. ~15 min wait at door. Multiple groups moving between venues on Blake.',
+    tags: ['bar crawl', 'crowded'],
     mediaLabel: 'St. Patrick\'s parade afterparty — expect heavy foot traffic on Blake St through midnight',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=400&fit=crop',
+    likes: 47,
+    comments: 12,
   },
   {
     id: '2',
@@ -72,9 +78,12 @@ export const vibeStories: VibeStory[] = [
     pace: 'busy',
     privacy: 'friends',
     distance: '8 min',
-    summary: 'Merch tent open. ~200 in line. GA floor expected to fill by 6 PM.',
-    tags: ['rock', 'concert', 'tonight'],
+    summary: '~200 in line. Merch tent open. GA floor expected to fill by 6 PM.',
+    tags: ['concert', 'tonight'],
     mediaLabel: 'Nothing More + Catch Your Breath — doors 5 PM, show 5:30 PM',
+    image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600&h=400&fit=crop',
+    likes: 33,
+    comments: 8,
   },
   {
     id: '3',
@@ -87,9 +96,12 @@ export const vibeStories: VibeStory[] = [
     pace: 'busy',
     privacy: 'public',
     distance: '12 min',
-    summary: '80+ people between patio and taproom. No wait. Gallery-hoppers passing through Larimer.',
-    tags: ['art', 'beer', 'community'],
+    summary: '80+ on patio and taproom. No wait. Gallery-hoppers passing through Larimer.',
+    tags: ['beer', 'community'],
     mediaLabel: 'RiNo galleries extending hours — good for a walking loop before dinner',
+    image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
+    likes: 21,
+    comments: 5,
   },
   {
     id: '4',
@@ -102,9 +114,11 @@ export const vibeStories: VibeStory[] = [
     pace: 'quiet',
     privacy: 'public',
     distance: '15 min',
-    summary: '~50 people spread out. Joggers and blanket hangs. Mountain views visible. 55°F and dropping.',
-    tags: ['park', 'sunset', 'peaceful'],
+    summary: '~50 people spread out. Mountain views visible. 55°F and dropping.',
+    tags: ['park', 'sunset'],
     mediaLabel: 'Clear skies, 55°F — good conditions for outdoor time until 8 PM',
+    likes: 14,
+    comments: 2,
   },
   {
     id: '5',
@@ -117,13 +131,16 @@ export const vibeStories: VibeStory[] = [
     pace: 'busy',
     privacy: 'public',
     distance: '15 min',
-    summary: '150+ people. Exhibit wait ~10 min. Many arriving early to explore before the 7 PM set.',
-    tags: ['art', 'music', 'immersive'],
+    summary: '150+ people. Exhibit wait ~10 min. Arriving early to explore before the 7 PM set.',
+    tags: ['art', 'immersive'],
     mediaLabel: 'Vendredi Sur Mer live at 7 PM — early access recommended for exhibit time',
+    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&h=400&fit=crop',
+    likes: 56,
+    comments: 15,
   },
   {
     id: '6',
-    title: 'The Church quiet now, expect surge at 10',
+    title: 'The Church quiet now, surge expected at 10',
     venue: 'The Church Nightclub',
     venueId: 'v6',
     neighborhood: 'Capitol Hill',
@@ -132,9 +149,11 @@ export const vibeStories: VibeStory[] = [
     pace: 'steady',
     privacy: 'public',
     distance: '9 min',
-    summary: '~20 people. Doors at 10 PM. Line expected to form by 10:30. Best to arrive before 11.',
-    tags: ['house', 'nightclub', 'late night'],
+    summary: '~20 people. Doors at 10 PM. Line expected by 10:30. Arrive before 11.',
+    tags: ['nightclub', 'late night'],
     mediaLabel: 'Justin Jay + Global Dance — doors 10 PM. Line gets long after 11.',
+    likes: 9,
+    comments: 3,
   },
 ];
 

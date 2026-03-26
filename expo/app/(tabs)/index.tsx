@@ -1,16 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Animated,
+  Image,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Compass, Database, Eye, Flame, Heart, MapPinned, Radio, Ticket, Trash2, X, Zap, TrendingUp } from 'lucide-react-native';
+import { Bookmark, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Ticket, Trash2, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
@@ -22,17 +24,6 @@ import { useFavorites } from '@/providers/FavoritesProvider';
 import type { SavedVibe } from '@/services/database';
 
 type FeedMode = 'everyone' | 'friends' | 'my_vibes';
-
-const _VIBE_DESCRIPTIONS: Record<string, string> = {
-  'Social': 'Conversational atmosphere. Good for meeting people.',
-  'Chill': 'Relaxed pace. Great for unwinding.',
-  'Party': 'High energy, loud music, packed crowd.',
-  'Active': 'On the move. Buzzing with anticipation.',
-  'Romantic': 'Warm and intimate. Quiet corners.',
-  'Creative': 'Artistic energy. Expect the unexpected.',
-  'Busy': 'Lots of movement. Things happening fast.',
-  'Quiet': 'Peaceful. Ideal for focus or escape.',
-};
 
 function getVibeColor(vibe: string): string {
   const v = vibe.toLowerCase();
@@ -76,9 +67,11 @@ export default function FeedScreen() {
   const { vibes, removeVibe, vibeCount } = useData();
   const { isFavorited, toggleFavorite } = useFavorites();
   const router = useRouter();
-  const [vibeModalVisible, setVibeModalVisible] = useState<boolean>(false);
-  const [vibeModalScore, setVibeModalScore] = useState<number>(0);
-  const [vibeModalVenue, setVibeModalVenue] = useState<string>('');
+  const [commentModalVisible, setCommentModalVisible] = useState<boolean>(false);
+  const [commentTarget, setCommentTarget] = useState<string>('');
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [savedPosts, setSavedPosts] = useState<Record<string, boolean>>({});
 
   const filteredStories = useMemo(() => {
     console.log('Filtering feed stories', { feedMode, activeFilter });
@@ -89,7 +82,7 @@ export default function FeedScreen() {
       if (activeFilter === 'friends') return story.privacy === 'friends';
       if (activeFilter === 'quiet') return story.pace === 'quiet';
       if (activeFilter === 'busy') return story.pace === 'busy' || story.pace === 'packed';
-      if (activeFilter === 'events') return story.tags.includes('music') || story.tags.includes('dj');
+      if (activeFilter === 'events') return story.tags.includes('concert') || story.tags.includes('nightclub');
       return true;
     });
   }, [activeFilter, feedMode]);
@@ -118,27 +111,34 @@ export default function FeedScreen() {
     router.push('/(tabs)/map');
   }, [router]);
 
-  const handleMomentPillPress = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(tabs)/map');
-  }, [router]);
-
   const handleStoryPress = useCallback((venueId: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/venue-detail', params: { venueId } });
     console.log('[Feed] Story pressed, navigating to venue detail', { venueId });
   }, [router]);
 
-  const handleVibePress = useCallback((storyId: string, intensity: number, venue: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setVibeModalScore(intensity);
-    setVibeModalVenue(venue);
-    setVibeModalVisible(true);
-    console.log('[Feed] Vibe score pressed, showing explanation', { storyId, intensity });
+  const handleLike = useCallback((storyId: string, currentLikes: number) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLikedPosts(prev => {
+      const wasLiked = prev[storyId] ?? false;
+      return { ...prev, [storyId]: !wasLiked };
+    });
+    setLikeCounts(prev => {
+      const wasLiked = likedPosts[storyId] ?? false;
+      const base = prev[storyId] ?? currentLikes;
+      return { ...prev, [storyId]: wasLiked ? base - 1 : base + 1 };
+    });
+  }, [likedPosts]);
+
+  const handleComment = useCallback((storyId: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCommentTarget(storyId);
+    setCommentModalVisible(true);
   }, []);
 
-  const handleStoryHeart = useCallback((venueId: string, venueName: string) => {
+  const handleSave = useCallback((storyId: string, venueId: string, venueName: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSavedPosts(prev => ({ ...prev, [storyId]: !(prev[storyId] ?? false) }));
     toggleFavorite(venueId, 'venue', venueName);
   }, [toggleFavorite]);
 
@@ -244,28 +244,10 @@ export default function FeedScreen() {
               <Ticket color={colors.aqua} size={16} />
               <Text style={[styles.promoTitle, { color: colors.text }]}>Neon Drift: Rooftop After Dark</Text>
             </View>
-            <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · Lock in from $25</Text>
+            <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · From $25</Text>
             <View style={[styles.promoUrgency, { backgroundColor: '#E8564A14' }]}>
               <Flame color="#E8564A" size={10} />
-              <Text style={styles.promoUrgencyText}>Filling fast · 82% sold</Text>
-            </View>
-          </Pressable>
-        )}
-
-        {feedMode !== 'my_vibes' && (
-          <Pressable
-            onPress={handleMomentPillPress}
-            style={({ pressed }) => [styles.insightCard, { backgroundColor: isDark ? '#0C2430' : '#E4EFF5' }, pressed && styles.pressed]}
-            testID="moment-card"
-          >
-            <View style={styles.insightHeader}>
-              <Flame color={colors.coral} size={14} />
-              <Text style={[styles.insightLabel, { color: colors.coral }]}>Peak now</Text>
-            </View>
-            <Text style={[styles.insightTitle, { color: colors.text }]}>Blake Street Tavern is peaking</Text>
-            <Text style={[styles.insightBody, { color: colors.textMuted }]}>+45 people in last 10 min. 300+ inside. 15 min wait at door.</Text>
-            <View style={styles.insightAction}>
-              <Text style={[styles.insightActionText, { color: colors.aqua }]}>Should you go? →</Text>
+              <Text style={styles.promoUrgencyText}>82% sold</Text>
             </View>
           </Pressable>
         )}
@@ -301,21 +283,23 @@ export default function FeedScreen() {
               <StoryCard
                 key={story.id}
                 story={story}
-                isHearted={isFavorited(story.venueId)}
+                isLiked={likedPosts[story.id] ?? false}
+                likeCount={likeCounts[story.id] ?? story.likes}
+                isSaved={savedPosts[story.id] ?? isFavorited(story.venueId)}
                 onPress={() => handleStoryPress(story.venueId)}
-                onVibePress={() => handleVibePress(story.id, story.intensity, story.venue)}
-                onHeartPress={() => handleStoryHeart(story.venueId, story.venue)}
+                onLike={() => handleLike(story.id, story.likes)}
+                onComment={() => handleComment(story.id)}
+                onSave={() => handleSave(story.id, story.venueId, story.venue)}
               />
             ))}
           </>
         )}
       </ScrollView>
 
-      <VibeScoreModal
-        visible={vibeModalVisible}
-        score={vibeModalScore}
-        venue={vibeModalVenue}
-        onClose={() => setVibeModalVisible(false)}
+      <CommentModal
+        visible={commentModalVisible}
+        storyId={commentTarget}
+        onClose={() => setCommentModalVisible(false)}
       />
     </View>
   );
@@ -323,16 +307,22 @@ export default function FeedScreen() {
 
 const StoryCard = React.memo(function StoryCard({
   story,
-  isHearted,
+  isLiked,
+  likeCount,
+  isSaved,
   onPress,
-  onVibePress,
-  onHeartPress,
+  onLike,
+  onComment,
+  onSave,
 }: {
   story: (typeof vibeStories)[number];
-  isHearted: boolean;
+  isLiked: boolean;
+  likeCount: number;
+  isSaved: boolean;
   onPress: () => void;
-  onVibePress: () => void;
-  onHeartPress: () => void;
+  onLike: () => void;
+  onComment: () => void;
+  onSave: () => void;
 }) {
   const { colors, isDark } = useTheme();
   const scoreColor = getScoreColor(story.intensity, colors);
@@ -348,65 +338,77 @@ const StoryCard = React.memo(function StoryCard({
       ]}
       testID={`story-${story.id}`}
     >
-      <View style={styles.storyTop}>
-        <Pressable
-          onPress={onVibePress}
-          hitSlop={8}
-          style={({ pressed }) => [styles.scoreBadge, { backgroundColor: scoreColor + '14' }, pressed && { opacity: 0.7 }]}
-          testID={`story-vibe-${story.id}`}
-        >
-          <Text style={[styles.scoreText, { color: scoreColor }]}>{story.intensity}</Text>
-        </Pressable>
-        <View style={styles.storyHeading}>
-          <Text style={[styles.storyTitle, { color: colors.text }]} numberOfLines={2}>{story.title}</Text>
-          <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{story.venue} · {story.neighborhood}</Text>
-        </View>
-      </View>
+      {story.image && (
+        <Image source={{ uri: story.image }} style={styles.storyImage} />
+      )}
 
-      <Text style={[styles.storySummary, { color: colors.textSoft }]} numberOfLines={2}>{story.summary}</Text>
+      <View style={styles.storyBody}>
+        <View style={styles.storyTop}>
+          <View style={styles.storyHeading}>
+            <Text style={[styles.storyTitle, { color: colors.text }]} numberOfLines={2}>{story.title}</Text>
+            <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{story.venue} · {story.neighborhood}</Text>
+          </View>
+          <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '14' }]}>
+            <Text style={[styles.scoreText, { color: scoreColor }]}>{story.intensity}</Text>
+          </View>
+        </View>
 
-      <View style={styles.storyUrgencyRow}>
-        <UrgencyTag urgency={getUrgencyLabel(story.intensity, story.pace === 'packed' ? 200 : story.pace === 'busy' ? 100 : 40, story.pace)} pulse />
-        <View style={[styles.liveIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-          <TrendingUp color={story.intensity >= 70 ? colors.amber : colors.textSoft} size={10} />
-          <Text style={[styles.liveIndicatorText, { color: story.intensity >= 70 ? colors.amber : colors.textSoft }]}>
-            +{Math.max(2, Math.floor(story.intensity * 0.12))} in 10m
-          </Text>
-        </View>
-      </View>
+        <Text style={[styles.storySummary, { color: colors.textSoft }]} numberOfLines={2}>{story.summary}</Text>
 
-      <View style={styles.storyBottom}>
-        <View style={[styles.chip, { backgroundColor: vibeColor + '14' }]}>
-          <View style={[styles.chipDot, { backgroundColor: vibeColor }]} />
-          <Text style={[styles.chipText, { color: vibeColor }]}>{story.vibe}</Text>
+        <View style={styles.storyMeta}>
+          <View style={[styles.chip, { backgroundColor: vibeColor + '14' }]}>
+            <View style={[styles.chipDot, { backgroundColor: vibeColor }]} />
+            <Text style={[styles.chipText, { color: vibeColor }]}>{story.vibe}</Text>
+          </View>
+          <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <MapPin color={colors.textSoft} size={11} />
+            <Text style={[styles.chipText, { color: colors.textSoft }]}>{story.distance}</Text>
+          </View>
+          <UrgencyTag urgency={getUrgencyLabel(story.intensity, story.pace === 'packed' ? 200 : story.pace === 'busy' ? 100 : 40, story.pace)} />
         </View>
-        <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-          <MapPinned color={colors.textSoft} size={12} />
-          <Text style={[styles.chipText, { color: colors.textSoft }]}>{story.distance}</Text>
+
+        <View style={[styles.interactionBar, { borderTopColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }]}>
+          <Pressable
+            onPress={onLike}
+            hitSlop={8}
+            style={({ pressed }) => [styles.interactionBtn, pressed && { opacity: 0.6 }]}
+            testID={`like-${story.id}`}
+          >
+            <Heart
+              color={isLiked ? colors.coral : colors.textMuted}
+              size={18}
+              fill={isLiked ? colors.coral : 'transparent'}
+            />
+            <Text style={[styles.interactionCount, { color: isLiked ? colors.coral : colors.textMuted }]}>
+              {likeCount}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onComment}
+            hitSlop={8}
+            style={({ pressed }) => [styles.interactionBtn, pressed && { opacity: 0.6 }]}
+            testID={`comment-${story.id}`}
+          >
+            <MessageCircle color={colors.textMuted} size={18} />
+            <Text style={[styles.interactionCount, { color: colors.textMuted }]}>
+              {story.comments}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onSave}
+            hitSlop={8}
+            style={({ pressed }) => [styles.interactionBtn, { marginLeft: 'auto' }, pressed && { opacity: 0.6 }]}
+            testID={`save-${story.id}`}
+          >
+            <Bookmark
+              color={isSaved ? colors.aqua : colors.textMuted}
+              size={18}
+              fill={isSaved ? colors.aqua : 'transparent'}
+            />
+          </Pressable>
         </View>
-        <Pressable
-          onPress={onHeartPress}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.chip,
-            {
-              backgroundColor: isHearted
-                ? (isDark ? 'rgba(232,86,74,0.10)' : 'rgba(204,68,56,0.06)')
-                : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
-            },
-            pressed && { opacity: 0.7 },
-          ]}
-          testID={`story-heart-${story.id}`}
-        >
-          <Heart
-            color={isHearted ? colors.coral : colors.textSoft}
-            size={12}
-            fill={isHearted ? colors.coral : 'transparent'}
-          />
-          <Text style={[styles.chipText, { color: isHearted ? colors.coral : colors.textSoft }]}>
-            {isHearted ? 'Saved' : 'Save'}
-          </Text>
-        </Pressable>
       </View>
     </Pressable>
   );
@@ -426,74 +428,59 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
 
   return (
     <View style={[styles.storyCard, { backgroundColor: colors.surface, borderColor: colors.border }]} testID={`saved-vibe-${vibe.id}`}>
-      <View style={styles.storyTop}>
-        <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '14' }]}>
-          <Text style={[styles.scoreText, { color: scoreColor }]}>{vibe.energy}</Text>
+      <View style={styles.storyBody}>
+        <View style={styles.storyTop}>
+          <View style={styles.storyHeading}>
+            <Text style={[styles.storyTitle, { color: colors.text }]}>{vibe.vibeLabel}</Text>
+            <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{vibe.venue} · {vibe.neighborhood}</Text>
+          </View>
+          <View style={[styles.scoreBadge, { backgroundColor: scoreColor + '14' }]}>
+            <Text style={[styles.scoreText, { color: scoreColor }]}>{vibe.energy}</Text>
+          </View>
         </View>
-        <View style={styles.storyHeading}>
-          <Text style={[styles.storyTitle, { color: colors.text }]}>{vibe.vibeLabel}</Text>
-          <Text style={[styles.storyVenue, { color: colors.textMuted }]}>{vibe.venue} · {vibe.neighborhood}</Text>
+        {vibe.caption ? <Text style={[styles.storySummary, { color: colors.textSoft }]}>{vibe.caption}</Text> : null}
+        <View style={styles.storyMeta}>
+          <View style={[styles.chip, { backgroundColor: privacyColor + '14' }]}>
+            <Text style={[styles.chipText, { color: privacyColor }]}>{privacyLabel}</Text>
+          </View>
+          <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <Text style={[styles.chipText, { color: colors.textSoft }]}>{formatTimeAgo(vibe.createdAt)}</Text>
+          </View>
+          <Pressable
+            onPress={() => onDelete(vibe.id)}
+            style={({ pressed }) => [
+              styles.chip,
+              { backgroundColor: isDark ? 'rgba(232,86,74,0.08)' : 'rgba(204,68,56,0.05)' },
+              pressed && { opacity: 0.7 },
+            ]}
+            testID={`delete-vibe-${vibe.id}`}
+          >
+            <Trash2 color={colors.coral} size={12} />
+            <Text style={[styles.chipText, { color: colors.coral }]}>Delete</Text>
+          </Pressable>
         </View>
-      </View>
-      {vibe.caption ? <Text style={[styles.storySummary, { color: colors.textSoft }]}>{vibe.caption}</Text> : null}
-      <View style={styles.storyBottom}>
-        <View style={[styles.chip, { backgroundColor: privacyColor + '14' }]}>
-          <Text style={[styles.chipText, { color: privacyColor }]}>{privacyLabel}</Text>
-        </View>
-        <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-          <Text style={[styles.chipText, { color: colors.textSoft }]}>{formatTimeAgo(vibe.createdAt)}</Text>
-        </View>
-        <Pressable
-          onPress={() => onDelete(vibe.id)}
-          style={({ pressed }) => [
-            styles.chip,
-            { backgroundColor: isDark ? 'rgba(232,86,74,0.08)' : 'rgba(204,68,56,0.05)' },
-            pressed && { opacity: 0.7 },
-          ]}
-          testID={`delete-vibe-${vibe.id}`}
-        >
-          <Trash2 color={colors.coral} size={12} />
-          <Text style={[styles.chipText, { color: colors.coral }]}>Delete</Text>
-        </Pressable>
       </View>
     </View>
   );
 });
 
-function getVibeLabel(score: number): { label: string; color: string; description: string } {
-  if (score >= 80) return { label: 'Packed', color: '#E8564A', description: 'Maximum crowd density. Expect long waits and high energy.' };
-  if (score >= 60) return { label: 'Buzzing', color: '#E8A830', description: 'Lively and social. Active crowds without being overwhelming.' };
-  if (score >= 40) return { label: 'Lively', color: '#8DD44E', description: 'Good balance of energy. Enough going on without being crowded.' };
-  if (score >= 20) return { label: 'Chill', color: '#4EBE7A', description: 'Relaxed pace. Easy to find a seat, casual atmosphere.' };
-  return { label: 'Quiet', color: '#6AADCC', description: 'Very calm. Few people, minimal noise.' };
-}
-
-const VIBE_TIERS = [
-  { min: 80, max: 100, label: 'Packed', color: '#E8564A', icon: Flame },
-  { min: 60, max: 79, label: 'Buzzing', color: '#E8A830', icon: Zap },
-  { min: 40, max: 59, label: 'Lively', color: '#8DD44E', icon: Radio },
-  { min: 20, max: 39, label: 'Chill', color: '#4EBE7A', icon: Compass },
-  { min: 0, max: 19, label: 'Quiet', color: '#6AADCC', icon: Eye },
-];
-
-function VibeScoreModal({
+function CommentModal({
   visible,
-  score,
-  venue,
+  storyId,
   onClose,
 }: {
   visible: boolean;
-  score: number;
-  venue: string;
+  storyId: string;
   onClose: () => void;
 }) {
   const { colors, isDark } = useTheme();
-  const vibe = getVibeLabel(score);
+  const [text, setText] = useState<string>('');
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      setText('');
       Animated.parallel([
         Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 80, useNativeDriver: true }),
         Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
@@ -511,12 +498,19 @@ function VibeScoreModal({
     ]).start(() => onClose());
   }, [scaleAnim, opacityAnim, onClose]);
 
+  const handleSend = useCallback(() => {
+    if (!text.trim()) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    console.log('[Feed] Comment sent', { storyId, text });
+    handleClose();
+  }, [text, storyId, handleClose]);
+
   return (
-    <Modal visible={visible} transparent animationType="none" statusBarTranslucent testID="vibe-score-modal">
-      <Pressable style={vibeModalStyles.backdrop} onPress={handleClose}>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent testID="comment-modal">
+      <Pressable style={commentStyles.backdrop} onPress={handleClose}>
         <Animated.View
           style={[
-            vibeModalStyles.container,
+            commentStyles.container,
             {
               backgroundColor: isDark ? '#0C1E26' : '#fff',
               borderColor: isDark ? 'rgba(100,180,180,0.12)' : 'rgba(0,0,0,0.06)',
@@ -525,136 +519,83 @@ function VibeScoreModal({
             },
           ]}
         >
-          <Pressable onPress={handleClose} style={[vibeModalStyles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
-            <X color={colors.textMuted} size={14} />
+          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '100%' }}>
+            <View style={commentStyles.header}>
+              <Text style={[commentStyles.title, { color: colors.text }]}>Add comment</Text>
+              <Pressable onPress={handleClose} hitSlop={8}>
+                <X color={colors.textMuted} size={18} />
+              </Pressable>
+            </View>
+            <TextInput
+              style={[commentStyles.input, { color: colors.text, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
+              placeholder="What do you think?"
+              placeholderTextColor={colors.textSoft}
+              value={text}
+              onChangeText={setText}
+              multiline
+              autoFocus
+              testID="comment-input"
+            />
+            <Pressable
+              onPress={handleSend}
+              style={({ pressed }) => [
+                commentStyles.sendBtn,
+                { backgroundColor: text.trim() ? colors.aqua : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)') },
+                pressed && { opacity: 0.85 },
+              ]}
+              testID="comment-send"
+            >
+              <Text style={[commentStyles.sendText, { color: text.trim() ? (isDark ? colors.background : '#fff') : colors.textSoft }]}>Post</Text>
+            </Pressable>
           </Pressable>
-
-          <View style={[vibeModalStyles.scoreCircle, { borderColor: vibe.color }]}>
-            <Text style={[vibeModalStyles.scoreText, { color: vibe.color }]}>{score}</Text>
-          </View>
-
-          <Text style={[vibeModalStyles.label, { color: vibe.color }]}>{vibe.label}</Text>
-          <Text style={[vibeModalStyles.venue, { color: colors.textMuted }]}>{venue}</Text>
-          <Text style={[vibeModalStyles.description, { color: colors.textSoft }]}>{vibe.description}</Text>
-
-          <View style={[vibeModalStyles.divider, { backgroundColor: colors.border }]} />
-
-          <Text style={[vibeModalStyles.scaleTitle, { color: colors.textSoft }]}>SCALE</Text>
-          <View style={vibeModalStyles.tierList}>
-            {VIBE_TIERS.map((tier) => {
-              const isActive = score >= tier.min && score <= tier.max;
-              const TierIcon = tier.icon;
-              return (
-                <View
-                  key={tier.label}
-                  style={[
-                    vibeModalStyles.tierRow,
-                    {
-                      backgroundColor: isActive ? tier.color + '12' : 'transparent',
-                      borderColor: isActive ? tier.color + '30' : 'transparent',
-                    },
-                  ]}
-                >
-                  <TierIcon color={isActive ? tier.color : colors.textSoft} size={13} />
-                  <Text style={[vibeModalStyles.tierLabel, { color: isActive ? tier.color : colors.textSoft }]}>{tier.label}</Text>
-                  <Text style={[vibeModalStyles.tierRange, { color: isActive ? tier.color : colors.textSoft }]}>{tier.min}–{tier.max}</Text>
-                </View>
-              );
-            })}
-          </View>
         </Animated.View>
       </Pressable>
     </Modal>
   );
 }
 
-const vibeModalStyles = StyleSheet.create({
+const commentStyles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.50)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 24,
   },
   container: {
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 360,
     borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    gap: 6,
+    padding: 20,
     borderWidth: 1,
   },
-  closeBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  scoreCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  scoreText: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-  },
-  venue: {
-    fontSize: 13,
-    marginBottom: 2,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  divider: {
-    width: '100%',
-    height: 1,
-    marginVertical: 10,
-  },
-  scaleTitle: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 1.5,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
-  },
-  tierList: {
-    width: '100%',
-    gap: 3,
-  },
-  tierRow: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    marginBottom: 14,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  input: {
+    borderRadius: 12,
     borderWidth: 1,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 80,
+    textAlignVertical: 'top' as const,
+    marginBottom: 12,
   },
-  tierLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    flex: 1,
+  sendBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
-  tierRange: {
-    fontSize: 12,
-    fontWeight: '600' as const,
+  sendText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
 });
 
@@ -791,37 +732,6 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#E8564A',
   },
-  insightCard: {
-    borderRadius: 14,
-    padding: 14,
-    gap: 4,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  insightLabel: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  insightTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  insightBody: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  insightAction: {
-    marginTop: 4,
-  },
-  insightActionText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-  },
   sectionHeader: {
     gap: 2,
     marginTop: 4,
@@ -835,8 +745,16 @@ const styles = StyleSheet.create({
   },
   storyCard: {
     borderRadius: 16,
-    padding: 16,
     borderWidth: 1,
+    overflow: 'hidden' as const,
+  },
+  storyImage: {
+    width: '100%',
+    height: 180,
+    resizeMode: 'cover',
+  },
+  storyBody: {
+    padding: 14,
     gap: 10,
   },
   storyTop: {
@@ -845,14 +763,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   scoreBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scoreText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800' as const,
   },
   storyHeading: {
@@ -871,27 +789,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  storyUrgencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  liveIndicatorText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-  },
-  storyBottom: {
+  storyMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    alignItems: 'center',
   },
   chip: {
     flexDirection: 'row',
@@ -899,7 +801,7 @@ const styles = StyleSheet.create({
     gap: 4,
     borderRadius: 8,
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
   },
   chipDot: {
     width: 5,
@@ -908,6 +810,23 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  interactionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 2,
+  },
+  interactionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  interactionCount: {
+    fontSize: 13,
     fontWeight: '600' as const,
   },
   emptyCard: {

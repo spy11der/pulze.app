@@ -477,7 +477,7 @@ function VenueCard({
             testID="sheet-directions"
           >
             <Navigation color="#fff" size={13} />
-            <Text style={styles.directionsBtnText}>Get there now</Text>
+            <Text style={styles.directionsBtnText}>Directions</Text>
           </Pressable>
           <Pressable
             onPress={onDetails}
