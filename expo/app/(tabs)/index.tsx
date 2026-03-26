@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Animated,
+  FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bookmark, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Ticket, Trash2, X } from 'lucide-react-native';
+import { Bookmark, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Send, Ticket, Trash2, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
@@ -106,11 +109,6 @@ export default function FeedScreen() {
     removeVibe(id);
   }, [removeVibe]);
 
-  const handleLiveBadgePress = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/(tabs)/map');
-  }, [router]);
-
   const handleStoryPress = useCallback((venueId: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/venue-detail', params: { venueId } });
@@ -150,30 +148,16 @@ export default function FeedScreen() {
       >
         <View style={styles.headerSection}>
           <View style={styles.topRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.brandMark, { color: colors.aqua }]}>Pulze</Text>
-              <Text style={[styles.heroTitle, { color: colors.text }]}>Denver, right now</Text>
-            </View>
-            <Pressable
-              onPress={handleLiveBadgePress}
-              style={({ pressed }) => [
-                styles.liveBadge,
-                { backgroundColor: isDark ? 'rgba(43, 191, 186, 0.12)' : 'rgba(26, 158, 153, 0.08)' },
-                pressed && styles.pressed,
-              ]}
-              testID="live-badge-btn"
-            >
-              <View style={[styles.liveDot, { backgroundColor: colors.aqua }]} />
-              <Text style={[styles.liveBadgeText, { color: colors.aqua }]}>Live</Text>
-            </Pressable>
+            <Text style={[styles.heroTitle, { color: colors.aqua }]}>PULZE</Text>
+            <Text style={[styles.brandMark, { color: colors.textMuted }]}>Denver, right now</Text>
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <View style={[styles.statPill, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Text style={[styles.statNumber, { color: avgColor }]}>{liveAverage}</Text>
               <Text style={[styles.statUnit, { color: colors.textSoft }]}>avg energy</Text>
             </View>
-            <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            <View style={[styles.statPill, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{signalCount}</Text>
               <Text style={[styles.statUnit, { color: colors.textSoft }]}>{feedMode === 'my_vibes' ? 'vibes' : 'signals'}</Text>
             </View>
@@ -296,7 +280,7 @@ export default function FeedScreen() {
         )}
       </ScrollView>
 
-      <CommentModal
+      <CommentsSheet
         visible={commentModalVisible}
         storyId={commentTarget}
         onClose={() => setCommentModalVisible(false)}
@@ -464,7 +448,34 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
   );
 });
 
-function CommentModal({
+interface MockComment {
+  id: string;
+  author: string;
+  avatar: string;
+  text: string;
+  timeAgo: string;
+}
+
+const MOCK_COMMENTS: Record<string, MockComment[]> = {
+  '1': [
+    { id: 'c1', author: 'Jake M.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face', text: 'Blake St is absolutely insane rn. Get here early.', timeAgo: '4m ago' },
+    { id: 'c2', author: 'Mia T.', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face', text: 'Wait is way longer than 15 min now tbh', timeAgo: '8m ago' },
+    { id: 'c3', author: 'Sam R.', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face', text: 'Multiple bars doing green beer specials 🍀', timeAgo: '12m ago' },
+  ],
+  '2': [
+    { id: 'c4', author: 'Alex K.', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face', text: 'Merch line is moving fast. Get the poster before it sells out.', timeAgo: '6m ago' },
+    { id: 'c5', author: 'Jordan L.', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face', text: 'GA floor is already packed near the stage', timeAgo: '10m ago' },
+  ],
+  '3': [
+    { id: 'c6', author: 'Chris P.', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face', text: 'Patio is the move. Grab the hoppy pilsner.', timeAgo: '15m ago' },
+  ],
+  '5': [
+    { id: 'c7', author: 'Luna W.', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face', text: 'The new exhibit room is wild. Go left after the portal.', timeAgo: '3m ago' },
+    { id: 'c8', author: 'Kai D.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face', text: 'Vendredi set starts at 7 sharp, they never delay here', timeAgo: '9m ago' },
+  ],
+};
+
+function CommentsSheet({
   visible,
   storyId,
   onClose,
@@ -474,128 +485,274 @@ function CommentModal({
   onClose: () => void;
 }) {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [text, setText] = useState<string>('');
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [localComments, setLocalComments] = useState<MockComment[]>([]);
+  const slideAnim = useRef(new Animated.Value(600)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+
+  const existingComments = useMemo(() => {
+    return MOCK_COMMENTS[storyId] ?? [];
+  }, [storyId]);
+
+  const allComments = useMemo(() => {
+    return [...localComments, ...existingComments];
+  }, [localComments, existingComments]);
 
   useEffect(() => {
     if (visible) {
       setText('');
+      setLocalComments([]);
       Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 80, useNativeDriver: true }),
-        Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 10, tension: 50, useNativeDriver: true }),
+        Animated.timing(backdropAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
       ]).start();
     } else {
-      scaleAnim.setValue(0.92);
-      opacityAnim.setValue(0);
+      slideAnim.setValue(600);
+      backdropAnim.setValue(0);
     }
-  }, [visible, scaleAnim, opacityAnim]);
+  }, [visible, slideAnim, backdropAnim]);
 
   const handleClose = useCallback(() => {
     Animated.parallel([
-      Animated.timing(scaleAnim, { toValue: 0.92, duration: 120, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 600, duration: 200, useNativeDriver: true }),
+      Animated.timing(backdropAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
     ]).start(() => onClose());
-  }, [scaleAnim, opacityAnim, onClose]);
+  }, [slideAnim, backdropAnim, onClose]);
 
   const handleSend = useCallback(() => {
     if (!text.trim()) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const newComment: MockComment = {
+      id: `local_${Date.now()}`,
+      author: 'You',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face',
+      text: text.trim(),
+      timeAgo: 'just now',
+    };
+    setLocalComments((prev) => [newComment, ...prev]);
+    setText('');
     console.log('[Feed] Comment sent', { storyId, text });
-    handleClose();
-  }, [text, storyId, handleClose]);
+  }, [text, storyId]);
+
+  const renderComment = useCallback(({ item }: { item: MockComment }) => (
+    <View style={commentStyles.commentRow} key={item.id}>
+      <Image source={{ uri: item.avatar }} style={commentStyles.commentAvatar} />
+      <View style={commentStyles.commentBody}>
+        <View style={commentStyles.commentHeader}>
+          <Text style={[commentStyles.commentAuthor, { color: colors.text }]}>{item.author}</Text>
+          <Text style={[commentStyles.commentTime, { color: colors.textSoft }]}>{item.timeAgo}</Text>
+        </View>
+        <Text style={[commentStyles.commentText, { color: colors.textSoft }]}>{item.text}</Text>
+      </View>
+    </View>
+  ), [colors]);
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent testID="comment-modal">
-      <Pressable style={commentStyles.backdrop} onPress={handleClose}>
+      <KeyboardAvoidingView
+        style={commentStyles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Animated.View style={[commentStyles.backdrop, { opacity: backdropAnim }]}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+        </Animated.View>
+
         <Animated.View
           style={[
-            commentStyles.container,
+            commentStyles.sheet,
             {
               backgroundColor: isDark ? '#0C1E26' : '#fff',
-              borderColor: isDark ? 'rgba(100,180,180,0.12)' : 'rgba(0,0,0,0.06)',
-              transform: [{ scale: scaleAnim }],
-              opacity: opacityAnim,
+              paddingBottom: insets.bottom + 8,
+              transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '100%' }}>
-            <View style={commentStyles.header}>
-              <Text style={[commentStyles.title, { color: colors.text }]}>Add comment</Text>
-              <Pressable onPress={handleClose} hitSlop={8}>
-                <X color={colors.textMuted} size={18} />
-              </Pressable>
-            </View>
+          <View style={commentStyles.sheetHandle}>
+            <View style={[commentStyles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' }]} />
+          </View>
+
+          <View style={commentStyles.sheetHeader}>
+            <Text style={[commentStyles.sheetTitle, { color: colors.text }]}>Comments</Text>
+            <Pressable onPress={handleClose} hitSlop={8} style={commentStyles.closeBtn}>
+              <X color={colors.textMuted} size={18} />
+            </Pressable>
+          </View>
+
+          <FlatList
+            data={allComments}
+            renderItem={renderComment}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={commentStyles.commentsList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={commentStyles.emptyState}>
+                <MessageCircle color={colors.textSoft} size={28} />
+                <Text style={[commentStyles.emptyText, { color: colors.textMuted }]}>No comments yet</Text>
+                <Text style={[commentStyles.emptyHint, { color: colors.textSoft }]}>Be the first to share your take</Text>
+              </View>
+            }
+          />
+
+          <View style={[commentStyles.inputRow, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
             <TextInput
-              style={[commentStyles.input, { color: colors.text, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
-              placeholder="What do you think?"
+              style={[
+                commentStyles.input,
+                {
+                  color: colors.text,
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                },
+              ]}
+              placeholder="Add a comment..."
               placeholderTextColor={colors.textSoft}
               value={text}
               onChangeText={setText}
               multiline
-              autoFocus
+              maxLength={200}
               testID="comment-input"
             />
             <Pressable
               onPress={handleSend}
+              disabled={!text.trim()}
               style={({ pressed }) => [
                 commentStyles.sendBtn,
-                { backgroundColor: text.trim() ? colors.aqua : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)') },
-                pressed && { opacity: 0.85 },
+                {
+                  backgroundColor: text.trim() ? colors.aqua : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                  opacity: pressed && text.trim() ? 0.8 : 1,
+                },
               ]}
               testID="comment-send"
             >
-              <Text style={[commentStyles.sendText, { color: text.trim() ? (isDark ? colors.background : '#fff') : colors.textSoft }]}>Post</Text>
+              <Send color={text.trim() ? (isDark ? '#060F13' : '#fff') : colors.textSoft} size={16} />
             </Pressable>
-          </Pressable>
+          </View>
         </Animated.View>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const commentStyles = StyleSheet.create({
-  backdrop: {
+  keyboardAvoid: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.50)',
-    justifyContent: 'center',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    minHeight: 320,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 10,
+  },
+  sheetHandle: {
     alignItems: 'center',
-    padding: 24,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
-  container: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
+  handleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
   },
-  header: {
+  sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
-  title: {
-    fontSize: 17,
+  sheetTitle: {
+    fontSize: 18,
     fontWeight: '700' as const,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentsList: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    gap: 16,
+  },
+  commentRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  commentAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  commentBody: {
+    flex: 1,
+    gap: 3,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentAuthor: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  commentTime: {
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '400' as const,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  emptyHint: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
   input: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    fontSize: 15,
-    minHeight: 80,
-    textAlignVertical: 'top' as const,
-    marginBottom: 12,
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    maxHeight: 80,
+    fontWeight: '400' as const,
   },
   sendBtn: {
-    borderRadius: 12,
-    paddingVertical: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
-  },
-  sendText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
+    justifyContent: 'center',
+    marginBottom: 1,
   },
 });
 
@@ -613,38 +770,19 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'baseline',
+    gap: 10,
   },
   brandMark: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: '600' as const,
+    letterSpacing: 0.3,
   },
   heroTitle: {
     fontSize: 22,
     fontWeight: '800' as const,
     lineHeight: 28,
-    marginTop: 2,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  liveBadgeText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
+    letterSpacing: 1,
   },
   statsRow: {
     flexDirection: 'row',

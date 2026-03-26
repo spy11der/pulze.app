@@ -300,10 +300,10 @@ const FilterPill = React.memo(function FilterPill({
     : colors.aqua;
 
   const pillBg = isActive
-    ? isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'
-    : isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.85)';
+    ? isDark ? 'rgba(14, 20, 32, 0.96)' : 'rgba(255,255,255,0.97)'
+    : isDark ? 'rgba(14, 20, 32, 0.92)' : 'rgba(255,255,255,0.94)';
 
-  const tColor = isActive ? accentColor : isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
+  const tColor = isActive ? accentColor : isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)';
 
   return (
     <Pressable
@@ -735,10 +735,10 @@ export default function MapScreen() {
           <View style={[
             styles.searchBar,
             {
-              backgroundColor: isDark ? 'rgba(22, 26, 42, 0.88)' : 'rgba(255,255,255,0.92)',
+              backgroundColor: isDark ? 'rgba(14, 20, 32, 0.96)' : 'rgba(255,255,255,0.97)',
               borderColor: isSearchFocused
-                ? (isDark ? 'rgba(53, 212, 207, 0.3)' : 'rgba(26, 168, 163, 0.3)')
-                : 'transparent',
+                ? (isDark ? 'rgba(53, 212, 207, 0.4)' : 'rgba(26, 168, 163, 0.4)')
+                : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
             },
           ]}>
             <Search color={isSearchFocused ? colors.aqua : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')} size={16} />
@@ -766,7 +766,9 @@ export default function MapScreen() {
             style={({ pressed }) => [
               styles.recenterBtn,
               {
-                backgroundColor: isDark ? 'rgba(22, 26, 42, 0.88)' : 'rgba(255,255,255,0.92)',
+                backgroundColor: isDark ? 'rgba(14, 20, 32, 0.96)' : 'rgba(255,255,255,0.97)',
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
               },
               pressed && styles.pressed,
             ]}
@@ -910,10 +912,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    elevation: 5,
   },
   searchInput: {
     flex: 1,
@@ -992,14 +994,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   filterPillText: {
     fontSize: 12,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     letterSpacing: 0.2,
   },
   recenterBtn: {

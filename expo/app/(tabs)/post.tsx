@@ -635,18 +635,41 @@ export default function PostScreen() {
     }
   }, []);
 
+  const handleRecordVideo = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow camera access to record a video.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: true,
+        quality: 0.8,
+        videoMaxDuration: 15,
+      });
+      if (!result.canceled && result.assets[0]) {
+        console.log('[Post] Video recorded:', result.assets[0].uri);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setMediaUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.log('[Post] Error recording video:', err);
+    }
+  }, []);
+
   const handleMediaAction = useCallback(() => {
     void Haptics.selectionAsync();
     if (Platform.OS === 'web') {
       void handlePickMedia();
       return;
     }
-    Alert.alert('Add media', '', [
+    Alert.alert('Capture in the moment', '', [
       { text: 'Take photo', onPress: () => void handleTakePhoto() },
-      { text: 'Choose from gallery', onPress: () => void handlePickMedia() },
+      { text: 'Record video', onPress: () => void handleRecordVideo() },
       { text: 'Cancel', style: 'cancel' },
     ]);
-  }, [handlePickMedia, handleTakePhoto]);
+  }, [handlePickMedia, handleTakePhoto, handleRecordVideo]);
 
   const handleRemoveMedia = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1009,13 +1032,6 @@ export default function PostScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(165,240,92,0.06)' : 'rgba(92,168,48,0.06)' }]}>
-          <Zap color="#A5F05C" size={13} />
-          <Text style={[styles.realTimeNoteText, { color: isDark ? '#A5F05C' : '#4E9428' }]}>
-            We prioritize real-time energy — what's happening right now, not earlier.
-          </Text>
-        </View>
-
         {TAG_CATEGORIES.map((cat) => {
           const isActive = cat.step <= currentStep;
           const isCurrentStep = cat.step === currentStep;
@@ -1082,6 +1098,13 @@ export default function PostScreen() {
           colors={colors}
           isDark={isDark}
         />
+
+        <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(165,240,92,0.06)' : 'rgba(92,168,48,0.06)' }]}>
+          <Zap color="#A5F05C" size={13} />
+          <Text style={[styles.realTimeNoteText, { color: isDark ? '#A5F05C' : '#4E9428' }]}>
+            We prioritize real-time energy — what's happening right now, not earlier.
+          </Text>
+        </View>
 
         <View
           style={[
