@@ -14,7 +14,6 @@ import * as Clipboard from 'expo-clipboard';
 import {
   Car,
   Copy,
-  ExternalLink,
   Map,
   MapPin,
   Navigation,
@@ -218,7 +217,6 @@ export function DirectionsSheet({
                   <Text style={[dStyles.optionLabel, { color: colors.text }]}>{option.label}</Text>
                   <Text style={[dStyles.optionSub, { color: colors.textMuted }]}>{option.subtitle}</Text>
                 </View>
-                <ExternalLink color={colors.textSoft} size={14} />
               </Pressable>
             );
           })}
@@ -323,7 +321,7 @@ const dStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 14,
     borderRadius: 14,
   },
