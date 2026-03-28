@@ -1,0 +1,9 @@
+{
+  "apps": [
+    {
+      "name": "Pulse",
+      "path": "expo",
+      "framework": "react-native"
+    }
+  ]
+}
