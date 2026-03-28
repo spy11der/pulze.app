@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Pulze",
+    "slug": "cmdj1v6lzdnu5omh92zbm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "rork-app",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#041318"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pulze uses your location to show nearby events, venues, and friends on the map.",
+        "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
+        "NSPhotoLibraryUsageDescription": "Pulze needs photo library access so you can share photos in your posts and update your profile picture.",
+        "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app and protect your wallet."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#041318"
+      },
+      "package": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://rork.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-secure-store",
+      "expo-sqlite"
+    ]
+  }
+}
