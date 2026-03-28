@@ -9,11 +9,13 @@ import {
   View,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
@@ -27,7 +29,8 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { sampleEvent, getEventForVenue } from '@/mocks/events';
+import { sampleEvent } from '@/mocks/events';
+import { hasEventbriteConfig, useTicketEvent } from '@/services/eventbrite';
 
 type PaymentMethod = 'apple' | 'card';
 type CheckoutStep = 'review' | 'processing' | 'confirmed';
@@ -88,11 +91,10 @@ export default function CheckoutScreen() {
   const checkScale = useRef(new Animated.Value(0)).current;
   const fadeIn = useRef(new Animated.Value(0)).current;
 
-  const venueId = params.eventId?.replace('evt-', '') ?? '';
-  const event = useMemo(() => {
-    if (venueId) return getEventForVenue(venueId);
-    return sampleEvent;
-  }, [venueId]);
+  const { event, isError, error, isFetching, isEventbrite } = useTicketEvent(params.eventId);
+  const eventbriteConfigured = hasEventbriteConfig(params.eventId);
+  const checkoutUrl = event.externalCheckoutUrl ?? event.externalEventUrl;
+  const isExternalCheckout = isEventbrite && Boolean(checkoutUrl);
 
   const tier = useMemo(() => event.ticketTiers.find(t => t.id === params.tierId) ?? event.ticketTiers[0], [params.tierId, event]);
   const quantity = useMemo(() => {
@@ -117,23 +119,30 @@ export default function CheckoutScreen() {
   }, [fadeIn]);
 
   const handlePurchase = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    // Eventbrite hosted checkout handoff (preferred POC path)
+    if (isExternalCheckout && checkoutUrl) {
+      try {
+        await WebBrowser.openBrowserAsync(checkoutUrl);
+      } catch {
+        await Linking.openURL(checkoutUrl);
+      }
+      return;
+    }
+
+    // Local fallback demo checkout (card form simulated)
     if (!cardValid) {
       Alert.alert('Missing Info', 'Please fill in all card details to continue.');
       return;
     }
 
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setStep('processing');
-
-    console.log('[Checkout] Creating payment intent...', { paymentMethod, total });
-
     Animated.timing(progressAnim, {
       toValue: 0.6,
       duration: 1200,
       useNativeDriver: false,
     }).start(() => {
-      console.log('[Checkout] Payment intent created, confirming payment...');
-
       Animated.timing(progressAnim, {
         toValue: 1,
         duration: 1000,
@@ -155,8 +164,6 @@ export default function CheckoutScreen() {
         };
 
         await savePurchase(purchase);
-        console.log('[Checkout] Payment confirmed, ticket marked as purchased');
-
         setStep('confirmed');
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Animated.spring(checkScale, {
@@ -167,7 +174,7 @@ export default function CheckoutScreen() {
         }).start();
       });
     });
-  }, [progressAnim, checkScale, cardValid, paymentMethod, total, event, tier, quantity]);
+  }, [isExternalCheckout, checkoutUrl, progressAnim, checkScale, cardValid, paymentMethod, total, event, tier, quantity]);
 
   const handleDone = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -476,11 +483,11 @@ export default function CheckoutScreen() {
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? 'rgba(4,19,24,0.96)' : 'rgba(245,248,250,0.96)', borderTopColor: colors.border }]}>
         <Pressable
           onPress={() => void handlePurchase()}
-          disabled={paymentMethod === 'card' && !cardValid}
+          disabled={(paymentMethod === 'card' && !cardValid) && !isExternalCheckout}
           style={({ pressed }) => [
             styles.purchaseBtn,
             {
-              opacity: (paymentMethod === 'card' && !cardValid) ? 0.5 : (pressed ? 0.9 : 1),
+              opacity: ((paymentMethod === 'card' && !cardValid) && !isExternalCheckout) ? 0.5 : (pressed ? 0.9 : 1),
               transform: [{ scale: pressed ? 0.98 : 1 }],
             },
           ]}
@@ -494,7 +501,9 @@ export default function CheckoutScreen() {
           >
             <Lock color={isDark ? colors.background : '#fff'} size={16} />
             <Text style={[styles.purchaseBtnText, { color: isDark ? colors.background : '#fff' }]}>
-              {paymentMethod === 'apple'
+              {isExternalCheckout
+                ? 'Continue in Eventbrite'
+                : paymentMethod === 'apple'
                 ? (Platform.OS === 'ios' ? 'Pay with Apple Pay' : 'Pay with Google Pay')
                 : `Pay $${total.toFixed(2)}`}
             </Text>

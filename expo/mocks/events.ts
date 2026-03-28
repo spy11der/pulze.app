@@ -25,6 +25,8 @@ export interface FriendAttending {
 
 export interface PulzeEvent {
   id: string;
+  // Source of the event data (local mocks vs. Eventbrite live)
+  source?: 'local' | 'eventbrite';
   title: string;
   tagline: string;
   heroImage: string;
@@ -53,6 +55,9 @@ export interface PulzeEvent {
   friendsGoing: FriendAttending[];
   serviceFeePercent: number;
   tags: string[];
+  // Optional URLs for external event and hosted checkout (Eventbrite)
+  externalEventUrl?: string;
+  externalCheckoutUrl?: string;
 }
 
 export interface Venue {
@@ -540,6 +545,7 @@ for (const template of eventTemplates) {
 
 export const sampleEvent: PulzeEvent = venueEvents['v-001'] ?? {
   id: 'evt-001',
+  source: 'local',
   title: 'Nothing More + Catch Your Breath',
   tagline: 'Hard-hitting rock with Archers and Doobie opening the night.',
   heroImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=500&fit=crop',
@@ -575,6 +581,8 @@ export const sampleEvent: PulzeEvent = venueEvents['v-001'] ?? {
   friendsGoing: sharedFriends.slice(0, 3),
   serviceFeePercent: 12,
   tags: ['Rock', 'Live Band', 'Fillmore', 'Tonight'],
+  externalEventUrl: undefined,
+  externalCheckoutUrl: undefined,
 };
 
 export function getEventForVenue(venueId: string): PulzeEvent {
