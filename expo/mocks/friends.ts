@@ -1,4 +1,4 @@
-export type FriendTier = 'public' | 'friends' | 'close_friends' | 'inner_circle';
+export type FriendTier = 'public' | 'friends' | 'inner_circle';
 
 export interface TierInfo {
   id: FriendTier;
@@ -50,17 +50,7 @@ export const tierDefinitions: TierInfo[] = [
       'Cannot see exact real-time movement',
     ],
   },
-  {
-    id: 'close_friends',
-    label: 'Close Friends',
-    description: 'Live vibe access',
-    color: '#A5F05C',
-    permissions: [
-      'Can see live vibe drops',
-      'Can see when you\'re at a location',
-      'Can interact with vibes directly',
-    ],
-  },
+
   {
     id: 'inner_circle',
     label: 'Inner Circle',
@@ -89,7 +79,7 @@ export const mockFriends: Friend[] = [
     name: 'Dex Monroe',
     handle: 'dex.pulse',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
-    tier: 'close_friends',
+    tier: 'friends',
     mutualFriends: 8,
     lastActive: '15m ago',
   },
@@ -107,7 +97,7 @@ export const mockFriends: Friend[] = [
     name: 'Kai Rivera',
     handle: 'kai.explore',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
-    tier: 'close_friends',
+    tier: 'friends',
     mutualFriends: 14,
     lastActive: '5m ago',
   },
