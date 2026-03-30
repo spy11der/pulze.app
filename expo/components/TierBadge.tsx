@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Shield, Users, Heart, Star } from 'lucide-react-native';
+import { Shield, Users, Star } from 'lucide-react-native';
 
 import type { FriendTier } from '@/mocks/friends';
 import { getTierInfo } from '@/mocks/friends';
@@ -14,7 +14,6 @@ interface TierBadgeProps {
 const tierIcons = {
   public: Shield,
   friends: Users,
-  close_friends: Heart,
   inner_circle: Star,
 } as const;
 

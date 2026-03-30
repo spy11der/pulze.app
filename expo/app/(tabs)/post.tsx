@@ -56,7 +56,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     label: 'Energy',
     color: '#A5F05C',
     glowColor: 'rgba(165,240,92,',
-    tags: ['chill', 'steady', 'turnt', 'packed'],
+    tags: ['chill', 'steady', 'lively'],
     step: 1,
   },
   {
@@ -64,7 +64,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     label: 'Crowd',
     color: '#35D4CF',
     glowColor: 'rgba(53,212,207,',
-    tags: ['empty', 'light', 'medium', 'full'],
+    tags: ['empty', 'light', 'medium', 'full', 'packed'],
     step: 2,
   },
   {
@@ -72,7 +72,7 @@ const TAG_CATEGORIES: TagCategory[] = [
     label: 'Mood',
     color: '#FF6D5E',
     glowColor: 'rgba(255,109,94,',
-    tags: ['good vibes', 'lit', 'relaxed', 'upscale'],
+    tags: ['good vibes', 'vibrant', 'relaxed', 'upscale'],
     step: 3,
   },
 ];
@@ -277,12 +277,12 @@ function VibeMeter({
   });
 
   const meterColor = score <= 30
-    ? '#A5F05C'
+    ? '#5BE89E'
     : score <= 60
-      ? '#35D4CF'
+      ? '#E8D544'
       : score <= 80
-        ? colors.amber
-        : '#FF6D5E';
+        ? '#FFAA2E'
+        : '#FF4D3A';
 
   const intensityLabel = getVibeIntensityLabel(score);
 
@@ -447,7 +447,7 @@ function LivePreviewCard({
             ) : null}
 
             <View style={styles.livePreviewFooter}>
-              <View style={[styles.livePreviewScoreDot, { backgroundColor: score > 60 ? '#FF6D5E' : '#35D4CF' }]} />
+              <View style={[styles.livePreviewScoreDot, { backgroundColor: score <= 30 ? '#5BE89E' : score <= 60 ? '#E8D544' : score <= 80 ? '#FFAA2E' : '#FF4D3A' }]} />
               <Text style={[styles.livePreviewScoreLabel, { color: colors.textMuted }]}>
                 {score} · {getVibeIntensityLabel(score)}
               </Text>
@@ -467,13 +467,13 @@ function deriveVibeLabel(tags: VibeTags): string {
 
 function deriveEnergyScore(tags: VibeTags): number {
   const energyMap: Record<string, number> = {
-    chill: 25, steady: 50, turnt: 78, packed: 95,
+    chill: 25, steady: 50, lively: 78,
   };
   const crowdMap: Record<string, number> = {
-    empty: 10, light: 30, medium: 55, full: 80,
+    empty: 10, light: 30, medium: 55, full: 80, packed: 95,
   };
   const moodMap: Record<string, number> = {
-    relaxed: 25, 'good vibes': 55, upscale: 60, lit: 85,
+    relaxed: 25, 'good vibes': 55, upscale: 60, vibrant: 85,
   };
 
   let total = 0;

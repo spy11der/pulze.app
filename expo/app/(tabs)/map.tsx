@@ -3,7 +3,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  GestureResponderEvent,
   Keyboard,
+  PanResponder,
+  PanResponderGestureState,
   Platform,
   Pressable,
   ScrollView,
@@ -349,6 +352,7 @@ function VenueCard({
   };
 }) {
   const slideAnim = useRef(new Animated.Value(400)).current;
+  const isDragging = useRef(false);
   const color = getVibeColor(venue.vibe_score);
   const statusInfo = getStatusInfo(venue.open_status);
   const vibeLabel = getVibeLabel(venue.vibe_score);
@@ -370,18 +374,65 @@ function VenueCard({
     }).start(() => onClose());
   }, [slideAnim, onClose]);
 
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_e: GestureResponderEvent, gs: PanResponderGestureState) => {
+          return Math.abs(gs.dy) > 8 && Math.abs(gs.dy) > Math.abs(gs.dx);
+        },
+        onPanResponderGrant: () => {
+          isDragging.current = true;
+        },
+        onPanResponderMove: (_e: GestureResponderEvent, gs: PanResponderGestureState) => {
+          if (gs.dy > 0) {
+            slideAnim.setValue(gs.dy);
+          } else {
+            slideAnim.setValue(gs.dy * 0.15);
+          }
+        },
+        onPanResponderRelease: (_e: GestureResponderEvent, gs: PanResponderGestureState) => {
+          isDragging.current = false;
+          if (gs.dy > 80 || gs.vy > 0.6) {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            dismiss();
+          } else {
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              friction: 9,
+              tension: 60,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          isDragging.current = false;
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            friction: 9,
+            tension: 60,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [slideAnim, dismiss]
+  );
+
   const cardBg = isDark ? 'rgba(22, 26, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)';
   const subtleBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)';
 
   return (
-    <Animated.View style={[styles.cardContainer, { bottom: bottomInset, transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View
+      style={[styles.cardContainer, { bottom: bottomInset, transform: [{ translateY: slideAnim }] }]}
+      {...panResponder.panHandlers}
+    >
       <View style={[styles.card, {
         backgroundColor: cardBg,
         shadowColor: isDark ? '#000' : '#2a3a4a',
         shadowOpacity: isDark ? 0.4 : 0.12,
       }]}>
         <View style={styles.cardHandle}>
-          <View style={[styles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }]} />
+          <View style={[styles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
         </View>
 
         <View style={styles.cardTopActions}>
@@ -1063,9 +1114,9 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
   },
   cardTopActions: {
     position: 'absolute',
