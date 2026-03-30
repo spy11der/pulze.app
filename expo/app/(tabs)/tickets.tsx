@@ -32,8 +32,9 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { sampleEvent, artistListings } from '@/mocks/events';
+import { sampleEvent } from '@/mocks/events';
 import type { TicketTier, ArtistListing } from '@/mocks/events';
+import { fetchTMEvents } from '@/services/ticketmaster';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
 
 export default function TicketsTab() {
@@ -51,12 +52,25 @@ export default function TicketsTab() {
 
   const event = sampleEvent;
 
-  const trendingArtists = useMemo(() => artistListings.filter(a => a.trending), []);
-  const allArtists = useMemo(() => artistListings, []);
+  const [allArtists, setAllArtists] = useState<ArtistListing[]>([]);
+  const trendingArtists = useMemo(() => allArtists.filter(a => a.trending), [allArtists]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchTMEvents().then((items) => { if (mounted) setAllArtists(items); }).catch((e) => {
+      console.warn('[TicketsTab] Ticketmaster fetch failed, falling back to mocks', e);
+      // In case of failure, keep the existing mock-import (dynamic import to avoid static ref)
+      import('@/mocks/events').then(m => setAllArtists(m.artistListings));
+    });
+    return () => { mounted = false; };
+  }, []);
 
   const handleArtistTap = useCallback((artist: ArtistListing) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/ticketing', params: { venueId: artist.venueId } });
+    // Pass TM event id when available; keep venueId for mock fallback
+    const params: Record<string, string> = { venueId: artist.venueId };
+    if (!artist.id.startsWith('al-')) params.tmEventId = String(artist.id);
+    router.push({ pathname: '/ticketing', params });
   }, [router]);
 
   useEffect(() => {

@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import {
   ArrowLeft,
   Bookmark,
@@ -38,6 +39,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { venues, getEventForVenue } from '@/mocks/events';
 import type { TicketTier } from '@/mocks/events';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
+import { fetchTMEventDetails } from '@/services/ticketmaster';
 
 const TM_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? '';
 
@@ -89,6 +91,7 @@ export default function TicketingScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tmEventId?: string; venueId?: string }>();
   const scrollRef = useRef<ScrollView>(null);
 
   const [selectedVenueId, setSelectedVenueId] = useState<string>(venues[0].id);
@@ -104,13 +107,35 @@ export default function TicketingScreen() {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
 
-  const event = useMemo(() => getEventForVenue(selectedVenueId), [selectedVenueId]);
+  const [tmEvent, setTmEvent] = useState<ReturnType<typeof getEventForVenue> | null>(null);
+  const tmId = typeof params.tmEventId === 'string' && !params.tmEventId.startsWith('al-') ? params.tmEventId : undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!tmId) {
+      setTmEvent(null);
+      return;
+    }
+    (async () => {
+      try {
+        const ev = await fetchTMEventDetails(tmId);
+        if (!cancelled) setTmEvent(ev as any);
+      } catch (e) {
+        console.log('[Ticketing] Failed to load TM event, falling back to venue mock', e);
+        if (!cancelled) setTmEvent(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tmId]);
+
+  const event = useMemo(() => tmEvent ?? getEventForVenue(selectedVenueId), [tmEvent, selectedVenueId]);
 
   const heroImageUri = useMemo(() => {
+    if (tmEvent) return tmEvent.heroImage;
     const tmImage = tmVenueImages[selectedVenueId];
     if (tmImage && tmImage.length > 0) return tmImage;
     return event.heroImage;
-  }, [selectedVenueId, tmVenueImages, event.heroImage]);
+  }, [tmEvent, selectedVenueId, tmVenueImages, event.heroImage]);
 
   const tmImageFetched = tmVenueImages[selectedVenueId] !== undefined;
   useEffect(() => {
@@ -215,17 +240,15 @@ export default function TicketingScreen() {
 
   const handleGetTickets = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // If this is a live TM event and we have an external URL, open it
+    if (tmEvent?.externalEventUrl) {
+      void WebBrowser.openBrowserAsync(tmEvent.externalEventUrl);
+      return;
+    }
     const tier = selectedTier ?? event.ticketTiers.find(t => !t.soldOut)?.id;
     const qty = tier ? (quantities[tier] || 1) : 1;
-    router.push({
-      pathname: '/checkout',
-      params: {
-        eventId: event.id,
-        tierId: tier ?? '',
-        quantity: String(qty),
-      },
-    });
-  }, [selectedTier, quantities, event, router]);
+    router.push({ pathname: '/checkout', params: { eventId: event.id, tierId: tier ?? '', quantity: String(qty) } });
+  }, [tmEvent, selectedTier, quantities, event, router]);
 
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;
@@ -286,22 +309,24 @@ export default function TicketingScreen() {
       >
         <View style={{ height: 290 }} />
 
-        <View style={styles.venueSelectorContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.venueScrollContent}
-          >
-            {venues.map(venue => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                selected={venue.id === selectedVenueId}
-                onSelect={handleSelectVenue}
-              />
-            ))}
-          </ScrollView>
-        </View>
+        {!tmEvent && (
+          <View style={styles.venueSelectorContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.venueScrollContent}
+            >
+              {venues.map(venue => (
+                <VenueCard
+                  key={venue.id}
+                  venue={venue}
+                  selected={venue.id === selectedVenueId}
+                  onSelect={handleSelectVenue}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>

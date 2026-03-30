@@ -1,0 +1,19 @@
+{
+  "name": "ticketmaster-sync",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sync Ticketmaster Discovery events into SQL Server for Pulze",
+  "main": "sync.js",
+  "scripts": {
+    "sync:once": "node sync.js",
+    "sync:schedule": "node schedule.js",
+    "api:start": "node api.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mssql": "^12.2.1",
+    "node-cron": "^4.2.1"
+  }
+}
