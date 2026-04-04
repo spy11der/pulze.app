@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import {
   Shield,
   ShieldCheck,
   Sun,
+  Ticket,
   Users,
   Zap,
   TrendingUp,
@@ -31,6 +32,8 @@ import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSecureWallet } from '@/providers/SecureWalletProvider';
+import { useAgeVerification } from '@/providers/AgeVerificationProvider';
+import { AgeVerificationSheet } from '@/components/AgeVerificationSheet';
 import { currentUser } from '@/constants/identity';
 
 export default function ProfileScreen() {
@@ -40,6 +43,8 @@ export default function ProfileScreen() {
   const { vibeCount, spotCount } = useData();
   const { logout, user: authUser } = useAuth();
   const { documents } = useSecureWallet();
+  const { isVerified } = useAgeVerification();
+  const [showAgeSheet, setShowAgeSheet] = useState<boolean>(false);
 
   const tierSummary = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -73,6 +78,16 @@ export default function ProfileScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/secure-wallet');
   }, [router]);
+
+  const handleOpenMyTickets = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/my-tickets');
+  }, [router]);
+
+  const handleOpenAgeVerification = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowAgeSheet(true);
+  }, []);
 
   const displayName = authUser?.displayName || currentUser.displayName;
   const username = authUser?.username || currentUser.username;
@@ -156,7 +171,15 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={styles.heroBody}>
-            <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
+              {isVerified && (
+                <View style={[styles.verifiedInlineBadge, { backgroundColor: isDark ? 'rgba(141, 212, 78, 0.12)' : 'rgba(78, 148, 40, 0.08)' }]}>
+                  <ShieldCheck color={colors.lime} size={13} />
+                  <Text style={[styles.verifiedInlineText, { color: colors.lime }]}>21+</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.handle, { color: colors.textMuted }]}>@{username} · {currentUser.location}</Text>
             <Pressable
               onPress={handleCopyId}
@@ -291,6 +314,25 @@ export default function ProfileScreen() {
 
         <View style={[styles.menuSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <MenuItem
+            icon={Ticket}
+            label="My Tickets"
+            sublabel="View your event passes"
+            onPress={handleOpenMyTickets}
+          />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
+          <MenuItem
+            icon={ShieldCheck}
+            label={isVerified ? '21+ Verified' : 'Verify Age'}
+            sublabel={isVerified ? 'Your age has been confirmed' : 'Confirm you are 21+'}
+            onPress={handleOpenAgeVerification}
+            badge={isVerified ? (
+              <View style={[styles.menuBadge, { backgroundColor: colors.lime + '18' }]}>
+                <ShieldCheck color={colors.lime} size={11} />
+              </View>
+            ) : undefined}
+          />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
+          <MenuItem
             icon={Shield}
             label="Secure Wallet"
             sublabel={documents.length > 0 ? `${documents.length} document${documents.length !== 1 ? 's' : ''} stored` : 'Add your ID or license'}
@@ -326,6 +368,11 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
+
+      <AgeVerificationSheet
+        visible={showAgeSheet}
+        onClose={() => setShowAgeSheet(false)}
+      />
     </View>
   );
 }
@@ -424,6 +471,23 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 22,
+    fontWeight: '800' as const,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  verifiedInlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  verifiedInlineText: {
+    fontSize: 12,
     fontWeight: '800' as const,
   },
   handle: {

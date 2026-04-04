@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   CreditCard,
   Lock,
+  QrCode,
   ShieldCheck,
   Smartphone,
   Ticket,
@@ -83,6 +84,7 @@ export default function CheckoutScreen() {
   const [cardExpiry, setCardExpiry] = useState<string>('');
   const [cardCvc, setCardCvc] = useState<string>('');
   const [cardName, setCardName] = useState<string>('');
+  const [lastPurchase, setLastPurchase] = useState<PurchaseRecord | null>(null);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -155,6 +157,7 @@ export default function CheckoutScreen() {
         };
 
         await savePurchase(purchase);
+        setLastPurchase(purchase);
         console.log('[Checkout] Payment confirmed, ticket marked as purchased');
 
         setStep('confirmed');
@@ -174,6 +177,30 @@ export default function CheckoutScreen() {
     router.back();
     setTimeout(() => router.back(), 100);
   }, [router]);
+
+  const handleViewTicket = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (lastPurchase) {
+      router.back();
+      setTimeout(() => {
+        router.back();
+        setTimeout(() => {
+          router.push({
+            pathname: '/ticket-pass',
+            params: {
+              purchaseId: lastPurchase.id,
+              eventTitle: lastPurchase.eventTitle,
+              venueName: lastPurchase.venueName,
+              date: lastPurchase.date,
+              tierName: lastPurchase.tierName,
+              quantity: String(lastPurchase.quantity),
+              total: lastPurchase.total.toFixed(2),
+            },
+          });
+        }, 100);
+      }, 100);
+    }
+  }, [router, lastPurchase]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -222,11 +249,19 @@ export default function CheckoutScreen() {
             A confirmation email has been sent. Your tickets will appear in your Pulze profile.
           </Text>
           <Pressable
-            onPress={handleDone}
+            onPress={handleViewTicket}
             style={({ pressed }) => [styles.doneBtn, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1 }]}
+            testID="checkout-view-ticket"
+          >
+            <QrCode color={isDark ? colors.background : '#fff'} size={18} />
+            <Text style={[styles.doneBtnText, { color: isDark ? colors.background : '#fff' }]}>View Your Ticket</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleDone}
+            style={({ pressed }) => [styles.doneBtnOutline, { borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
             testID="checkout-done"
           >
-            <Text style={[styles.doneBtnText, { color: isDark ? colors.background : '#fff' }]}>Done</Text>
+            <Text style={[styles.doneBtnOutlineText, { color: colors.textMuted }]}>Done</Text>
           </Pressable>
         </View>
       </View>
@@ -566,6 +601,8 @@ const styles = StyleSheet.create({
   confirmDetailValue: { fontSize: 14, fontWeight: '700' as const, textAlign: 'right' as const, flex: 1, marginLeft: 16 },
   confirmDivider: { height: 1 },
   confirmNote: { fontSize: 13, textAlign: 'center' as const, lineHeight: 19, marginTop: 8, paddingHorizontal: 12 },
-  doneBtn: { width: '100%', alignItems: 'center', borderRadius: 16, paddingVertical: 18, marginTop: 16 },
+  doneBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, paddingVertical: 18, marginTop: 16 },
   doneBtnText: { fontSize: 17, fontWeight: '800' as const },
+  doneBtnOutline: { width: '100%', alignItems: 'center', borderRadius: 16, paddingVertical: 16, marginTop: 8, borderWidth: 1 },
+  doneBtnOutlineText: { fontSize: 15, fontWeight: '700' as const },
 });

@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, QrCode, Search, UserPlus, X } from 'lucide-react-native';
+import { ChevronRight, QrCode, Search, ShieldCheck, UserPlus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { TierBadge } from '@/components/TierBadge';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAgeVerification } from '@/providers/AgeVerificationProvider';
 import {
   type Friend,
   type FriendRequest,
@@ -38,6 +39,7 @@ export default function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchFocused, setSearchFocused] = useState<boolean>(false);
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
+  const { isVerified: currentUserVerified } = useAgeVerification();
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -303,6 +305,11 @@ export default function FriendsScreen() {
                     <View style={styles.friendNameRow}>
                       <Text style={[styles.friendName, { color: colors.text }]}>{friend.name}</Text>
                       <TierBadge tier={friend.tier} size="small" />
+                      {currentUserVerified && friend.tier === 'inner_circle' && (
+                        <View style={[styles.friendVerifiedBadge, { backgroundColor: colors.lime + '18' }]}>
+                          <ShieldCheck color={colors.lime} size={10} />
+                        </View>
+                      )}
                     </View>
                     <Text style={[styles.friendHandle, { color: colors.textMuted }]}>@{friend.handle}</Text>
                     <Text style={[styles.mutualText, { color: colors.textSoft }]}>{friend.mutualFriends} mutual · {friend.lastActive}</Text>
@@ -490,6 +497,13 @@ const styles = StyleSheet.create({
   },
   friendInfo: { flex: 1, gap: 3 },
   friendNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  friendVerifiedBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   friendName: { fontSize: 16, fontWeight: '700' as const },
   friendHandle: { fontSize: 13 },
   mutualText: { fontSize: 12 },
