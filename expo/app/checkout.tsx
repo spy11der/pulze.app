@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Smartphone,
   Ticket,
+  Wallet,
   X,
 } from 'lucide-react-native';
 
@@ -256,6 +257,48 @@ export default function CheckoutScreen() {
             <QrCode color={isDark ? colors.background : '#fff'} size={18} />
             <Text style={[styles.doneBtnText, { color: isDark ? colors.background : '#fff' }]}>View Your Ticket</Text>
           </Pressable>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (lastPurchase) {
+                router.back();
+                setTimeout(() => {
+                  router.back();
+                  setTimeout(() => {
+                    router.push({
+                      pathname: '/wallet-pass',
+                      params: {
+                        purchaseId: lastPurchase.id,
+                        eventTitle: lastPurchase.eventTitle,
+                        venueName: lastPurchase.venueName,
+                        date: lastPurchase.date,
+                        tierName: lastPurchase.tierName,
+                        quantity: String(lastPurchase.quantity),
+                        total: lastPurchase.total.toFixed(2),
+                      },
+                    });
+                  }, 100);
+                }, 100);
+              }
+            }}
+            style={({ pressed }) => [
+              styles.walletPassBtn,
+              {
+                backgroundColor: Platform.OS === 'ios' ? '#1A1A1A' : 'rgba(66,133,244,0.1)',
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+            testID="checkout-add-wallet"
+          >
+            <Wallet color={Platform.OS === 'ios' ? '#fff' : '#4285F4'} size={16} />
+            <Text style={[
+              styles.walletPassBtnText,
+              { color: Platform.OS === 'ios' ? '#fff' : '#4285F4' },
+            ]}>
+              {Platform.OS === 'ios' ? 'Add to Apple Wallet' : Platform.OS === 'android' ? 'Add to Google Wallet' : 'Add to Wallet'}
+            </Text>
+          </Pressable>
+
           <Pressable
             onPress={handleDone}
             style={({ pressed }) => [styles.doneBtnOutline, { borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
@@ -603,6 +646,8 @@ const styles = StyleSheet.create({
   confirmNote: { fontSize: 13, textAlign: 'center' as const, lineHeight: 19, marginTop: 8, paddingHorizontal: 12 },
   doneBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 16, paddingVertical: 18, marginTop: 16 },
   doneBtnText: { fontSize: 17, fontWeight: '800' as const },
+  walletPassBtn: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, paddingVertical: 16, marginTop: 8 },
+  walletPassBtnText: { fontSize: 15, fontWeight: '700' as const },
   doneBtnOutline: { width: '100%', alignItems: 'center', borderRadius: 16, paddingVertical: 16, marginTop: 8, borderWidth: 1 },
   doneBtnOutlineText: { fontSize: 15, fontWeight: '700' as const },
 });

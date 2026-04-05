@@ -21,6 +21,7 @@ import {
   Sun,
   Ticket,
   Users,
+  Wallet,
   Zap,
   TrendingUp,
   MapPin,
@@ -33,6 +34,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSecureWallet } from '@/providers/SecureWalletProvider';
 import { useAgeVerification } from '@/providers/AgeVerificationProvider';
+import { useWalletPass } from '@/providers/WalletPassProvider';
 import { AgeVerificationSheet } from '@/components/AgeVerificationSheet';
 import { currentUser } from '@/constants/identity';
 
@@ -44,6 +46,7 @@ export default function ProfileScreen() {
   const { logout, user: authUser } = useAuth();
   const { documents } = useSecureWallet();
   const { isVerified } = useAgeVerification();
+  const { passes } = useWalletPass();
   const [showAgeSheet, setShowAgeSheet] = useState<boolean>(false);
 
   const tierSummary = useMemo(() => {
@@ -88,6 +91,11 @@ export default function ProfileScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowAgeSheet(true);
   }, []);
+
+  const handleOpenWalletPasses = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/my-tickets');
+  }, [router]);
 
   const displayName = authUser?.displayName || currentUser.displayName;
   const username = authUser?.username || currentUser.username;
@@ -318,6 +326,19 @@ export default function ProfileScreen() {
             label="My Tickets"
             sublabel="View your event passes"
             onPress={handleOpenMyTickets}
+          />
+          <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
+          <MenuItem
+            icon={Wallet}
+            label="Wallet Passes"
+            sublabel={passes.length > 0 ? `${passes.length} pass${passes.length !== 1 ? 'es' : ''} saved` : 'Add tickets to Apple or Google Wallet'}
+            onPress={handleOpenWalletPasses}
+            badge={passes.length > 0 ? (
+              <View style={[styles.menuBadge, { backgroundColor: colors.aqua + '18' }]}>
+                <Wallet color={colors.aqua} size={11} />
+                <Text style={[styles.menuBadgeText, { color: colors.aqua }]}>{passes.length}</Text>
+              </View>
+            ) : undefined}
           />
           <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
           <MenuItem

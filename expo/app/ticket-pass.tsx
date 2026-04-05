@@ -16,12 +16,15 @@ import {
   Calendar,
   MapPin,
   ShieldCheck,
+  Smartphone,
   Ticket,
+  Wallet,
   X,
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAgeVerification } from '@/providers/AgeVerificationProvider';
+import { useWalletPass } from '@/providers/WalletPassProvider';
 import { generateQRCodeUrl, generateQRCodeUrlLight } from '@/constants/identity';
 
 export default function TicketPassScreen() {
@@ -29,6 +32,7 @@ export default function TicketPassScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isVerified } = useAgeVerification();
+  const { hasPassForPurchase } = useWalletPass();
   const params = useLocalSearchParams<{
     purchaseId: string;
     eventTitle: string;
@@ -97,6 +101,24 @@ export default function TicketPassScreen() {
 
   const passCardBg = isDark ? '#0A1A22' : '#FFFFFF';
   const passCardBorder = isDark ? 'rgba(43, 191, 186, 0.15)' : 'rgba(26, 158, 153, 0.12)';
+
+  const walletStatus = useMemo(() => hasPassForPurchase(purchaseId), [hasPassForPurchase, purchaseId]);
+
+  const handleAddToWallet = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({
+      pathname: '/wallet-pass',
+      params: {
+        purchaseId,
+        eventTitle,
+        venueName,
+        date,
+        tierName,
+        quantity: String(quantity),
+        total,
+      },
+    });
+  }, [router, purchaseId, eventTitle, venueName, date, tierName, quantity, total]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="ticket-pass-screen">
@@ -219,10 +241,70 @@ export default function TicketPassScreen() {
         </Animated.View>
       </View>
 
-      <View style={[styles.bottomHint, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={[styles.bottomHintText, { color: colors.textSoft }]}>
-          {Platform.OS === 'ios' ? 'Screenshot to save to your camera roll' : 'Screenshot to save'}
-        </Text>
+      <View style={[styles.walletActions, { paddingBottom: insets.bottom + 16 }]}>
+        {(walletStatus.apple || walletStatus.google) ? (
+          <View style={styles.walletStatusRow}>
+            {walletStatus.apple && (
+              <View style={[styles.walletAddedBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                <Smartphone color={colors.textMuted} size={14} />
+                <Text style={[styles.walletAddedText, { color: colors.textMuted }]}>Apple Wallet</Text>
+              </View>
+            )}
+            {walletStatus.google && (
+              <View style={[styles.walletAddedBadge, { backgroundColor: 'rgba(66,133,244,0.08)' }]}>
+                <Wallet color="#4285F4" size={14} />
+                <Text style={[styles.walletAddedGoogleText]}>Google Wallet</Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        <View style={styles.walletBtnRow}>
+          {Platform.OS === 'ios' ? (
+            <Pressable
+              onPress={handleAddToWallet}
+              style={({ pressed }) => [
+                styles.appleWalletBtn,
+                pressed && styles.pressed,
+              ]}
+              testID="add-apple-wallet"
+            >
+              <Smartphone color="#fff" size={16} />
+              <Text style={styles.appleWalletBtnText}>
+                {walletStatus.apple ? 'View in Apple Wallet' : 'Add to Apple Wallet'}
+              </Text>
+            </Pressable>
+          ) : Platform.OS === 'android' ? (
+            <Pressable
+              onPress={handleAddToWallet}
+              style={({ pressed }) => [
+                styles.googleWalletBtn,
+                pressed && styles.pressed,
+              ]}
+              testID="add-google-wallet"
+            >
+              <Wallet color="#fff" size={16} />
+              <Text style={styles.googleWalletBtnText}>
+                {walletStatus.google ? 'View in Google Wallet' : 'Add to Google Wallet'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleAddToWallet}
+              style={({ pressed }) => [
+                styles.addWalletBtn,
+                { backgroundColor: colors.aqua },
+                pressed && styles.pressed,
+              ]}
+              testID="add-wallet-web"
+            >
+              <Wallet color={isDark ? colors.background : '#fff'} size={16} />
+              <Text style={[styles.addWalletBtnText, { color: isDark ? colors.background : '#fff' }]}>
+                {(walletStatus.apple || walletStatus.google) ? 'Manage Wallet Pass' : 'Add to Wallet'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -416,13 +498,75 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     letterSpacing: 1.5,
   },
-  bottomHint: {
+  walletActions: {
     alignItems: 'center',
     paddingTop: 8,
+    paddingHorizontal: 24,
+    gap: 10,
   },
-  bottomHintText: {
+  walletStatusRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  walletAddedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  walletAddedText: {
     fontSize: 12,
     fontWeight: '600' as const,
+  },
+  walletAddedGoogleText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#4285F4',
+  },
+  walletBtnRow: {
+    width: '100%',
+  },
+  appleWalletBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1A1A1A',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  appleWalletBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  googleWalletBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#4285F4',
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  googleWalletBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  addWalletBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  addWalletBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
   pressed: {
     opacity: 0.85,

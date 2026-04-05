@@ -12,6 +12,7 @@ import { DataProvider } from '@/providers/DataProvider';
 import { FavoritesProvider } from '@/providers/FavoritesProvider';
 import { SecureWalletProvider } from '@/providers/SecureWalletProvider';
 import { AgeVerificationProvider } from '@/providers/AgeVerificationProvider';
+import { WalletPassProvider } from '@/providers/WalletPassProvider';
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
@@ -44,6 +45,7 @@ function RootLayoutNav() {
       <Stack.Screen name="secure-wallet" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="ticket-pass" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="my-tickets" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="wallet-pass" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ presentation: 'card' }} />
       <Stack.Screen name="terms-of-service" options={{ presentation: 'card' }} />
       <Stack.Screen name="location-selector" options={{ presentation: 'modal', headerShown: false }} />
@@ -86,6 +88,7 @@ function AppContent() {
       <FavoritesProvider>
       <SecureWalletProvider>
       <AgeVerificationProvider>
+      <WalletPassProvider>
       <BiometricAuthProvider>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <RootLayoutNav />
@@ -98,6 +101,7 @@ function AppContent() {
         )}
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
       </BiometricAuthProvider>
+      </WalletPassProvider>
       </AgeVerificationProvider>
       </SecureWalletProvider>
       </FavoritesProvider>
