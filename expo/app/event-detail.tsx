@@ -246,19 +246,13 @@ export default function EventDetailScreen() {
       </ScrollView>
 
       <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)', borderTopColor: colors.border }]}>
-        <View style={styles.stickyInfo}>
-          <Text style={[styles.stickyPrice, { color: colors.text }]}>
-            From ${Math.min(...event.ticketTiers.filter((t) => !t.soldOut).map((t) => t.price))}
-          </Text>
-          <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>per ticket</Text>
-        </View>
         <Pressable
           onPress={handleGetTickets}
-          style={({ pressed }) => [styles.stickyBtn, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+          style={({ pressed }) => [styles.stickyBtnFull, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
           testID="event-detail-tickets"
         >
           <Ticket color={isDark ? colors.background : '#fff'} size={18} />
-          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Lock in spot</Text>
+          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Get Tickets</Text>
         </Pressable>
       </View>
 
@@ -530,31 +524,22 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingTop: 14,
     borderTopWidth: 1,
   },
-  stickyInfo: {
-    gap: 2,
-  },
-  stickyPrice: {
-    fontSize: 20,
-    fontWeight: '800' as const,
-  },
-  stickyMeta: {
-    fontSize: 13,
-  },
-  stickyBtn: {
+  stickyBtnFull: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     borderRadius: 14,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   stickyBtnText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
   },
 });

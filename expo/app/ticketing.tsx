@@ -1,215 +1,90 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Image,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Bookmark,
-  Calendar,
   CheckCircle2,
-  Clock,
-  Heart,
-  MapPin,
+  ChevronRight,
   Minus,
-  Navigation,
   Plus,
-  Share2,
-  Sparkles,
-  Star,
   Ticket,
-  TrendingUp,
-  Users,
-  Zap,
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { venues, getEventForVenue } from '@/mocks/events';
-
-import { DirectionsSheet } from '@/components/DirectionsSheet';
-
-const TM_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? '';
-
-const venueSearchNames: Record<string, string> = {
-  'v-001': 'Fillmore Auditorium',
-  'v-002': 'Gothic Theatre',
-  'v-003': 'Bluebird Theater',
-  'v-004': 'Ogden Theatre',
-  'v-005': 'Cervantes Masterpiece',
-  'v-006': 'Summit Music Hall',
-  'v-007': 'Church Nightclub',
-  'v-008': 'Meow Wolf Denver',
-  'v-009': 'Swallow Hill',
-  'v-010': 'Oriental Theater',
-};
-
-async function fetchTMVenueImage(venueId: string): Promise<string | null> {
-  const keyword = venueSearchNames[venueId];
-  if (!keyword || !TM_API_KEY) return null;
-  try {
-    const url = `https://app.ticketmaster.com/discovery/v2/venues.json?keyword=${encodeURIComponent(keyword)}&stateCode=CO&apikey=${TM_API_KEY}&size=3`;
-    console.log('[TM] Fetching venue image for:', keyword);
-    const res = await fetch(url);
-    const data = await res.json();
-    const tmVenues = data?._embedded?.venues ?? [];
-    for (const v of tmVenues) {
-      const images = v?.images ?? [];
-      if (images.length > 0) {
-        const best = images.reduce((a: any, b: any) => ((b.width ?? 0) > (a.width ?? 0) ? b : a), images[0]);
-        console.log('[TM] Found image for', keyword, ':', best.url, `(${best.width}x${best.height})`);
-        if ((best.width ?? 0) >= 400) {
-          return best.url;
-        }
-        console.log('[TM] Image too small, using fallback for', keyword);
-        return null;
-      }
-    }
-    console.log('[TM] No images found for', keyword);
-    return null;
-  } catch (e) {
-    console.log('[TM] Error fetching venue image:', e);
-    return null;
-  }
-}
-
-
+import { getEventForVenue } from '@/mocks/events';
 
 export default function TicketingScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams<{ venueId: string }>();
+
+  const venueId = params.venueId ?? 'v-001';
+  const event = useMemo(() => getEventForVenue(venueId), [venueId]);
 
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [saved, setSaved] = useState<boolean>(false);
-  const [liked, setLiked] = useState<boolean>(false);
-  const [tmVenueImage, setTmVenueImage] = useState<string | null>(null);
 
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const vibeGlow = useRef(new Animated.Value(0.6)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-  const contentSlide = useRef(new Animated.Value(30)).current;
-
-  const venueId = venues[0].id;
-  const event = useMemo(() => getEventForVenue(venueId), [venueId]);
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const slideUp = useRef(new Animated.Value(20)).current;
 
   const sortedTiers = useMemo(() => {
-    return [...event.ticketTiers].sort((a, b) => a.price - b.price);
+    return [...event.ticketTiers]
+      .filter(t => !t.soldOut)
+      .sort((a, b) => a.price - b.price);
   }, [event.ticketTiers]);
 
-  const heroImageUri = useMemo(() => {
-    if (tmVenueImage && tmVenueImage.length > 0) return tmVenueImage;
-    return event.heroImage;
-  }, [tmVenueImage, event.heroImage]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchTMVenueImage(venueId).then(url => {
-      if (cancelled) return;
-      setTmVenueImage(url);
-    });
-    return () => { cancelled = true; };
-  }, [venueId]);
+  const soldOutTiers = useMemo(() => {
+    return [...event.ticketTiers].filter(t => t.soldOut);
+  }, [event.ticketTiers]);
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(heroOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(contentSlide, { toValue: 0, duration: 500, delay: 200, useNativeDriver: true }),
+      Animated.timing(fadeIn, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.timing(slideUp, { toValue: 0, duration: 350, useNativeDriver: true }),
     ]).start();
-
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-      ])
-    );
-    pulse.start();
-
-    const glow = Animated.loop(
-      Animated.sequence([
-        Animated.timing(vibeGlow, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(vibeGlow, { toValue: 0.6, duration: 1400, useNativeDriver: true }),
-      ])
-    );
-    glow.start();
-
-    return () => {
-      pulse.stop();
-      glow.stop();
-    };
-  }, [heroOpacity, contentSlide, pulseAnim, vibeGlow]);
-
-  const handleQuantityChange = useCallback((tierId: string, delta: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setQuantities(prev => {
-      const current = prev[tierId] ?? 0;
-      const next = Math.max(0, Math.min(current + delta, 10));
-      return { ...prev, [tierId]: next };
-    });
-  }, []);
+  }, [fadeIn, slideUp]);
 
   const handleSelectTier = useCallback((tierId: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTier(prev => prev === tierId ? null : tierId);
     if (!quantities[tierId]) {
       setQuantities(prev => ({ ...prev, [tierId]: 1 }));
     }
   }, [quantities]);
 
-  const handleSave = useCallback(() => {
+  const handleQuantityChange = useCallback((tierId: string, delta: number) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSaved(s => !s);
+    setQuantities(prev => {
+      const current = prev[tierId] ?? 1;
+      const next = Math.max(1, Math.min(current + delta, 10));
+      return { ...prev, [tierId]: next };
+    });
   }, []);
 
-  const handleLike = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLiked(l => !l);
-  }, []);
-
-  const handleShare = useCallback(async () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await Share.share({
-        message: `Check out ${event.title} at ${event.venueName}! ${event.date} ${event.time}`,
-      });
-    } catch (e) {
-      console.log('[Ticketing] Share error:', e);
-    }
-  }, [event]);
-
-  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
-
-  const handleDirections = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setDirectionsVisible(true);
-  }, []);
-
-  const handleGetTickets = useCallback(() => {
+  const handleContinue = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const tier = selectedTier ?? event.ticketTiers.find(t => !t.soldOut)?.id;
-    const qty = tier ? (quantities[tier] || 1) : 1;
+    const tier = selectedTier ?? sortedTiers[0]?.id;
+    if (!tier) return;
+    const qty = quantities[tier] || 1;
     router.push({
       pathname: '/checkout',
       params: {
         eventId: event.id,
-        tierId: tier ?? '',
+        tierId: tier,
         quantity: String(qty),
       },
     });
-  }, [selectedTier, quantities, event, router]);
+  }, [selectedTier, quantities, event, router, sortedTiers]);
 
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;
@@ -221,761 +96,286 @@ export default function TicketingScreen() {
     return selectedTierData.price * (quantities[selectedTierData.id] ?? 1);
   }, [selectedTierData, quantities]);
 
-
-
-  const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
-
-  const heroGradientColors: [string, string, string] = isDark
-    ? ['transparent', 'rgba(4, 19, 24, 0.6)', colors.background]
-    : ['transparent', 'rgba(245, 248, 250, 0.6)', colors.background];
-
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="ticketing-screen">
       <Stack.Screen options={{ headerShown: false }} />
 
-      <Animated.View style={[styles.heroContainer, { opacity: heroOpacity }]}>
-        <Image source={{ uri: heroImageUri }} style={styles.heroImage} />
-        <LinearGradient colors={heroGradientColors} style={styles.heroGradient} />
-        <View style={[styles.heroTopBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}
-            testID="ticketing-back"
-          >
-            <ArrowLeft color={isDark ? '#fff' : '#000'} size={20} />
-          </Pressable>
-          <View style={styles.heroActions}>
-            <Pressable
-              onPress={handleLike}
-              style={[styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}
-              testID="ticketing-like"
-            >
-              <Heart color={liked ? colors.coral : (isDark ? '#fff' : '#000')} size={20} fill={liked ? colors.coral : 'transparent'} />
-            </Pressable>
-            <Pressable
-              onPress={handleShare}
-              style={[styles.heroIconBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}
-              testID="ticketing-share"
-            >
-              <Share2 color={isDark ? '#fff' : '#000'} size={20} />
-            </Pressable>
-          </View>
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
+        <Pressable
+          onPress={() => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
+          style={[styles.headerBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
+          testID="ticketing-back"
+        >
+          <ArrowLeft color={colors.text} size={20} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Select Tickets</Text>
+          <Text style={[styles.headerSub, { color: colors.textMuted }]} numberOfLines={1}>{event.title}</Text>
         </View>
-      </Animated.View>
+        <View style={styles.headerBtn} />
+      </View>
 
       <ScrollView
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
       >
-        <View style={{ height: 290 }} />
-
-        <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
-          <View style={styles.mainContent}>
-
-            <View style={styles.tagsRow}>
-              {event.tags.map(tag => (
-                <View key={tag} style={[styles.tagPill, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.1)' : 'rgba(26, 168, 163, 0.08)' }]}>
-                  <Text style={[styles.tagText, { color: colors.aqua }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={[styles.eventTitle, { color: colors.text }]}>{event.title}</Text>
-            <Text style={[styles.eventTagline, { color: colors.textMuted }]}>{event.tagline}</Text>
-
-            <View style={[styles.quickInfoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.quickInfoRow}>
-                <Calendar color={colors.aqua} size={18} />
-                <View style={styles.quickInfoText}>
-                  <Text style={[styles.quickInfoLabel, { color: colors.text }]}>{event.date}</Text>
-                  <Text style={[styles.quickInfoSub, { color: colors.textMuted }]}>{event.time}</Text>
-                </View>
-              </View>
-              <View style={[styles.quickInfoDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.quickInfoRow}>
-                <MapPin color={colors.aqua} size={18} />
-                <View style={styles.quickInfoText}>
-                  <Text style={[styles.quickInfoLabel, { color: colors.text }]}>{event.venueName}</Text>
-                  <Text style={[styles.quickInfoSub, { color: colors.textMuted }]}>{event.venueAddress}</Text>
-                </View>
-              </View>
-              <View style={[styles.quickInfoDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.quickInfoRow}>
-                <Clock color={colors.aqua} size={18} />
-                <View style={styles.quickInfoText}>
-                  <Text style={[styles.quickInfoLabel, { color: colors.text }]}>Doors open {event.doorsOpen}</Text>
-                  <Text style={[styles.quickInfoSub, { color: colors.textMuted }]}>{event.distanceFromUser}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.liveStatsRow}>
-              <Animated.View style={[
-                styles.vibeScoreCard,
-                { backgroundColor: isDark ? 'rgba(255, 109, 94, 0.08)' : 'rgba(224, 85, 69, 0.06)', transform: [{ scale: pulseAnim }] },
-              ]}>
-                <Animated.View style={{ opacity: vibeGlow }}>
-                  <Zap color={energyColor} size={22} />
-                </Animated.View>
-                <Text style={[styles.vibeScoreNum, { color: energyColor }]}>{event.vibeScore}</Text>
-                <Text style={[styles.vibeScoreLabel, { color: colors.textMuted }]}>Vibe</Text>
-              </Animated.View>
-
-              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.08)' : 'rgba(92, 168, 48, 0.06)' }]}>
-                <Users color={colors.lime} size={18} />
-                <Text style={[styles.statMiniNum, { color: colors.text }]}>{event.attendingCount}</Text>
-                <Text style={[styles.statMiniLabel, { color: colors.textMuted }]}>Going</Text>
-              </View>
-
-              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(255, 191, 71, 0.08)' : 'rgba(204, 142, 0, 0.06)' }]}>
-                <Heart color={colors.amber} size={18} />
-                <Text style={[styles.statMiniNum, { color: colors.text }]}>{event.interestedCount}</Text>
-                <Text style={[styles.statMiniLabel, { color: colors.textMuted }]}>Interested</Text>
-              </View>
-            </View>
-
-            <View style={[styles.energyBanner, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.06)' : 'rgba(26, 168, 163, 0.05)' }]}>
-              <View style={styles.energyBannerLeft}>
-                <TrendingUp color={colors.aqua} size={16} />
-                <Text style={[styles.energyBannerText, { color: colors.text }]}>
-                  {event.energyType === 'pulze' ? 'High Pulze Energy' : event.energyType === 'moderate' ? 'Moderate Energy' : 'Quiet Atmosphere'}
+        <Animated.View style={{ opacity: fadeIn, transform: [{ translateY: slideUp }] }}>
+          <View style={[styles.eventSummary, { backgroundColor: isDark ? 'rgba(53,212,207,0.05)' : 'rgba(26,168,163,0.04)', borderColor: colors.border }]}>
+            <View style={styles.eventSummaryRow}>
+              <Ticket color={colors.aqua} size={16} />
+              <View style={styles.eventSummaryText}>
+                <Text style={[styles.eventSummaryName, { color: colors.text }]} numberOfLines={1}>{event.title}</Text>
+                <Text style={[styles.eventSummaryMeta, { color: colors.textMuted }]}>
+                  {event.date} · {event.time}
                 </Text>
+                <Text style={[styles.eventSummaryVenue, { color: colors.textMuted }]}>{event.venueName}</Text>
               </View>
-              <View style={styles.energyDots}>
-                {[1, 2, 3, 4, 5].map(i => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.energyDot,
-                      {
-                        backgroundColor: i <= (event.energyType === 'pulze' ? 5 : event.energyType === 'moderate' ? 3 : 1)
-                          ? energyColor
-                          : isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                      },
+            </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+            {sortedTiers.length} option{sortedTiers.length !== 1 ? 's' : ''} available
+          </Text>
+
+          <View style={[styles.ticketList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {sortedTiers.map((tier, idx) => {
+              const isSelected = selectedTier === tier.id;
+              const qty = quantities[tier.id] ?? 1;
+
+              return (
+                <View key={tier.id}>
+                  <Pressable
+                    onPress={() => handleSelectTier(tier.id)}
+                    style={({ pressed }) => [
+                      styles.ticketRow,
+                      isSelected && { backgroundColor: isDark ? 'rgba(53,212,207,0.06)' : 'rgba(26,168,163,0.04)' },
+                      pressed && !isSelected && { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' },
                     ]}
-                  />
-                ))}
-              </View>
-            </View>
-
-            {event.friendsGoing.length > 0 && (
-              <View style={[styles.friendsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={styles.friendsHeader}>
-                  <Sparkles color={colors.aqua} size={16} />
-                  <Text style={[styles.friendsTitle, { color: colors.text }]}>From your network</Text>
-                </View>
-                <View style={styles.friendsAvatarRow}>
-                  {event.friendsGoing.slice(0, 5).map((friend, idx) => (
-                    <View key={friend.id} style={[styles.friendAvatarWrap, { marginLeft: idx > 0 ? -10 : 0, zIndex: 5 - idx }]}>
-                      <Image source={{ uri: friend.avatar }} style={[styles.friendAvatar, { borderColor: colors.background }]} />
+                    testID={`ticket-option-${tier.id}`}
+                  >
+                    <View style={styles.ticketRowRadio}>
+                      <View style={[
+                        styles.radioOuter,
+                        { borderColor: isSelected ? colors.aqua : colors.textSoft },
+                      ]}>
+                        {isSelected && <View style={[styles.radioInner, { backgroundColor: colors.aqua }]} />}
+                      </View>
                     </View>
-                  ))}
-                  <Text style={[styles.friendsCount, { color: colors.textMuted }]}>
-                    {event.friendsGoing.length} friends going
-                  </Text>
-                </View>
-              </View>
-            )}
 
-            <View
-              style={[styles.hostCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              testID="host-card"
-            >
-              <Image source={{ uri: event.hostAvatar }} style={styles.hostAvatar} />
-              <View style={styles.hostInfo}>
-                <View style={styles.hostNameRow}>
-                  <Text style={[styles.hostName, { color: colors.text }]}>{event.hostName}</Text>
-                  {event.hostVerified && <CheckCircle2 color={colors.aqua} size={14} fill={colors.aqua} />}
-                </View>
-                <Text style={[styles.hostLabel, { color: colors.textMuted }]}>Organizer</Text>
-              </View>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
-              <Text style={[styles.sectionBody, { color: colors.textMuted }]}>{event.description}</Text>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>What to expect</Text>
-              {event.whatToExpect.map((item, idx) => (
-                <View key={idx} style={styles.expectRow}>
-                  <View style={[styles.expectDot, { backgroundColor: colors.aqua }]} />
-                  <Text style={[styles.expectText, { color: colors.text }]}>{item}</Text>
-                </View>
-              ))}
-            </View>
-
-            {event.lineup.length > 0 && (
-              <View style={styles.sectionBlock}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Lineup</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lineupScroll}>
-                  {event.lineup.map(guest => (
-                    <View
-                      key={guest.id}
-                      style={[styles.lineupCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    >
-                      <Image source={{ uri: guest.avatar }} style={styles.lineupAvatar} />
-                      <Text style={[styles.lineupName, { color: colors.text }]}>{guest.name}</Text>
-                      <Text style={[styles.lineupRole, { color: colors.textMuted }]}>{guest.role}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            <View style={[styles.pulzeInsightCard, { backgroundColor: isDark ? '#0F2A34' : '#E4F0F4' }]}>
-              <View style={styles.insightHeader}>
-                <Sparkles color={colors.aqua} size={16} />
-                <Text style={[styles.insightTitle, { color: colors.aqua }]}>Pulze Insights</Text>
-              </View>
-              <View style={styles.insightRow}>
-                <Clock color={colors.textMuted} size={14} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.insightLabel, { color: colors.text }]}>Best time to arrive</Text>
-                  <Text style={[styles.insightValue, { color: colors.textMuted }]}>{event.bestTimeToArrive}</Text>
-                </View>
-              </View>
-              <View style={[styles.insightDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.insightRow}>
-                <TrendingUp color={colors.textMuted} size={14} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.insightLabel, { color: colors.text }]}>Current vibe around venue</Text>
-                  <Text style={[styles.insightValue, { color: colors.textMuted }]}>{event.currentVibeAround}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Tickets</Text>
-            </View>
-
-            <View style={[styles.ticketListContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {sortedTiers.filter(t => !t.soldOut).map((tier, idx, arr) => (
-                <Pressable
-                  key={tier.id}
-                  onPress={() => handleSelectTier(tier.id)}
-                  style={({ pressed }) => [
-                    styles.ticketListRow,
-                    selectedTier === tier.id && { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.08)' : 'rgba(26, 168, 163, 0.06)' },
-                    idx < arr.length - 1 && [styles.ticketListRowBorder, { borderBottomColor: colors.border }],
-                    { opacity: pressed ? 0.85 : 1 },
-                  ]}
-                  testID={`tier-${tier.id}`}
-                >
-                  <View style={styles.ticketListRadio}>
-                    <View style={[
-                      styles.ticketListRadioOuter,
-                      { borderColor: selectedTier === tier.id ? colors.aqua : colors.textSoft },
-                    ]}>
-                      {selectedTier === tier.id && (
-                        <View style={[styles.ticketListRadioInner, { backgroundColor: colors.aqua }]} />
+                    <View style={styles.ticketRowInfo}>
+                      <Text style={[styles.ticketName, { color: colors.text }]}>{tier.name}</Text>
+                      {tier.perks.length > 0 && (
+                        <Text style={[styles.ticketDesc, { color: colors.textMuted }]} numberOfLines={1}>
+                          {tier.perks[0]}
+                        </Text>
                       )}
                     </View>
+
+                    <Text style={[styles.ticketPrice, { color: isSelected ? colors.aqua : colors.text }]}>
+                      ${tier.price}
+                    </Text>
+                  </Pressable>
+
+                  {isSelected && (
+                    <View style={[styles.quantityRow, { borderTopColor: colors.border }]}>
+                      <Text style={[styles.quantityLabel, { color: colors.textMuted }]}>Quantity</Text>
+                      <View style={styles.quantityControls}>
+                        <Pressable
+                          onPress={() => handleQuantityChange(tier.id, -1)}
+                          style={[styles.qtyBtn, {
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                            opacity: qty <= 1 ? 0.4 : 1,
+                          }]}
+                          disabled={qty <= 1}
+                          testID={`qty-minus-${tier.id}`}
+                        >
+                          <Minus color={colors.textMuted} size={14} />
+                        </Pressable>
+                        <Text style={[styles.qtyValue, { color: colors.text }]}>{qty}</Text>
+                        <Pressable
+                          onPress={() => handleQuantityChange(tier.id, 1)}
+                          style={[styles.qtyBtn, {
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                            opacity: qty >= 10 ? 0.4 : 1,
+                          }]}
+                          disabled={qty >= 10}
+                          testID={`qty-plus-${tier.id}`}
+                        >
+                          <Plus color={colors.textMuted} size={14} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+
+                  {idx < sortedTiers.length - 1 && (
+                    <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          {soldOutTiers.length > 0 && (
+            <View style={styles.soldOutSection}>
+              <Text style={[styles.soldOutLabel, { color: colors.textSoft }]}>Sold out</Text>
+              {soldOutTiers.map((tier) => (
+                <View
+                  key={tier.id}
+                  style={[styles.soldOutRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderColor: colors.border }]}
+                >
+                  <View style={styles.ticketRowInfo}>
+                    <Text style={[styles.ticketName, { color: colors.textSoft }]}>{tier.name}</Text>
                   </View>
-                  <View style={styles.ticketListInfo}>
-                    <Text style={[styles.ticketListName, { color: colors.text }]}>{tier.name}</Text>
-                    {tier.perks.length > 0 && (
-                      <Text style={[styles.ticketListDesc, { color: colors.textMuted }]} numberOfLines={1}>
-                        {tier.perks[0]}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={[styles.ticketListPrice, { color: colors.text }]}>${tier.price}</Text>
-                </Pressable>
+                  <Text style={[styles.soldOutBadge, { color: colors.textSoft }]}>Sold out</Text>
+                </View>
               ))}
             </View>
+          )}
 
-            {selectedTier && !sortedTiers.find(t => t.id === selectedTier)?.soldOut && (
-              <View style={[styles.quantityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.quantityCardLabel, { color: colors.textMuted }]}>Quantity</Text>
-                <View style={styles.quantityControls}>
-                  <Pressable
-                    onPress={() => handleQuantityChange(selectedTier, -1)}
-                    style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
-                    testID={`qty-minus-${selectedTier}`}
-                  >
-                    <Minus color={colors.textMuted} size={16} />
-                  </Pressable>
-                  <Text style={[styles.qtyValue, { color: colors.text }]}>{quantities[selectedTier] || 1}</Text>
-                  <Pressable
-                    onPress={() => handleQuantityChange(selectedTier, 1)}
-                    style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
-                    testID={`qty-plus-${selectedTier}`}
-                  >
-                    <Plus color={colors.textMuted} size={16} />
-                  </Pressable>
+          {selectedTierData && selectedTierData.perks.length > 0 && (
+            <View style={[styles.perksCard, { backgroundColor: isDark ? 'rgba(53,212,207,0.04)' : 'rgba(26,168,163,0.03)', borderColor: colors.border }]}>
+              <Text style={[styles.perksTitle, { color: colors.text }]}>What's included</Text>
+              {selectedTierData.perks.map((perk, idx) => (
+                <View key={idx} style={styles.perkRow}>
+                  <CheckCircle2 color={colors.aqua} size={14} />
+                  <Text style={[styles.perkText, { color: colors.textMuted }]}>{perk}</Text>
                 </View>
-              </View>
-            )}
-
-            <View style={[styles.mapPreviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.mapPreviewTitle, { color: colors.text }]}>Venue Location</Text>
-              <View style={[styles.mapPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
-                <MapPin color={colors.aqua} size={32} />
-                <Text style={[styles.mapPlaceholderText, { color: colors.textMuted }]}>{event.venueName}</Text>
-                <Text style={[styles.mapPlaceholderAddr, { color: colors.textSoft }]}>{event.venueAddress}</Text>
-              </View>
-              <View style={styles.mapActionsRow}>
-                <Pressable
-                  onPress={handleDirections}
-                  style={[styles.mapActionBtn, { backgroundColor: colors.aqua }]}
-                  testID="directions-btn"
-                >
-                  <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-                  <Text style={[styles.mapActionText, { color: isDark ? colors.background : '#fff' }]}>Directions</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleSave}
-                  style={[styles.mapActionBtnOutline, { borderColor: colors.border, backgroundColor: saved ? (isDark ? 'rgba(53,212,207,0.1)' : 'rgba(26,168,163,0.08)') : 'transparent' }]}
-                  testID="save-event-btn"
-                >
-                  <Bookmark color={saved ? colors.aqua : colors.textMuted} size={16} fill={saved ? colors.aqua : 'transparent'} />
-                  <Text style={[styles.mapActionOutlineText, { color: saved ? colors.aqua : colors.textMuted }]}>{saved ? 'Saved' : 'Save'}</Text>
-                </Pressable>
-              </View>
+              ))}
             </View>
-
-          </View>
+          )}
         </Animated.View>
       </ScrollView>
 
-      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 8, backgroundColor: isDark ? 'rgba(4,19,24,0.95)' : 'rgba(245,248,250,0.95)', borderTopColor: colors.border }]}>
+      <View style={[styles.stickyBottom, {
+        paddingBottom: insets.bottom + 8,
+        backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)',
+        borderTopColor: colors.border,
+      }]}>
         <View style={styles.stickyInfo}>
           {selectedTierData ? (
             <>
               <Text style={[styles.stickyPrice, { color: colors.text }]}>${stickyTotal}</Text>
               <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>
-                {quantities[selectedTierData.id] ?? 1}x {selectedTierData.name}
+                {quantities[selectedTierData.id] ?? 1}× {selectedTierData.name}
               </Text>
             </>
           ) : (
             <>
-              <Text style={[styles.stickyPrice, { color: colors.text }]}>From ${Math.min(...event.ticketTiers.filter(t => !t.soldOut).map(t => t.price))}</Text>
-              <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>per ticket</Text>
+              <Text style={[styles.stickyPrice, { color: colors.text }]}>
+                From ${sortedTiers.length > 0 ? sortedTiers[0].price : 0}
+              </Text>
+              <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>Select a ticket</Text>
             </>
           )}
         </View>
         <Pressable
-          onPress={handleGetTickets}
+          onPress={handleContinue}
+          disabled={!selectedTier && sortedTiers.length === 0}
           style={({ pressed }) => [
-            styles.stickyBtn,
-            { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+            styles.continueBtn,
+            {
+              backgroundColor: colors.aqua,
+              opacity: (!selectedTier && sortedTiers.length === 0) ? 0.5 : (pressed ? 0.9 : 1),
+              transform: [{ scale: pressed ? 0.97 : 1 }],
+            },
           ]}
-          testID="get-tickets-btn"
+          testID="continue-to-checkout"
         >
-          <Ticket color={isDark ? colors.background : '#fff'} size={18} />
-          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Get Tickets</Text>
+          <Text style={[styles.continueBtnText, { color: isDark ? colors.background : '#fff' }]}>Continue</Text>
+          <ChevronRight color={isDark ? colors.background : '#fff'} size={18} />
         </Pressable>
       </View>
-      <DirectionsSheet
-        visible={directionsVisible}
-        onClose={() => setDirectionsVisible(false)}
-        latitude={event.venueLatitude}
-        longitude={event.venueLongitude}
-        address={event.venueAddress}
-        name={event.venueName}
-      />
     </View>
   );
 }
-
-const VenueCard = React.memo(function VenueCard({
-  venue,
-  selected,
-  onSelect,
-}: {
-  venue: (typeof venues)[number];
-  selected: boolean;
-  onSelect: (id: string) => void;
-}) {
-  const { colors, isDark } = useTheme();
-  const energyColor = venue.energyType === 'pulze' ? colors.coral : venue.energyType === 'moderate' ? colors.amber : colors.quiet;
-
-  return (
-    <Pressable
-      onPress={() => onSelect(venue.id)}
-      style={({ pressed }) => [
-        styles.venueCard,
-        {
-          backgroundColor: selected
-            ? (isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.1)')
-            : colors.surface,
-          borderColor: selected ? colors.aqua : (isDark ? 'rgba(123, 220, 219, 0.35)' : 'rgba(11, 35, 44, 0.2)'),
-          opacity: pressed ? 0.92 : 1,
-          transform: [{ scale: pressed ? 0.97 : 1 }],
-        },
-      ]}
-      testID={`venue-${venue.id}`}
-    >
-      <Image source={{ uri: venue.image }} style={styles.venueCardImage} />
-      <View style={styles.venueCardInfo}>
-        <Text
-          style={[styles.venueCardName, { color: selected ? colors.aqua : colors.text }]}
-          numberOfLines={1}
-        >
-          {venue.shortName}
-        </Text>
-        <View style={styles.venueCardVibeRow}>
-          <View style={[styles.venueCardVibeDot, { backgroundColor: energyColor }]} />
-          <Text style={[styles.venueCardVibeScore, { color: colors.textMuted }]}>{venue.vibeScore}</Text>
-        </View>
-      </View>
-      {selected && (
-        <View style={[styles.venueSelectedIndicator, { backgroundColor: colors.aqua }]} />
-      )}
-    </Pressable>
-  );
-});
-
-
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  heroContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
-    zIndex: 1,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 140,
-  },
-  heroTopBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 12,
   },
-  heroActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  heroIconBtn: {
+  headerBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrollContent: {
-    position: 'relative',
-    zIndex: 2,
-  },
-  mainContent: {
-    paddingHorizontal: 16,
-    gap: 16,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tagPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-  },
-  eventTitle: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    lineHeight: 34,
-    letterSpacing: -0.3,
-  },
-  eventTagline: {
-    fontSize: 16,
-    lineHeight: 22,
-    marginTop: -4,
-  },
-  quickInfoCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1,
-  },
-  quickInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  quickInfoText: {
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
     gap: 2,
   },
-  quickInfoLabel: {
-    fontSize: 15,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: '700' as const,
   },
-  quickInfoSub: {
+  headerSub: {
     fontSize: 13,
   },
-  quickInfoDivider: {
-    height: 1,
-    marginLeft: 32,
-  },
-  liveStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  vibeScoreCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  vibeScoreNum: {
-    fontSize: 32,
-    fontWeight: '900' as const,
-  },
-  vibeScoreLabel: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  statMiniCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  statMiniNum: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-  },
-  statMiniLabel: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  energyBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 16,
+  scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingTop: 16,
+    gap: 16,
   },
-  energyBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  energyBannerText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  energyDots: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  energyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  friendsCard: {
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-  },
-  friendsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  friendsTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  friendsAvatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  friendAvatarWrap: {
-    borderRadius: 18,
-  },
-  friendAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-  },
-  friendsCount: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginLeft: 10,
-  },
-  hostCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 20,
+  eventSummary: {
+    borderRadius: 14,
     padding: 14,
     borderWidth: 1,
   },
-  hostAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  hostInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  hostNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  hostName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  hostLabel: {
-    fontSize: 13,
-  },
-  sectionBlock: {
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800' as const,
-  },
-  sectionSub: {
-    fontSize: 14,
-    marginTop: -6,
-  },
-  sectionBody: {
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  expectRow: {
+  eventSummaryRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    paddingLeft: 4,
-  },
-  expectDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 7,
-  },
-  expectText: {
-    fontSize: 15,
-    lineHeight: 22,
-    flex: 1,
-  },
-  lineupScroll: {
     gap: 12,
-    paddingRight: 4,
   },
-  lineupCard: {
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 20,
-    padding: 16,
-    width: 120,
-    borderWidth: 1,
+  eventSummaryText: {
+    flex: 1,
+    gap: 3,
   },
-  lineupAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  lineupName: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    textAlign: 'center' as const,
-  },
-  lineupRole: {
-    fontSize: 12,
-    textAlign: 'center' as const,
-  },
-  pulzeInsightCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  insightLabel: {
-    fontSize: 14,
+  eventSummaryName: {
+    fontSize: 15,
     fontWeight: '700' as const,
   },
-  insightValue: {
+  eventSummaryMeta: {
     fontSize: 13,
-    lineHeight: 19,
-    marginTop: 2,
   },
-  insightDivider: {
-    height: 1,
-    marginLeft: 24,
+  eventSummaryVenue: {
+    fontSize: 13,
   },
-  ticketListContainer: {
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 4,
+  },
+  ticketList: {
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  ticketListRow: {
+  ticketRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 14,
   },
-  ticketListRowBorder: {
-    borderBottomWidth: 1,
-  },
-  ticketListRadio: {
+  ticketRowRadio: {
     width: 22,
     height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ticketListRadioOuter: {
+  radioOuter: {
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -983,111 +383,99 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ticketListRadioInner: {
+  radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
   },
-  ticketListInfo: {
+  ticketRowInfo: {
     flex: 1,
-    gap: 2,
+    gap: 3,
   },
-  ticketListName: {
+  ticketName: {
     fontSize: 15,
     fontWeight: '700' as const,
   },
-  ticketListDesc: {
+  ticketDesc: {
     fontSize: 13,
   },
-  ticketListPrice: {
+  ticketPrice: {
     fontSize: 17,
     fontWeight: '800' as const,
   },
-  quantityCard: {
-    borderRadius: 16,
-    borderWidth: 1,
+  quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 52,
+    paddingVertical: 12,
+    borderTopWidth: 1,
   },
-  quantityCardLabel: {
+  quantityLabel: {
     fontSize: 14,
     fontWeight: '600' as const,
   },
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   qtyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   qtyValue: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    minWidth: 24,
+    fontSize: 17,
+    fontWeight: '700' as const,
+    minWidth: 20,
     textAlign: 'center' as const,
   },
-  mapPreviewCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1,
+  rowDivider: {
+    height: 1,
+    marginLeft: 52,
   },
-  mapPreviewTitle: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  mapPlaceholder: {
-    height: 140,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  soldOutSection: {
     gap: 8,
   },
-  mapPlaceholderText: {
+  soldOutLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  soldOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 14,
+  },
+  soldOutBadge: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  perksCard: {
+    borderRadius: 14,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+  },
+  perksTitle: {
     fontSize: 15,
     fontWeight: '700' as const,
+    marginBottom: 2,
   },
-  mapPlaceholderAddr: {
-    fontSize: 12,
-  },
-  mapActionsRow: {
+  perkRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
-  mapActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 13,
-  },
-  mapActionText: {
+  perkText: {
     fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  mapActionBtnOutline: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-  },
-  mapActionOutlineText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
   },
   stickyBottom: {
     position: 'absolute',
@@ -1103,92 +491,25 @@ const styles = StyleSheet.create({
   },
   stickyInfo: {
     gap: 2,
+    flex: 1,
   },
   stickyPrice: {
-    fontSize: 22,
-    fontWeight: '900' as const,
+    fontSize: 20,
+    fontWeight: '800' as const,
   },
   stickyMeta: {
     fontSize: 13,
   },
-  stickyBtn: {
+  continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderRadius: 16,
+    gap: 6,
+    borderRadius: 14,
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  stickyBtnText: {
+  continueBtnText: {
     fontSize: 16,
-    fontWeight: '800' as const,
-  },
-  venueSelectorContainer: {
-    marginBottom: 12,
-    overflow: 'visible',
-  },
-  venueScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 10,
-    overflow: 'visible',
-  },
-  venueCard: {
-    width: 108,
-    height: 120,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-    paddingTop: 10,
-    paddingBottom: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-    overflow: 'visible',
-  },
-  venueCardImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-  },
-  venueCardInfo: {
-    marginTop: 6,
-    alignItems: 'center',
-    gap: 3,
-    width: '100%',
-  },
-  venueCardName: {
-    fontSize: 12,
     fontWeight: '700' as const,
-    textAlign: 'center' as const,
-    width: '100%',
-  },
-  venueCardVibeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  venueCardVibeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  venueCardVibeScore: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-  },
-  venueSelectedIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    left: 16,
-    right: 16,
-    height: 2.5,
-    borderRadius: 2,
   },
 });
