@@ -54,6 +54,10 @@ export default function TicketsTab() {
   const trendingArtists = useMemo(() => artistListings.filter(a => a.trending), []);
   const allArtists = useMemo(() => artistListings, []);
 
+  const sortedTiers = useMemo(() => {
+    return [...event.ticketTiers].sort((a, b) => a.price - b.price);
+  }, [event.ticketTiers]);
+
   const handleArtistTap = useCallback((artist: ArtistListing) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/ticketing', params: { venueId: artist.venueId } });
@@ -345,7 +349,7 @@ export default function TicketsTab() {
               <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Select a tier to continue</Text>
             </View>
 
-            {event.ticketTiers.map(tier => (
+            {sortedTiers.map(tier => (
               <TicketTierCard
                 key={tier.id}
                 tier={tier}

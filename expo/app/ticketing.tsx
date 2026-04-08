@@ -91,12 +91,11 @@ export default function TicketingScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
 
-  const [selectedVenueId, setSelectedVenueId] = useState<string>(venues[0].id);
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState<boolean>(false);
   const [liked, setLiked] = useState<boolean>(false);
-  const [tmVenueImages, setTmVenueImages] = useState<Record<string, string>>({});
+  const [tmVenueImage, setTmVenueImage] = useState<string | null>(null);
 
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -104,41 +103,26 @@ export default function TicketingScreen() {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
 
-  const event = useMemo(() => getEventForVenue(selectedVenueId), [selectedVenueId]);
+  const venueId = venues[0].id;
+  const event = useMemo(() => getEventForVenue(venueId), [venueId]);
+
+  const sortedTiers = useMemo(() => {
+    return [...event.ticketTiers].sort((a, b) => a.price - b.price);
+  }, [event.ticketTiers]);
 
   const heroImageUri = useMemo(() => {
-    const tmImage = tmVenueImages[selectedVenueId];
-    if (tmImage && tmImage.length > 0) return tmImage;
+    if (tmVenueImage && tmVenueImage.length > 0) return tmVenueImage;
     return event.heroImage;
-  }, [selectedVenueId, tmVenueImages, event.heroImage]);
+  }, [tmVenueImage, event.heroImage]);
 
-  const tmImageFetched = tmVenueImages[selectedVenueId] !== undefined;
   useEffect(() => {
-    if (tmImageFetched) return;
     let cancelled = false;
-    void fetchTMVenueImage(selectedVenueId).then(url => {
+    void fetchTMVenueImage(venueId).then(url => {
       if (cancelled) return;
-      setTmVenueImages(prev => ({ ...prev, [selectedVenueId]: url ?? '' }));
+      setTmVenueImage(url);
     });
     return () => { cancelled = true; };
-  }, [selectedVenueId, tmImageFetched]);
-
-  const handleSelectVenue = useCallback((venueId: string) => {
-    if (venueId === selectedVenueId) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedVenueId(venueId);
-    setSelectedTier(null);
-    setQuantities({});
-    setSaved(false);
-    setLiked(false);
-    heroOpacity.setValue(0);
-    contentSlide.setValue(30);
-    Animated.parallel([
-      Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(contentSlide, { toValue: 0, duration: 350, delay: 100, useNativeDriver: true }),
-    ]).start();
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
-  }, [selectedVenueId, heroOpacity, contentSlide]);
+  }, [venueId]);
 
   useEffect(() => {
     Animated.parallel([
@@ -285,23 +269,6 @@ export default function TicketingScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
       >
         <View style={{ height: 290 }} />
-
-        <View style={styles.venueSelectorContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.venueScrollContent}
-          >
-            {venues.map(venue => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                selected={venue.id === selectedVenueId}
-                onSelect={handleSelectVenue}
-              />
-            ))}
-          </ScrollView>
-        </View>
 
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>
@@ -485,7 +452,7 @@ export default function TicketingScreen() {
               <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Select a tier to continue</Text>
             </View>
 
-            {event.ticketTiers.map(tier => (
+            {sortedTiers.map(tier => (
               <TicketTierCard
                 key={tier.id}
                 tier={tier}
