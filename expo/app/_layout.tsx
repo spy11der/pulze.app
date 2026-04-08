@@ -19,7 +19,9 @@ import { PulseSplash } from '@/components/PulseSplash';
 import { CityWelcome } from '@/components/CityWelcome';
 import { AuthScreen } from '@/components/AuthScreen';
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.preventAutoHideAsync().catch(() => {
+  console.log('[SplashScreen] preventAutoHideAsync failed');
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
