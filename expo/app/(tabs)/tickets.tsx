@@ -447,34 +447,7 @@ export default function TicketsTab() {
         name={event.venueName}
       />
 
-      <View style={[styles.stickyBottom, { paddingBottom: insets.bottom + 90, backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)', borderTopColor: colors.border }]}>
-        <View style={styles.stickyInfo}>
-          {selectedTierData ? (
-            <>
-              <Text style={[styles.stickyPrice, { color: colors.text }]}>${stickyTotal}</Text>
-              <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>
-                {quantities[selectedTierData.id] ?? 1}x {selectedTierData.name}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={[styles.stickyPrice, { color: colors.text }]}>From ${Math.min(...event.ticketTiers.filter(t => !t.soldOut).map(t => t.price))}</Text>
-              <Text style={[styles.stickyMeta, { color: colors.textMuted }]}>per ticket</Text>
-            </>
-          )}
-        </View>
-        <Pressable
-          onPress={handleGetTickets}
-          style={({ pressed }) => [
-            styles.stickyBtn,
-            { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-          ]}
-          testID="tickets-get-btn"
-        >
-          <Ticket color={isDark ? colors.background : '#fff'} size={18} />
-          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Lock in spot</Text>
-        </Pressable>
-      </View>
+
     </View>
   );
 }
