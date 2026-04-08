@@ -36,7 +36,7 @@ import {
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { venues, getEventForVenue } from '@/mocks/events';
-import type { TicketTier } from '@/mocks/events';
+
 import { DirectionsSheet } from '@/components/DirectionsSheet';
 
 const TM_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? '';
@@ -449,19 +449,66 @@ export default function TicketingScreen() {
 
             <View style={styles.sectionBlock}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Tickets</Text>
-              <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Select a tier to continue</Text>
             </View>
 
-            {sortedTiers.map(tier => (
-              <TicketTierCard
-                key={tier.id}
-                tier={tier}
-                selected={selectedTier === tier.id}
-                quantity={quantities[tier.id] ?? 0}
-                onSelect={handleSelectTier}
-                onQuantityChange={handleQuantityChange}
-              />
-            ))}
+            <View style={[styles.ticketListContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {sortedTiers.filter(t => !t.soldOut).map((tier, idx, arr) => (
+                <Pressable
+                  key={tier.id}
+                  onPress={() => handleSelectTier(tier.id)}
+                  style={({ pressed }) => [
+                    styles.ticketListRow,
+                    selectedTier === tier.id && { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.08)' : 'rgba(26, 168, 163, 0.06)' },
+                    idx < arr.length - 1 && [styles.ticketListRowBorder, { borderBottomColor: colors.border }],
+                    { opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  testID={`tier-${tier.id}`}
+                >
+                  <View style={styles.ticketListRadio}>
+                    <View style={[
+                      styles.ticketListRadioOuter,
+                      { borderColor: selectedTier === tier.id ? colors.aqua : colors.textSoft },
+                    ]}>
+                      {selectedTier === tier.id && (
+                        <View style={[styles.ticketListRadioInner, { backgroundColor: colors.aqua }]} />
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.ticketListInfo}>
+                    <Text style={[styles.ticketListName, { color: colors.text }]}>{tier.name}</Text>
+                    {tier.perks.length > 0 && (
+                      <Text style={[styles.ticketListDesc, { color: colors.textMuted }]} numberOfLines={1}>
+                        {tier.perks[0]}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[styles.ticketListPrice, { color: colors.text }]}>${tier.price}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {selectedTier && !sortedTiers.find(t => t.id === selectedTier)?.soldOut && (
+              <View style={[styles.quantityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Text style={[styles.quantityCardLabel, { color: colors.textMuted }]}>Quantity</Text>
+                <View style={styles.quantityControls}>
+                  <Pressable
+                    onPress={() => handleQuantityChange(selectedTier, -1)}
+                    style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
+                    testID={`qty-minus-${selectedTier}`}
+                  >
+                    <Minus color={colors.textMuted} size={16} />
+                  </Pressable>
+                  <Text style={[styles.qtyValue, { color: colors.text }]}>{quantities[selectedTier] || 1}</Text>
+                  <Pressable
+                    onPress={() => handleQuantityChange(selectedTier, 1)}
+                    style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
+                    testID={`qty-plus-${selectedTier}`}
+                  >
+                    <Plus color={colors.textMuted} size={16} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             <View style={[styles.mapPreviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Text style={[styles.mapPreviewTitle, { color: colors.text }]}>Venue Location</Text>
@@ -582,98 +629,7 @@ const VenueCard = React.memo(function VenueCard({
   );
 });
 
-const TicketTierCard = React.memo(function TicketTierCard({
-  tier,
-  selected,
-  quantity,
-  onSelect,
-  onQuantityChange,
-}: {
-  tier: TicketTier;
-  selected: boolean;
-  quantity: number;
-  onSelect: (id: string) => void;
-  onQuantityChange: (id: string, delta: number) => void;
-}) {
-  const { colors, isDark } = useTheme();
-  const lowStock = !tier.soldOut && tier.available <= 15 && tier.available > 0;
 
-  return (
-    <Pressable
-      onPress={() => !tier.soldOut && onSelect(tier.id)}
-      style={({ pressed }) => [
-        styles.tierCard,
-        {
-          backgroundColor: selected ? (isDark ? 'rgba(53, 212, 207, 0.08)' : 'rgba(26, 168, 163, 0.06)') : colors.surface,
-          borderColor: selected ? colors.aqua : colors.border,
-          opacity: tier.soldOut ? 0.5 : (pressed ? 0.95 : 1),
-        },
-      ]}
-      disabled={tier.soldOut}
-      testID={`tier-${tier.id}`}
-    >
-      <View style={styles.tierTop}>
-        <View style={styles.tierNameRow}>
-          <Text style={[styles.tierName, { color: tier.soldOut ? colors.textSoft : colors.text }]}>{tier.name}</Text>
-          {tier.tag && !tier.soldOut && (
-            <View style={[styles.tierTag, { backgroundColor: tier.tag === 'Best Value' ? (isDark ? 'rgba(165,240,92,0.15)' : 'rgba(92,168,48,0.1)') : (isDark ? 'rgba(53,212,207,0.15)' : 'rgba(26,168,163,0.1)') }]}>
-              <Star color={tier.tag === 'Best Value' ? colors.lime : colors.aqua} size={10} />
-              <Text style={[styles.tierTagText, { color: tier.tag === 'Best Value' ? colors.lime : colors.aqua }]}>{tier.tag}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.tierPriceCol}>
-          <View style={styles.tierPriceRow}>
-            {tier.originalPrice && !tier.soldOut && (
-              <Text style={[styles.tierOrigPrice, { color: colors.textSoft }]}>${tier.originalPrice}</Text>
-            )}
-            <Text style={[styles.tierPrice, { color: tier.soldOut ? colors.textSoft : colors.text }]}>${tier.price}</Text>
-          </View>
-          {tier.soldOut && (
-            <View style={[styles.soldOutBadge, { backgroundColor: isDark ? 'rgba(255,77,58,0.12)' : 'rgba(224,57,43,0.08)' }]}>
-              <Text style={[styles.soldOutText, { color: colors.danger }]}>Sold Out</Text>
-            </View>
-          )}
-          {lowStock && (
-            <Text style={[styles.lowStockText, { color: colors.coral }]}>{tier.available} left</Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.tierPerks}>
-        {tier.perks.map((perk, idx) => (
-          <View key={idx} style={styles.perkRow}>
-            <CheckCircle2 color={tier.soldOut ? colors.textSoft : colors.aqua} size={13} />
-            <Text style={[styles.perkText, { color: tier.soldOut ? colors.textSoft : colors.textMuted }]}>{perk}</Text>
-          </View>
-        ))}
-      </View>
-
-      {selected && !tier.soldOut && (
-        <View style={[styles.quantityRow, { borderTopColor: colors.border }]}>
-          <Text style={[styles.quantityLabel, { color: colors.textMuted }]}>Quantity</Text>
-          <View style={styles.quantityControls}>
-            <Pressable
-              onPress={() => onQuantityChange(tier.id, -1)}
-              style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
-              testID={`qty-minus-${tier.id}`}
-            >
-              <Minus color={colors.textMuted} size={16} />
-            </Pressable>
-            <Text style={[styles.qtyValue, { color: colors.text }]}>{quantity || 1}</Text>
-            <Pressable
-              onPress={() => onQuantityChange(tier.id, 1)}
-              style={[styles.qtyBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
-              testID={`qty-plus-${tier.id}`}
-            >
-              <Plus color={colors.textMuted} size={16} />
-            </Pressable>
-          </View>
-        </View>
-      )}
-    </Pressable>
-  );
-});
 
 const styles = StyleSheet.create({
   screen: {
@@ -998,89 +954,65 @@ const styles = StyleSheet.create({
     height: 1,
     marginLeft: 24,
   },
-  tierCard: {
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
+  ticketListContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  ticketListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     gap: 14,
   },
-  tierTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  ticketListRowBorder: {
+    borderBottomWidth: 1,
   },
-  tierNameRow: {
+  ticketListRadio: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketListRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketListRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  ticketListInfo: {
     flex: 1,
-    gap: 6,
+    gap: 2,
   },
-  tierName: {
+  ticketListName: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  ticketListDesc: {
+    fontSize: 13,
+  },
+  ticketListPrice: {
     fontSize: 17,
     fontWeight: '800' as const,
   },
-  tierTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  tierTagText: {
-    fontSize: 11,
-    fontWeight: '800' as const,
-  },
-  tierPriceCol: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  tierPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tierOrigPrice: {
-    fontSize: 14,
-    textDecorationLine: 'line-through' as const,
-  },
-  tierPrice: {
-    fontSize: 22,
-    fontWeight: '900' as const,
-  },
-  soldOutBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  soldOutText: {
-    fontSize: 11,
-    fontWeight: '800' as const,
-    textTransform: 'uppercase' as const,
-  },
-  lowStockText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-  },
-  tierPerks: {
-    gap: 8,
-  },
-  perkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  perkText: {
-    fontSize: 13,
-    flex: 1,
-  },
-  quantityRow: {
+  quantityCard: {
+    borderRadius: 16,
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 14,
-    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  quantityLabel: {
+  quantityCardLabel: {
     fontSize: 14,
     fontWeight: '600' as const,
   },
