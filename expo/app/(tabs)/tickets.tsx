@@ -123,7 +123,7 @@ export default function TicketsTab() {
     return selectedTierData.price * (quantities[selectedTierData.id] ?? 1);
   }, [selectedTierData, quantities]);
 
-  const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
+  const energyColor = colors.aqua;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="tickets-tab-screen">

@@ -45,7 +45,7 @@ export default function EventDetailScreen() {
   const event = useMemo(() => getEventForVenue(venueId), [venueId]);
   const hearted = isFavorited(event.id);
 
-  const energyColor = event.energyType === 'pulze' ? colors.coral : event.energyType === 'moderate' ? colors.amber : colors.quiet;
+  const energyColor = colors.aqua;
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
