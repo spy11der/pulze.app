@@ -28,16 +28,7 @@ import type { SavedVibe } from '@/services/database';
 
 type FeedMode = 'everyone' | 'friends' | 'my_vibes';
 
-function getVibeColor(vibe: string): string {
-  const v = vibe.toLowerCase();
-  if (v === 'party') return '#E8564A';
-  if (v === 'active') return '#E8A830';
-  if (v === 'social') return '#8DD44E';
-  if (v === 'romantic') return '#5CE8DC';
-  if (v === 'creative') return '#D456A8';
-  if (v === 'quiet') return '#6AADCC';
-  if (v === 'chill') return '#4EBE7A';
-  if (v === 'busy') return '#E89050';
+function getVibeColor(_vibe: string): string {
   return '#2BBFBA';
 }
 
@@ -53,12 +44,10 @@ function formatTimeAgo(isoDate: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function getScoreColor(score: number, colors: { coral: string; amber: string; lime: string; aqua: string; quiet: string }): string {
-  if (score >= 80) return colors.coral;
-  if (score >= 60) return colors.amber;
-  if (score >= 40) return colors.lime;
-  if (score >= 20) return colors.aqua;
-  return colors.quiet;
+function getScoreColor(score: number, colors: { aqua: string; aquaBright: string; textSoft: string }): string {
+  if (score >= 60) return colors.aquaBright;
+  if (score >= 30) return colors.aqua;
+  return colors.textSoft;
 }
 
 export default function FeedScreen() {
@@ -229,9 +218,9 @@ export default function FeedScreen() {
               <Text style={[styles.promoTitle, { color: colors.text }]}>Neon Drift: Rooftop After Dark</Text>
             </View>
             <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · From $25</Text>
-            <View style={[styles.promoUrgency, { backgroundColor: '#E8564A14' }]}>
-              <Flame color="#E8564A" size={10} />
-              <Text style={styles.promoUrgencyText}>82% sold</Text>
+            <View style={[styles.promoUrgency, { backgroundColor: `${colors.aqua}14` }]}>
+              <Flame color={colors.aqua} size={10} />
+              <Text style={[styles.promoUrgencyText, { color: colors.aqua }]}>82% sold</Text>
             </View>
           </Pressable>
         )}
@@ -239,14 +228,14 @@ export default function FeedScreen() {
         {feedMode === 'my_vibes' ? (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Your saved vibes</Text>
-              <Text style={[styles.sectionMeta, { color: colors.textMuted }]}>Stored locally on device</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Your plans</Text>
+              <Text style={[styles.sectionMeta, { color: colors.textMuted }]}>Events you're going to tonight</Text>
             </View>
             {vibes.length === 0 ? (
               <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Database color={colors.textSoft} size={28} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>No vibes yet</Text>
-                <Text style={[styles.emptyText, { color: colors.textMuted }]}>Drop your first vibe from the post tab.</Text>
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>No plans yet</Text>
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>Tap the + tab to let friends know you&apos;re going out.</Text>
               </View>
             ) : (
               vibes.map((vibe) => (
