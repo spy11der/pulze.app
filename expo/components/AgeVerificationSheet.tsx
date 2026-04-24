@@ -8,6 +8,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   AlertTriangle,
@@ -29,6 +30,7 @@ interface AgeVerificationSheetProps {
 export function AgeVerificationSheet({ visible, onClose }: AgeVerificationSheetProps) {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     isVerified,
     verifiedAt,
@@ -124,6 +126,7 @@ export function AgeVerificationSheet({ visible, onClose }: AgeVerificationSheetP
             backgroundColor: colors.surface,
             borderColor: colors.border,
             transform: [{ translateY: slideAnim }],
+            paddingBottom: insets.bottom + 90,
           },
         ]}
         {...panResponder.panHandlers}
@@ -147,11 +150,11 @@ export function AgeVerificationSheet({ visible, onClose }: AgeVerificationSheetP
 
         {isVerified ? (
           <View style={styles.sheetBody}>
-            <View style={[styles.successCard, { backgroundColor: isDark ? 'rgba(141, 212, 78, 0.08)' : 'rgba(78, 148, 40, 0.05)' }]}>
-              <Animated.View style={[styles.successIconWrap, { backgroundColor: colors.lime + '20', transform: [{ scale: isVerified ? 1 : successScale }] }]}>
-                <ShieldCheck color={colors.lime} size={32} />
+            <View style={[styles.successCard, { backgroundColor: isDark ? 'rgba(43, 191, 186, 0.08)' : 'rgba(26, 158, 153, 0.05)' }]}>
+              <Animated.View style={[styles.successIconWrap, { backgroundColor: colors.aqua + '20', transform: [{ scale: isVerified ? 1 : successScale }] }]}>
+                <ShieldCheck color={colors.aqua} size={32} />
               </Animated.View>
-              <Text style={[styles.successTitle, { color: colors.lime }]}>Verified 21+</Text>
+              <Text style={[styles.successTitle, { color: colors.aqua }]}>Verified 21+</Text>
               <Text style={[styles.successSubtitle, { color: colors.textMuted }]}>
                 Based on your {documentType ?? 'ID document'}
               </Text>
@@ -196,7 +199,7 @@ export function AgeVerificationSheet({ visible, onClose }: AgeVerificationSheetP
               disabled={isVerifying}
               style={({ pressed }) => [
                 styles.verifyBtn,
-                { backgroundColor: colors.lime, opacity: isVerifying ? 0.6 : (pressed ? 0.9 : 1), transform: [{ scale: pressed ? 0.98 : 1 }] },
+                { backgroundColor: colors.aqua, opacity: isVerifying ? 0.6 : (pressed ? 0.9 : 1), transform: [{ scale: pressed ? 0.98 : 1 }] },
               ]}
               testID="verify-age-btn"
             >
@@ -208,8 +211,8 @@ export function AgeVerificationSheet({ visible, onClose }: AgeVerificationSheetP
           </View>
         ) : (
           <View style={styles.sheetBody}>
-            <View style={[styles.noDocCard, { backgroundColor: isDark ? 'rgba(232, 168, 48, 0.08)' : 'rgba(184, 128, 0, 0.05)' }]}>
-              <AlertTriangle color={colors.amber} size={28} />
+            <View style={[styles.noDocCard, { backgroundColor: isDark ? 'rgba(43, 191, 186, 0.08)' : 'rgba(26, 158, 153, 0.05)' }]}>
+              <AlertTriangle color={colors.aqua} size={28} />
               <Text style={[styles.noDocTitle, { color: colors.text }]}>No ID document found</Text>
               <Text style={[styles.noDocSubtitle, { color: colors.textMuted }]}>
                 Add a driver's license, state ID, or passport to your Secure Wallet to verify your age.
@@ -250,7 +253,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     borderWidth: 1,
     borderBottomWidth: 0,
-    paddingBottom: 40,
   },
   handle: {
     alignItems: 'center',
