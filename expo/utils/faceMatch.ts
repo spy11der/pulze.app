@@ -1,3 +1,5 @@
+import * as FileSystem from 'expo-file-system';
+
 export interface FaceMatchResult {
   score: number;
   confidence: 'high' | 'medium' | 'low';
@@ -38,13 +40,8 @@ export async function scoreFaceMatch(
 
 async function getImageInfo(uri: string): Promise<{ size: number }> {
   try {
-    const FileSystem = await import('expo-file-system');
-    const getInfoAsync = (FileSystem as unknown as { getInfoAsync?: (uri: string, options?: { size?: boolean }) => Promise<{ size?: number }> }).getInfoAsync;
-    if (typeof getInfoAsync === 'function') {
-      const info = await getInfoAsync(uri, { size: true });
-      return { size: info?.size ?? 0 };
-    }
-    return { size: 0 };
+    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    return { size: (info as { size?: number }).size ?? 0 };
   } catch (e) {
     console.log('[faceMatch] getImageInfo error:', e);
     return { size: 0 };
