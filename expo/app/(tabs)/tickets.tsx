@@ -231,7 +231,7 @@ export default function TicketsTab() {
               <View style={styles.energyBannerLeft}>
                 <TrendingUp color={colors.aqua} size={16} />
                 <Text style={[styles.energyBannerText, { color: colors.text }]}>
-                  {event.energyType === 'pulze' ? 'High Pulze Energy' : event.energyType === 'moderate' ? 'Moderate Energy' : 'Quiet Atmosphere'}
+                  {event.energyType === 'pulze' ? 'High Energy' : event.energyType === 'moderate' ? 'Moderate Energy' : 'Quiet Atmosphere'}
                 </Text>
               </View>
               <View style={styles.energyDots}>
@@ -242,7 +242,7 @@ export default function TicketsTab() {
                       styles.energyDot,
                       {
                         backgroundColor: i <= (event.energyType === 'pulze' ? 5 : event.energyType === 'moderate' ? 3 : 1)
-                          ? energyColor
+                          ? colors.aqua
                           : isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
                       },
                     ]}
