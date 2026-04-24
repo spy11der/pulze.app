@@ -30,6 +30,7 @@ import {
   Radio,
   Send,
   Sparkles,
+  Ticket,
   Users,
   X,
   Zap,
@@ -1092,12 +1093,40 @@ export default function PostScreen() {
           );
         })}
 
-        <VibeMeter
-          score={energyScore}
-          totalSelected={totalSelected}
-          colors={colors}
-          isDark={isDark}
-        />
+        <View style={[styles.tagCard, {
+          backgroundColor: isDark ? 'rgba(43,191,186,0.06)' : 'rgba(26,158,153,0.05)',
+          borderColor: isDark ? 'rgba(43,191,186,0.15)' : 'rgba(26,158,153,0.12)',
+        }]}>
+          <View style={styles.tagCardHeader}>
+            <View style={styles.tagCardHeaderLeft}>
+              <Ticket color={colors.aqua} size={16} />
+              <Text style={[styles.tagCardLabel, { color: colors.text }]}>
+                Pick an event
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => router.push('/ticketing')}
+            style={({ pressed }) => [
+              styles.venueChip,
+              {
+                backgroundColor: isDark ? 'rgba(43,191,186,0.1)' : 'rgba(26,158,153,0.08)',
+                borderColor: colors.aqua,
+                opacity: pressed ? 0.8 : 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              },
+            ]}
+          >
+            <Text style={[styles.venueChipText, { color: colors.aqua }]}>
+              Browse tonight's events →
+            </Text>
+          </Pressable>
+          <Text style={[styles.changeLinkText, { color: colors.textSoft, marginTop: 4 }]}>
+            Optional — tag an event you're going to
+          </Text>
+        </View>
 
         <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(165,240,92,0.06)' : 'rgba(92,168,48,0.06)' }]}>
           <Zap color="#A5F05C" size={13} />
