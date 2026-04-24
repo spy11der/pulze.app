@@ -149,7 +149,7 @@ export default function FeedScreen() {
         <View style={styles.headerSection}>
           <View style={styles.topRow}>
             <Text style={[styles.heroTitle, { color: colors.aqua }]}>PULZE</Text>
-            <Text style={[styles.brandMark, { color: colors.textMuted }]}>Denver, right now</Text>
+            <Text style={[styles.brandMark, { color: colors.textMuted }]}>Denver, tonight</Text>
           </View>
 
           <View style={styles.statsRow}>
@@ -159,7 +159,7 @@ export default function FeedScreen() {
             </View>
             <View style={[styles.statPill, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{signalCount}</Text>
-              <Text style={[styles.statUnit, { color: colors.textSoft }]}>{feedMode === 'my_vibes' ? 'vibes' : 'signals'}</Text>
+              <Text style={[styles.statUnit, { color: colors.textSoft }]}>{feedMode === 'my_vibes' ? 'going' : 'reports'}</Text>
             </View>
           </View>
         </View>
@@ -168,7 +168,7 @@ export default function FeedScreen() {
           {([
             { id: 'everyone' as FeedMode, label: 'Everyone', icon: Eye },
             { id: 'friends' as FeedMode, label: 'Friends', icon: Compass },
-            { id: 'my_vibes' as FeedMode, label: 'My Vibes', icon: Database },
+            { id: 'my_vibes' as FeedMode, label: 'Going', icon: Ticket },
           ]).map((m) => {
             const active = feedMode === m.id;
             return (
