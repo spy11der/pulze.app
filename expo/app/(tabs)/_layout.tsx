@@ -83,7 +83,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="post"
         options={{
-          title: 'Drop Vibe',
+          title: 'Check In',
           tabBarIcon: ({ focused }) => (
             <CirclePlus
               color={focused ? activeColor : inactiveColor}
