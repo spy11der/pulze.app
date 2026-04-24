@@ -138,15 +138,10 @@ export default function ProfileScreen() {
 
   const ThemeIcon = mode === 'dark' ? Moon : Sun;
 
-  const vibeIdentity = useMemo(() => {
-    if (vibeCount === 0) return { label: 'Explorer', color: colors.aqua, description: 'Drop vibes to build your identity' };
-    return { label: 'Prefers high energy', color: colors.coral, description: 'You tend toward packed, buzzing spots' };
-  }, [vibeCount, colors]);
-
   const recentActivity = useMemo(() => [
-    { action: 'Dropped a vibe', place: 'Blake Street Tavern', time: '2h ago', icon: Zap },
-    { action: 'Saved a spot', place: 'Meow Wolf Denver', time: '5h ago', icon: MapPin },
-    { action: 'Checked crowd level', place: 'Fillmore Auditorium', time: '1d ago', icon: TrendingUp },
+    { action: 'Got tickets', place: 'Nothing More · Fillmore', time: '2h ago', icon: Ticket },
+    { action: 'Saved event', place: 'Meow Wolf Denver', time: '5h ago', icon: MapPin },
+    { action: 'Checked in', place: 'Gothic Theatre', time: '1d ago', icon: Zap },
   ], []);
 
   return (
@@ -157,8 +152,8 @@ export default function ProfileScreen() {
       >
         <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.heroTop}>
-            <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(141, 212, 78, 0.14)' : 'rgba(78, 148, 40, 0.10)' }]}>
-              <Text style={[styles.avatarText, { color: colors.lime }]}>{displayName.slice(0, 2).toUpperCase()}</Text>
+            <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(43,191,186,0.14)' : 'rgba(26,158,153,0.10)' }]}>
+              <Text style={[styles.avatarText, { color: colors.aqua }]}>{displayName.slice(0, 2).toUpperCase()}</Text>
             </View>
             <View style={styles.heroActions}>
               <Pressable
@@ -182,9 +177,9 @@ export default function ProfileScreen() {
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: colors.text }]}>{displayName}</Text>
               {isVerified && (
-                <View style={[styles.verifiedInlineBadge, { backgroundColor: isDark ? 'rgba(141, 212, 78, 0.12)' : 'rgba(78, 148, 40, 0.08)' }]}>
-                  <ShieldCheck color={colors.lime} size={13} />
-                  <Text style={[styles.verifiedInlineText, { color: colors.lime }]}>21+</Text>
+                <View style={[styles.verifiedInlineBadge, { backgroundColor: isDark ? 'rgba(43,191,186,0.12)' : 'rgba(26,158,153,0.08)' }]}>
+                  <ShieldCheck color={colors.aqua} size={13} />
+                  <Text style={[styles.verifiedInlineText, { color: colors.aqua }]}>21+</Text>
                 </View>
               )}
             </View>
@@ -200,8 +195,8 @@ export default function ProfileScreen() {
             <Text style={[styles.bio, { color: colors.textSoft }]}>{currentUser.bio}</Text>
             <View style={styles.badgeRow}>
               <View style={styles.trustedLabel}>
-                <ShieldCheck color={colors.lime} size={12} />
-                <Text style={[styles.trustedLabelText, { color: colors.textSoft }]}>Trusted source</Text>
+                <ShieldCheck color={colors.aqua} size={12} />
+                <Text style={[styles.trustedLabelText, { color: colors.textSoft }]}>Verified member</Text>
               </View>
               <Pressable
                 onPress={() => { void Haptics.selectionAsync(); router.push('/settings'); }}
@@ -216,12 +211,12 @@ export default function ProfileScreen() {
 
         <View style={styles.statRow}>
           <Pressable
-            onPress={() => handleStatPress('vibes')}
+            onPress={handleOpenMyTickets}
             style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.btnPressed]}
             testID="stat-card-1"
           >
-            <Text style={[styles.statValue, { color: colors.text }]}>{vibeCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Vibes</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{passes.length}</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Tickets</Text>
           </Pressable>
           <Pressable
             onPress={() => handleStatPress('spots')}
@@ -229,7 +224,7 @@ export default function ProfileScreen() {
             testID="stat-card-2"
           >
             <Text style={[styles.statValue, { color: colors.text }]}>{spotCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Spots</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Saved</Text>
           </Pressable>
           <Pressable
             onPress={() => handleStatPress('friends')}
@@ -243,19 +238,31 @@ export default function ProfileScreen() {
 
         <View style={[styles.vibeIdentityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.vibeIdentityHeader}>
-            <View style={[styles.vibeIdentityIcon, { backgroundColor: vibeIdentity.color + '14' }]}>
-              <Flame color={vibeIdentity.color} size={16} />
+            <View style={[styles.vibeIdentityIcon, { backgroundColor: colors.aqua + '14' }]}>
+              <Ticket color={colors.aqua} size={16} />
             </View>
             <View style={styles.vibeIdentityInfo}>
-              <Text style={[styles.vibeIdentityLabel, { color: colors.textMuted }]}>YOUR VIBE IDENTITY</Text>
-              <Text style={[styles.vibeIdentityValue, { color: vibeIdentity.color }]}>{vibeIdentity.label}</Text>
+              <Text style={[styles.vibeIdentityLabel, { color: colors.textMuted }]}>TONIGHT</Text>
+              <Text style={[styles.vibeIdentityValue, { color: colors.aqua }]}>
+                {passes.length > 0 ? `${passes.length} event${passes.length !== 1 ? 's' : ''} coming up` : 'Nothing booked yet'}
+              </Text>
             </View>
           </View>
-          <Text style={[styles.vibeIdentityDesc, { color: colors.textSoft }]}>{vibeIdentity.description}</Text>
-          <View style={[styles.currentVibeStatus, { backgroundColor: isDark ? 'rgba(43,191,186,0.08)' : 'rgba(26,158,153,0.06)' }]}>
-            <Zap color={colors.aqua} size={12} />
-            <Text style={[styles.currentVibeText, { color: colors.aqua }]}>Currently exploring Denver</Text>
-          </View>
+          <Text style={[styles.vibeIdentityDesc, { color: colors.textSoft }]}>
+            {passes.length > 0 ? 'Tap My Tickets to see your passes.' : 'Browse events and grab tickets for tonight.'}
+          </Text>
+          <Pressable
+            onPress={handleOpenMyTickets}
+            style={({ pressed }) => [
+              styles.currentVibeStatus,
+              { backgroundColor: isDark ? 'rgba(43,191,186,0.08)' : 'rgba(26,158,153,0.06)', opacity: pressed ? 0.8 : 1 }
+            ]}
+          >
+            <Ticket color={colors.aqua} size={12} />
+            <Text style={[styles.currentVibeText, { color: colors.aqua }]}>
+              {passes.length > 0 ? 'View my tickets' : 'Find something tonight'}
+            </Text>
+          </Pressable>
         </View>
 
         <View style={[styles.activitySection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -290,8 +297,8 @@ export default function ProfileScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Friends</Text>
             <View style={{ flex: 1 }} />
             {mockFriendRequests.length > 0 && (
-              <View style={[styles.requestsBadge, { backgroundColor: colors.coral + '14' }]}>
-                <Text style={[styles.requestsBadgeText, { color: colors.coral }]}>{mockFriendRequests.length} pending</Text>
+              <View style={[styles.requestsBadge, { backgroundColor: colors.aqua + '14' }]}>
+                <Text style={[styles.requestsBadgeText, { color: colors.aqua }]}>{mockFriendRequests.length} pending</Text>
               </View>
             )}
             <ChevronRight color={colors.textSoft} size={16} />
@@ -347,8 +354,8 @@ export default function ProfileScreen() {
             sublabel={isVerified ? 'Your age has been confirmed' : 'Confirm you are 21+'}
             onPress={handleOpenAgeVerification}
             badge={isVerified ? (
-              <View style={[styles.menuBadge, { backgroundColor: colors.lime + '18' }]}>
-                <ShieldCheck color={colors.lime} size={11} />
+              <View style={[styles.menuBadge, { backgroundColor: colors.aqua + '18' }]}>
+                <ShieldCheck color={colors.aqua} size={11} />
               </View>
             ) : undefined}
           />
@@ -359,9 +366,9 @@ export default function ProfileScreen() {
             sublabel={documents.length > 0 ? `${documents.length} document${documents.length !== 1 ? 's' : ''} stored` : 'Add your ID or license'}
             onPress={handleOpenWallet}
             badge={documents.length > 0 ? (
-              <View style={[styles.menuBadge, { backgroundColor: colors.lime + '18' }]}>
-                <CreditCard color={colors.lime} size={11} />
-                <Text style={[styles.menuBadgeText, { color: colors.lime }]}>{documents.length}</Text>
+              <View style={[styles.menuBadge, { backgroundColor: colors.aqua + '18' }]}>
+                <CreditCard color={colors.aqua} size={11} />
+                <Text style={[styles.menuBadgeText, { color: colors.aqua }]}>{documents.length}</Text>
               </View>
             ) : undefined}
           />
