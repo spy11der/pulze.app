@@ -27,7 +27,7 @@ export const UrgencyTag = React.memo(function UrgencyTag({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (pulse && (urgency.label === 'Peak now' || urgency.label === 'Filling fast')) {
+    if (pulse && (urgency.label === 'Peak now' || urgency.label === 'Filling fast' || urgency.label === 'Tickets available')) {
       const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.05, duration: 600, useNativeDriver: true }),

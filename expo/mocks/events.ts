@@ -38,7 +38,7 @@ export interface PulzeEvent {
   distanceFromUser: string;
   vibeScore: number;
   vibeLabel: string;
-  energyType: 'quiet' | 'moderate' | 'pulze';
+  energyType: 'quiet' | 'moderate' | 'high';
   interestedCount: number;
   attendingCount: number;
   hostName: string;
@@ -61,7 +61,7 @@ export interface Venue {
   shortName: string;
   image: string;
   vibeScore: number;
-  energyType: 'quiet' | 'moderate' | 'pulze';
+  energyType: 'quiet' | 'moderate' | 'high';
   address: string;
   latitude: number;
   longitude: number;
@@ -75,7 +75,7 @@ export const venues: Venue[] = [
     shortName: 'Fillmore',
     image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=200&h=200&fit=crop',
     vibeScore: 94,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '1510 Clarkson St, Denver, CO',
     latitude: 39.7407,
     longitude: -104.9785,
@@ -87,7 +87,7 @@ export const venues: Venue[] = [
     shortName: 'Gothic',
     image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&h=200&fit=crop',
     vibeScore: 89,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '3263 S Broadway, Englewood, CO',
     latitude: 39.6536,
     longitude: -104.9875,
@@ -111,7 +111,7 @@ export const venues: Venue[] = [
     shortName: 'Ogden',
     image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop',
     vibeScore: 91,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '935 E Colfax Ave, Denver, CO',
     latitude: 39.7400,
     longitude: -104.9740,
@@ -123,7 +123,7 @@ export const venues: Venue[] = [
     shortName: 'Cervantes',
     image: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=200&h=200&fit=crop',
     vibeScore: 88,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '2637 Welton St, Denver, CO',
     latitude: 39.7536,
     longitude: -104.9788,
@@ -147,7 +147,7 @@ export const venues: Venue[] = [
     shortName: 'Church',
     image: 'https://images.unsplash.com/photo-1504704911898-68304a7d2e80?w=200&h=200&fit=crop',
     vibeScore: 96,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '1160 Lincoln St, Denver, CO',
     latitude: 39.7343,
     longitude: -104.9847,
@@ -159,7 +159,7 @@ export const venues: Venue[] = [
     shortName: 'Meow Wolf',
     image: 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=200&h=200&fit=crop',
     vibeScore: 92,
-    energyType: 'pulze',
+    energyType: 'high',
     address: '1338 1st St, Denver, CO',
     latitude: 39.7530,
     longitude: -105.0072,
@@ -202,7 +202,7 @@ const eventTemplates: Array<{
   time: string;
   doorsOpen: string;
   description: string;
-  energyType: 'quiet' | 'moderate' | 'pulze';
+  energyType: 'quiet' | 'moderate' | 'high';
   tags: string[];
   lineup: EventGuest[];
   whatToExpect: string[];
@@ -218,7 +218,7 @@ const eventTemplates: Array<{
     time: '5:30 PM – 11:00 PM',
     doorsOpen: '5:00 PM',
     description: 'Nothing More brings their explosive live energy to the Fillmore Auditorium with support from Catch Your Breath, Archers, and Doobie. Expect heavy riffs, massive crowd energy, and one of the best rock shows in Denver this month.',
-    energyType: 'pulze',
+    energyType: 'high',
     tags: ['Rock', 'Live Band', 'Headliner', 'Fillmore', 'Tonight'],
     lineup: [
       { id: 'g1', name: 'Nothing More', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop&crop=face' },
@@ -233,7 +233,7 @@ const eventTemplates: Array<{
       'Merch booth with tour exclusives',
     ],
     bestTimeToArrive: '5:00 PM to catch openers — 7:00 PM if you just want the headliner',
-    currentVibeAround: 'Colfax is buzzing. Pre-show crowd at nearby bars already building.',
+    currentVibeAround: 'Colfax is active. Pre-show crowd building at nearby spots.',
   },
   {
     venueId: 'v-002',
@@ -290,7 +290,7 @@ const eventTemplates: Array<{
     time: '9:00 PM – 12:00 AM',
     doorsOpen: '8:00 PM',
     description: 'Heyz takes the stage at the Ogden Theatre for a high-energy set blending pop, electronic, and R&B. This is the breakout tour you don\'t want to miss.',
-    energyType: 'pulze',
+    energyType: 'high',
     tags: ['Pop', 'Electronic', 'R&B', 'Ogden', 'Tonight'],
     lineup: [
       { id: 'g7', name: 'Heyz', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face' },
@@ -302,7 +302,7 @@ const eventTemplates: Array<{
       'Full bar and merch available',
     ],
     bestTimeToArrive: '8:30 PM — floor fills fast for this one',
-    currentVibeAround: 'Colfax corridor is electric tonight with multiple shows happening.',
+    currentVibeAround: 'Colfax has 3 shows tonight — active all the way down.',
   },
   {
     venueId: 'v-005',
@@ -313,7 +313,7 @@ const eventTemplates: Array<{
     time: '8:00 PM – 1:00 AM',
     doorsOpen: '7:00 PM',
     description: 'Big Something brings their unique fusion of rock, funk, electronic, and pop to Cervantes\' Masterpiece Ballroom. With surprise special guests, expect an extended jam session that keeps the dance floor moving all night.',
-    energyType: 'pulze',
+    energyType: 'high',
     tags: ['Jam Band', 'Funk', 'Electronic', 'Cervantes', 'Tonight'],
     lineup: [
       { id: 'g8', name: 'Big Something', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?w=100&h=100&fit=crop&crop=face' },
@@ -326,7 +326,7 @@ const eventTemplates: Array<{
       'Dance floor vibes all night',
     ],
     bestTimeToArrive: '7:30 PM to get a good spot on the floor',
-    currentVibeAround: 'Five Points / Welton St is alive — pre-gaming at nearby spots already underway.',
+    currentVibeAround: 'Five Points is active — crowds gathering on Welton St.',
   },
   {
     venueId: 'v-006',
@@ -360,7 +360,7 @@ const eventTemplates: Array<{
     time: '10:00 PM – 2:00 AM',
     doorsOpen: '10:00 PM',
     description: 'Justin Jay takes over The Church Nightclub for a late-night house and disco set presented by Global Dance and TheHundred. The converted church venue adds an unforgettable atmosphere to what promises to be the hottest late-night dance party in Denver tonight.',
-    energyType: 'pulze',
+    energyType: 'high',
     tags: ['House', 'Disco', 'Late Night', 'Church', 'DJ Set', 'Tonight'],
     lineup: [
       { id: 'g11', name: 'Justin Jay', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face' },
@@ -372,7 +372,7 @@ const eventTemplates: Array<{
       'Multiple bars and VIP bottle service',
     ],
     bestTimeToArrive: '10:30 PM — line gets long after 11',
-    currentVibeAround: 'Lincoln St / Capitol Hill is surging — this is THE late-night spot tonight.',
+    currentVibeAround: 'Lincoln St is busy — this is the late-night spot tonight.',
   },
   {
     venueId: 'v-008',
@@ -383,7 +383,7 @@ const eventTemplates: Array<{
     time: '7:00 PM – 11:00 PM',
     doorsOpen: '6:00 PM',
     description: 'Vendredi Sur Mer performs live inside Meow Wolf Denver (Convergence Station), blending French dream-pop with the immersive, psychedelic art installations. A truly one-of-a-kind concert experience you can only get in Denver.',
-    energyType: 'pulze',
+    energyType: 'high',
     tags: ['Dream Pop', 'French', 'Art', 'Meow Wolf', 'Immersive', 'Tonight'],
     lineup: [
       { id: 'g12', name: 'Vendredi Sur Mer', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face' },
@@ -395,7 +395,7 @@ const eventTemplates: Array<{
       'Craft cocktails and food vendors on-site',
     ],
     bestTimeToArrive: '6:00 PM to explore Meow Wolf before the set starts',
-    currentVibeAround: 'Sun Valley area is vibrant — Meow Wolf crowd already lining up.',
+    currentVibeAround: 'Sun Valley is busy — Meow Wolf line already forming.',
   },
   {
     venueId: 'v-009',
@@ -519,7 +519,7 @@ for (const template of eventTemplates) {
     venueLongitude: venue.longitude,
     distanceFromUser: venue.distanceFromUser,
     vibeScore: venue.vibeScore,
-    vibeLabel: venue.vibeScore >= 90 ? 'Electric' : venue.vibeScore >= 75 ? 'Vibing' : venue.vibeScore >= 60 ? 'Warming Up' : 'Chill',
+    vibeLabel: venue.vibeScore >= 90 ? 'Almost sold out' : venue.vibeScore >= 75 ? 'Selling fast' : venue.vibeScore >= 60 ? 'Available' : 'Plenty left',
     energyType: template.energyType,
     interestedCount: Math.floor(Math.random() * 600) + 200,
     attendingCount: Math.floor(Math.random() * 300) + 100,
@@ -552,8 +552,8 @@ export const sampleEvent: PulzeEvent = venueEvents['v-001'] ?? {
   venueLongitude: -104.9785,
   distanceFromUser: '8 min away',
   vibeScore: 94,
-  vibeLabel: 'Electric',
-  energyType: 'pulze',
+  vibeLabel: 'Almost sold out',
+  energyType: 'high',
   interestedCount: 847,
   attendingCount: 312,
   hostName: 'Pulze Denver',
