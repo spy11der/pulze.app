@@ -887,10 +887,10 @@ export default function PostScreen() {
             </View>
             <View>
               <Text style={[styles.headerTitle, { color: colors.text }]}>
-                Drop a vibe
+                I&apos;m going
               </Text>
               <Text style={[styles.headerSubtitle, { color: colors.textSoft }]}>
-                Capture what's happening right now
+                Let friends know what you&apos;re doing tonight
               </Text>
             </View>
           </View>
