@@ -33,6 +33,7 @@ import {
   Trophy,
   Navigation,
   Users,
+  Ticket,
   Clock,
   ChevronRight,
   X,
@@ -481,7 +482,7 @@ function VenueCard({
             <Text style={[styles.cardStatLabel, { color: colors.textSoft }]}>{vibeLabel}</Text>
           </View>
           <View style={[styles.cardStat, { backgroundColor: subtleBg }]}>
-            <Users color={colors.aqua} size={11} />
+            <Ticket color={colors.aqua} size={11} />
             <Text style={[styles.cardStatValue, { color: colors.text }]}>{venue.people}</Text>
           </View>
           <View style={[styles.cardStat, { backgroundColor: subtleBg }]}>
