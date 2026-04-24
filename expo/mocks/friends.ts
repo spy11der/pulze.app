@@ -55,11 +55,11 @@ export const tierDefinitions: TierInfo[] = [
     id: 'inner_circle',
     label: 'Inner Circle',
     description: 'Full visibility',
-    color: '#FFBF47',
+    color: '#2BBFBA',
     permissions: [
       'Full live location access',
       'Can see saved spots',
-      'Can see private vibe drops',
+      'Can see private check-ins',
     ],
   },
 ];
@@ -68,7 +68,7 @@ export const mockFriends: Friend[] = [
   {
     id: 'f1',
     name: 'Mia Chen',
-    handle: 'mia.vibes',
+    handle: 'mia.chen',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face',
     tier: 'inner_circle',
     mutualFriends: 12,
@@ -77,7 +77,7 @@ export const mockFriends: Friend[] = [
   {
     id: 'f2',
     name: 'Dex Monroe',
-    handle: 'dex.pulse',
+    handle: 'dex.monroe',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face',
     tier: 'friends',
     mutualFriends: 8,
