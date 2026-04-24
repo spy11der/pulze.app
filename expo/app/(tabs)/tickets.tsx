@@ -210,23 +210,18 @@ export default function TicketsTab() {
             </View>
 
             <View style={styles.liveStatsRow}>
-              <View style={[
-                styles.vibeScoreCard,
-                { backgroundColor: isDark ? 'rgba(232, 86, 74, 0.08)' : 'rgba(204, 68, 56, 0.05)' },
-              ]}>
-                <Zap color={energyColor} size={20} />
-                <Text style={[styles.vibeScoreNum, { color: energyColor }]}>{event.vibeScore}</Text>
-                <Text style={[styles.vibeScoreLabel, { color: colors.textMuted }]}>Vibe</Text>
+              <View style={[styles.vibeScoreCard, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.08)' : 'rgba(26, 168, 163, 0.05)' }]}>
+                <Zap color={colors.aqua} size={20} />
+                <Text style={[styles.vibeScoreNum, { color: colors.aqua }]}>{event.vibeScore}</Text>
+                <Text style={[styles.vibeScoreLabel, { color: colors.textMuted }]}>Energy</Text>
               </View>
-
-              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.08)' : 'rgba(92, 168, 48, 0.06)' }]}>
-                <Users color={colors.lime} size={18} />
+              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.06)' : 'rgba(26, 168, 163, 0.04)' }]}>
+                <Users color={colors.aqua} size={18} />
                 <Text style={[styles.statMiniNum, { color: colors.text }]}>{event.attendingCount}</Text>
                 <Text style={[styles.statMiniLabel, { color: colors.textMuted }]}>Going</Text>
               </View>
-
-              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(255, 191, 71, 0.08)' : 'rgba(204, 142, 0, 0.06)' }]}>
-                <Heart color={colors.amber} size={18} />
+              <View style={[styles.statMiniCard, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.06)' : 'rgba(26, 168, 163, 0.04)' }]}>
+                <Heart color={colors.aqua} size={18} />
                 <Text style={[styles.statMiniNum, { color: colors.text }]}>{event.interestedCount}</Text>
                 <Text style={[styles.statMiniLabel, { color: colors.textMuted }]}>Interested</Text>
               </View>
