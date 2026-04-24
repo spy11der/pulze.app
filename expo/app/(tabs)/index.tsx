@@ -406,7 +406,7 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
 }) {
   const { colors, isDark } = useTheme();
   const privacyLabel = vibe.privacy === 'public' ? 'Public' : vibe.privacy === 'friends' ? 'Friends' : 'Private';
-  const privacyColor = vibe.privacy === 'public' ? colors.aqua : vibe.privacy === 'friends' ? colors.lime : colors.amber;
+  const privacyColor = colors.aqua;
   const scoreColor = getScoreColor(vibe.energy, colors);
 
   return (
@@ -433,13 +433,13 @@ const SavedVibeCard = React.memo(function SavedVibeCard({
             onPress={() => onDelete(vibe.id)}
             style={({ pressed }) => [
               styles.chip,
-              { backgroundColor: isDark ? 'rgba(232,86,74,0.08)' : 'rgba(204,68,56,0.05)' },
+              { backgroundColor: colors.dangerBg },
               pressed && { opacity: 0.7 },
             ]}
             testID={`delete-vibe-${vibe.id}`}
           >
-            <Trash2 color={colors.coral} size={12} />
-            <Text style={[styles.chipText, { color: colors.coral }]}>Delete</Text>
+            <Trash2 color={colors.danger} size={12} />
+            <Text style={[styles.chipText, { color: colors.danger }]}>Delete</Text>
           </Pressable>
         </View>
       </View>
@@ -867,7 +867,6 @@ const styles = StyleSheet.create({
   promoUrgencyText: {
     fontSize: 11,
     fontWeight: '700' as const,
-    color: '#E8564A',
   },
   sectionHeader: {
     gap: 2,
