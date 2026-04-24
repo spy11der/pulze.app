@@ -367,7 +367,14 @@ export default function TicketsTab() {
                     </View>
                   </View>
                   <View style={styles.ticketListInfo}>
-                    <Text style={[styles.ticketListName, { color: colors.text }]}>{tier.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.ticketListName, { color: colors.text }]}>{tier.name}</Text>
+                      {idx === 0 && (
+                        <View style={{ backgroundColor: isDark ? 'rgba(53,212,207,0.15)' : 'rgba(26,168,163,0.1)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: colors.aqua }}>Best value</Text>
+                        </View>
+                      )}
+                    </View>
                     {tier.perks.length > 0 && (
                       <Text style={[styles.ticketListDesc, { color: colors.textMuted }]} numberOfLines={1}>
                         {tier.perks[0]}
