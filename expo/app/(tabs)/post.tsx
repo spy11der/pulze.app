@@ -1213,15 +1213,6 @@ export default function PostScreen() {
           </View>
         </View>
 
-        <LivePreviewCard
-          tags={selectedTags}
-          score={energyScore}
-          caption={caption}
-          locationName={locationName}
-          mediaUri={mediaUri}
-          colors={colors}
-          isDark={isDark}
-        />
       </ScrollView>
 
       <View
