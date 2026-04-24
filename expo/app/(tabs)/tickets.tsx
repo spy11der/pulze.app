@@ -320,7 +320,7 @@ export default function TicketsTab() {
             <View style={[styles.pulzeInsightCard, { backgroundColor: isDark ? '#0F2A34' : '#E4F0F4' }]}>
               <View style={styles.insightHeader}>
                 <Sparkles color={colors.aqua} size={16} />
-                <Text style={[styles.insightTitle, { color: colors.aqua }]}>Pulze Insights</Text>
+                <Text style={[styles.insightTitle, { color: colors.aqua }]}>Event Insights</Text>
               </View>
               <View style={styles.insightRow}>
                 <Clock color={colors.textMuted} size={14} />
@@ -333,7 +333,7 @@ export default function TicketsTab() {
               <View style={styles.insightRow}>
                 <TrendingUp color={colors.textMuted} size={14} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.insightLabel, { color: colors.text }]}>Current vibe around venue</Text>
+                  <Text style={[styles.insightLabel, { color: colors.text }]}>Scene near venue</Text>
                   <Text style={[styles.insightValue, { color: colors.textMuted }]}>{event.currentVibeAround}</Text>
                 </View>
               </View>
