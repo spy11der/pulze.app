@@ -129,12 +129,12 @@ function filterVenues(venues: PulzeVenue[], filters: MapFilterId[]): PulzeVenue[
   if (filters.length === 0 || filters.includes('all')) return venues;
   return venues.filter((v) => {
     for (const f of filters) {
-      if (f === 'pulze' && v.vibe_score >= 70) return true;
-      if (f === 'quiet' && v.vibe_score < 35) return true;
-      if (f === 'food' && v.category === 'food') return true;
-      if (f === 'bars' && (v.category === 'bar' || v.category === 'nightclub')) return true;
-      if (f === 'events' && (v.category === 'event' || v.category === 'music')) return true;
-      if (f === 'coffee' && v.category === 'coffee') return true;
+      if (f === 'tonight' && v.eventDate === 'Tonight') return true;
+      if (f === 'tomorrow' && v.eventDate === 'Tomorrow') return true;
+      if (f === 'music' && v.category === 'music') return true;
+      if (f === 'comedy' && v.category === 'comedy') return true;
+      if (f === 'sports' && v.category === 'sports') return true;
+      if (f === 'arts' && (v.category === 'arts' || v.category === 'nightlife')) return true;
     }
     return false;
   });
