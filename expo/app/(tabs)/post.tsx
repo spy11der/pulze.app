@@ -832,10 +832,10 @@ export default function PostScreen() {
             <Check color={isDark ? colors.background : '#fff'} size={32} />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>
-            +1 signal added
+            You're going out
           </Text>
           <Text style={[styles.successSub, { color: colors.textMuted }]}>
-            Your vibe is live · {locationNeighborhood || 'Nearby'}
+            Friends can see you tonight · {locationNeighborhood || 'Nearby'}
           </Text>
           <View style={styles.successTagRow}>
             {[...selectedTags.energy, ...selectedTags.crowd, ...selectedTags.mood]
