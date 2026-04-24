@@ -45,6 +45,7 @@ function RootLayoutNav() {
       <Stack.Screen name="ticketing" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="checkout" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="secure-wallet" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="verify-identity/index" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="ticket-pass" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="my-tickets" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="wallet-pass" options={{ presentation: 'modal', headerShown: false }} />
