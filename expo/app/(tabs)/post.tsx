@@ -1128,10 +1128,10 @@ export default function PostScreen() {
           </Text>
         </View>
 
-        <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(165,240,92,0.06)' : 'rgba(92,168,48,0.06)' }]}>
-          <Zap color="#A5F05C" size={13} />
-          <Text style={[styles.realTimeNoteText, { color: isDark ? '#A5F05C' : '#4E9428' }]}>
-            We prioritize real-time energy — what's happening right now, not earlier.
+        <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(43,191,186,0.06)' : 'rgba(26,158,153,0.05)' }]}>
+          <Zap color={colors.aqua} size={13} />
+          <Text style={[styles.realTimeNoteText, { color: colors.aqua }]}>
+            Friends can see when you're going out — and find you there.
           </Text>
         </View>
 
