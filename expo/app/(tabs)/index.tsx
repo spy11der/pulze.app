@@ -72,9 +72,9 @@ export default function FeedScreen() {
       if (feedMode === 'friends' && story.privacy !== 'friends') return false;
       if (activeFilter === 'all') return true;
       if (activeFilter === 'friends') return story.privacy === 'friends';
-      if (activeFilter === 'quiet') return story.pace === 'quiet';
-      if (activeFilter === 'busy') return story.pace === 'busy' || story.pace === 'packed';
-      if (activeFilter === 'events') return story.tags.includes('concert') || story.tags.includes('nightclub');
+      if (activeFilter === 'tonight') return story.tags.includes('tonight');
+      if (activeFilter === 'tomorrow') return story.tags.includes('tomorrow');
+      if (activeFilter === 'events') return story.tags.includes('concert') || story.tags.includes('comedy') || story.tags.includes('sports');
       return true;
     });
   }, [activeFilter, feedMode]);
@@ -86,7 +86,7 @@ export default function FeedScreen() {
       return Math.round(total / vibes.length);
     }
     if (filteredStories.length === 0) return 0;
-    const total = filteredStories.reduce((sum, story) => sum + story.intensity, 0);
+    const total = filteredStories.reduce((sum, story) => sum + story.soldOutPercent, 0);
     return Math.round(total / filteredStories.length);
   }, [filteredStories, feedMode, vibes]);
 
@@ -144,7 +144,7 @@ export default function FeedScreen() {
           <View style={styles.statsRow}>
             <View style={[styles.statPill, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Text style={[styles.statNumber, { color: avgColor }]}>{liveAverage}</Text>
-              <Text style={[styles.statUnit, { color: colors.textSoft }]}>avg energy</Text>
+              <Text style={[styles.statUnit, { color: colors.textSoft }]}>avg sold</Text>
             </View>
             <View style={[styles.statPill, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Text style={[styles.statNumber, { color: colors.text }]}>{signalCount}</Text>
@@ -329,9 +329,19 @@ const StoryCard = React.memo(function StoryCard({
         <Text style={[styles.storySummary, { color: colors.textSoft }]} numberOfLines={2}>{story.summary}</Text>
 
         <View style={styles.storyMeta}>
-          <View style={[styles.chip, { backgroundColor: vibeColor + '14' }]}>
-            <View style={[styles.chipDot, { backgroundColor: vibeColor }]} />
-            <Text style={[styles.chipText, { color: vibeColor }]}>{story.vibe}</Text>
+          <View style={[styles.chip, { backgroundColor: colors.aqua + '14' }]}>
+            <Text style={[styles.chipText, { color: colors.aqua }]}>{story.vibe}</Text>
+          </View>
+          <View style={[styles.chip, {
+            backgroundColor: story.soldOutPercent >= 80
+              ? 'rgba(232,68,58,0.08)'
+              : colors.aqua + '10'
+          }]}>
+            <Text style={[styles.chipText, {
+              color: story.soldOutPercent >= 80 ? colors.danger : colors.aqua
+            }]}>
+              {story.soldOutPercent}% sold
+            </Text>
           </View>
           <View style={[styles.chip, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
             <MapPin color={colors.textSoft} size={11} />
