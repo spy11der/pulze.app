@@ -37,16 +37,16 @@ export const DarkColors: AppColors = {
   textSoft: '#567880',
   aqua: '#2BBFBA',
   aquaBright: '#5CE8DC',
-  lime: '#8DD44E',
-  amber: '#E8A830',
-  coral: '#E8564A',
-  pink: '#D456A8',
-  quiet: '#6AADCC',
+  lime: '#2BBFBA',      // was green — now teal
+  amber: '#2BBFBA',     // was yellow — now teal
+  coral: '#2BBFBA',     // was red-orange — now teal
+  pink: '#5CE8DC',      // was pink — now aquaBright
+  quiet: '#567880',     // was blue-grey — keep as muted
   overlay: 'rgba(6, 15, 19, 0.80)',
   shadow: 'rgba(0, 0, 0, 0.32)',
   tabInactive: '#4A6E78',
   white: '#FFFFFF',
-  danger: '#E8443A',
+  danger: '#E8443A',    // keep red for actual errors only
   dangerBg: 'rgba(232, 68, 58, 0.08)',
 };
 
@@ -63,21 +63,20 @@ export const LightColors: AppColors = {
   textSoft: '#6A8892',
   aqua: '#1A9E99',
   aquaBright: '#17B5AE',
-  lime: '#4E9428',
-  amber: '#B88000',
-  coral: '#CC4438',
-  pink: '#B84290',
-  quiet: '#4A8AAE',
+  lime: '#1A9E99',      // was green — now teal
+  amber: '#1A9E99',     // was yellow — now teal
+  coral: '#1A9E99',     // was red-orange — now teal
+  pink: '#17B5AE',      // was pink — now aquaBright
+  quiet: '#6A8892',     // keep as muted
   overlay: 'rgba(246, 248, 250, 0.88)',
   shadow: 'rgba(0, 0, 0, 0.06)',
   tabInactive: '#8EAAB4',
   white: '#FFFFFF',
-  danger: '#CC3428',
+  danger: '#CC3428',    // keep red for actual errors only
   dangerBg: 'rgba(204, 52, 40, 0.06)',
 };
 
 export const Colors = DarkColors;
-
 export type AppColor = string;
 
 export const Spacing = {
