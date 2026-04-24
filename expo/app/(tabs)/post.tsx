@@ -1280,7 +1280,7 @@ export default function PostScreen() {
                 },
               ]}
             >
-              {isAddingVibe ? 'Sending...' : canSubmit ? 'Update the map' : 'Select tags first'}
+              {isAddingVibe ? 'Sending...' : canSubmit ? 'Let friends know' : 'Select tags first'}
             </Text>
           </Pressable>
         </Animated.View>
