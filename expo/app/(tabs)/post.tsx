@@ -1184,7 +1184,7 @@ export default function PostScreen() {
                 <ImagePlus color={colors.aqua} size={20} />
               </View>
               <Text style={[styles.mediaAddText, { color: colors.text }]}>Add a photo or video</Text>
-              <Text style={[styles.mediaAddHint, { color: colors.textSoft }]}>Optional, but makes your vibe more real</Text>
+              <Text style={[styles.mediaAddHint, { color: colors.textSoft }]}>Optional, but helps friends know what to expect</Text>
             </Pressable>
           )}
 
@@ -1193,7 +1193,7 @@ export default function PostScreen() {
           <View style={styles.commentSection}>
             <TextInput
               style={[styles.captionInput, { color: colors.text }]}
-              placeholder="Tell people what it actually feels like right now…"
+              placeholder="Add a note for friends…"
               placeholderTextColor={colors.textSoft}
               value={caption}
               onChangeText={(t) => setCaption(t.slice(0, 120))}
@@ -1204,7 +1204,7 @@ export default function PostScreen() {
             />
             <View style={styles.captionFooter}>
               <Text style={[styles.captionHelper, { color: colors.textSoft }]}>
-                Quick, real-time context helps others decide faster
+                Let friends know what to expect
               </Text>
               <Text style={[styles.captionCount, { color: colors.textSoft }]}>
                 {caption.length}/120

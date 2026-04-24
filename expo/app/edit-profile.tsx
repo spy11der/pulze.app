@@ -22,7 +22,7 @@ export default function EditProfileScreen() {
 
   const [displayName, setDisplayName] = useState<string>('Jordan Pulze');
   const [username, setUsername] = useState<string>('jordan.pulze');
-  const [bio, setBio] = useState<string>('City explorer. Finding the best vibes so you don\'t have to.');
+  const [bio, setBio] = useState<string>('Always looking for something good happening tonight.');
 
   const handleSave = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
