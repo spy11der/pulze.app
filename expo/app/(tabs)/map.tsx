@@ -28,6 +28,9 @@ import {
   Wine,
   CalendarDays,
   Coffee,
+  Music,
+  Laugh,
+  Trophy,
   Navigation,
   Users,
   Clock,
@@ -183,7 +186,7 @@ function clusterVenues(
 }
 
 const ICON_MAP: Record<string, React.ComponentType<{ color: string; size: number }>> = {
-  Sparkles, Zap, Moon, UtensilsCrossed, Wine, CalendarDays, Coffee,
+  Sparkles, Zap, Moon, UtensilsCrossed, Wine, CalendarDays, Coffee, Music, Laugh, Trophy,
 };
 
 const DOT_SIZE = 32;
