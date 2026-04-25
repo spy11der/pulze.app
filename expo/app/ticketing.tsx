@@ -214,7 +214,12 @@ export default function TicketingScreen() {
                     </View>
 
                     <View style={styles.tierInfoCol}>
-                      <Text style={[styles.tierName, { color: colors.text }]}>{tier.name}</Text>
+                      <View style={styles.tierNameRow}>
+                        <Text style={[styles.tierName, { color: colors.text }]} numberOfLines={1}>{tier.name}</Text>
+                        <View style={[styles.tmBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                          <Text style={[styles.tmBadgeText, { color: colors.textSoft }]}>Ticketmaster</Text>
+                        </View>
+                      </View>
                       {tier.perks.length > 0 && (
                         <Text style={[styles.tierSubtext, { color: colors.textMuted }]} numberOfLines={1}>
                           {tier.perks[0]}
@@ -536,6 +541,22 @@ const styles = StyleSheet.create({
   tierName: {
     fontSize: 15,
     fontWeight: '700' as const,
+    flexShrink: 1,
+  },
+  tierNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tmBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tmBadgeText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    letterSpacing: 0.2,
   },
   tierSubtext: {
     fontSize: 13,
