@@ -260,7 +260,7 @@ export default function VerifyIdentityScreen() {
           <View style={[styles.privacyCard, { backgroundColor: isDark ? 'rgba(43, 191, 186, 0.06)' : 'rgba(26, 158, 153, 0.04)', borderColor: colors.border }]}>
             <ShieldCheck color={colors.aqua} size={16} />
             <Text style={[styles.privacyText, { color: colors.textMuted }]}>
-              Your ID data is encrypted on-device using Secure Enclave. Photos never leave your phone.
+              Your photos are uploaded over an encrypted connection and stored in a private, access-controlled bucket. Only you and authorized verification staff can access them.
             </Text>
           </View>
 
