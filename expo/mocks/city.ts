@@ -45,7 +45,6 @@ export interface FeedFilter {
 
 export const feedFilters: FeedFilter[] = [
   { id: 'all', label: 'All' },
-  { id: 'friends', label: 'Friends' },
   { id: 'tonight', label: 'Tonight' },
   { id: 'tomorrow', label: 'Tomorrow' },
   { id: 'events', label: 'Music' },

@@ -15,10 +15,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bookmark, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Send, Ticket, Trash2, X } from 'lucide-react-native';
+import { Bookmark, Calendar, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Send, Star, Ticket, Trash2, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
+import { sampleEvent } from '@/mocks/events';
 import { getUrgencyLabel } from '@/utils/urgency';
 import { UrgencyTag } from '@/components/UrgencyTag';
 import { useData } from '@/providers/DataProvider';
@@ -71,7 +73,6 @@ export default function FeedScreen() {
     return vibeStories.filter((story) => {
       if (feedMode === 'friends' && story.privacy !== 'friends') return false;
       if (activeFilter === 'all') return true;
-      if (activeFilter === 'friends') return story.privacy === 'friends';
       if (activeFilter === 'tonight') return story.tags.includes('tonight');
       if (activeFilter === 'tomorrow') return story.tags.includes('tomorrow');
       if (activeFilter === 'events') return story.tags.includes('concert') || story.tags.includes('comedy') || story.tags.includes('sports');
@@ -204,27 +205,6 @@ export default function FeedScreen() {
           </ScrollView>
         )}
 
-        {feedMode !== 'my_vibes' && (
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/ticketing');
-            }}
-            style={({ pressed }) => [styles.promoCard, { backgroundColor: isDark ? '#0C1C28' : '#E8F0F5' }, pressed && styles.pressed]}
-            testID="event-promo-card"
-          >
-            <View style={styles.promoTop}>
-              <Ticket color={colors.aqua} size={16} />
-              <Text style={[styles.promoTitle, { color: colors.text }]}>Neon Drift: Rooftop After Dark</Text>
-            </View>
-            <Text style={[styles.promoMeta, { color: colors.textMuted }]}>Mica Rooftop · 9 PM · From $25</Text>
-            <View style={[styles.promoUrgency, { backgroundColor: `${colors.aqua}14` }]}>
-              <Flame color={colors.aqua} size={10} />
-              <Text style={[styles.promoUrgencyText, { color: colors.aqua }]}>82% sold</Text>
-            </View>
-          </Pressable>
-        )}
-
         {feedMode === 'my_vibes' ? (
           <>
             <View style={styles.sectionHeader}>
@@ -252,6 +232,12 @@ export default function FeedScreen() {
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Nearby</Text>
             </View>
+            <FeaturedEventCard
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push({ pathname: '/ticketing', params: { venueId: sampleEvent.venueId } });
+              }}
+            />
             {filteredStories.map((story) => (
               <StoryCard
                 key={story.id}
