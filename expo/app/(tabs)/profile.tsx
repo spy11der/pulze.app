@@ -11,7 +11,6 @@ import {
   Copy,
   CreditCard,
   Edit3,
-  Flame,
   LogOut,
   Moon,
   QrCode,
@@ -22,8 +21,6 @@ import {
   Ticket,
   Users,
   Wallet,
-  Zap,
-  TrendingUp,
   MapPin,
   Clock,
 } from 'lucide-react-native';
