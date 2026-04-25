@@ -421,8 +421,8 @@ function MenuItem({
   badge?: React.ReactNode;
 }) {
   const { colors } = useTheme();
-  const iconColor = isDestructive ? colors.coral : colors.aqua;
-  const labelColor = isDestructive ? colors.coral : colors.text;
+  const iconColor = isDestructive ? colors.danger : colors.aqua;
+  const labelColor = isDestructive ? colors.danger : colors.text;
 
   return (
     <Pressable
