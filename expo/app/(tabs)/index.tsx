@@ -264,6 +264,64 @@ export default function FeedScreen() {
   );
 }
 
+const FeaturedEventCard = React.memo(function FeaturedEventCard({
+  onPress,
+}: {
+  onPress: () => void;
+}) {
+  const { colors, isDark } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.featuredCard,
+        { borderColor: colors.border },
+        pressed && styles.pressed,
+      ]}
+      testID="featured-event-card"
+    >
+      <Image source={{ uri: sampleEvent.heroImage }} style={styles.featuredImage} />
+      <LinearGradient
+        colors={isDark ? ['rgba(6,15,19,0)', 'rgba(6,15,19,0.85)', 'rgba(6,15,19,0.98)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.85)']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={styles.featuredTopRow}>
+        <View style={[styles.featuredBadge, { backgroundColor: colors.aqua }]}>
+          <Flame color={isDark ? '#060F13' : '#fff'} size={12} />
+          <Text style={[styles.featuredBadgeText, { color: isDark ? '#060F13' : '#fff' }]}>Featured</Text>
+        </View>
+        <View style={[styles.featuredVibePill, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+          <Star color="#FFD66B" size={11} fill="#FFD66B" />
+          <Text style={styles.featuredVibeText}>{sampleEvent.vibeScore}</Text>
+        </View>
+      </View>
+      <View style={styles.featuredBottom}>
+        <Text style={styles.featuredTitle} numberOfLines={2}>{sampleEvent.title}</Text>
+        <Text style={styles.featuredTagline} numberOfLines={1}>{sampleEvent.tagline}</Text>
+        <View style={styles.featuredMetaRow}>
+          <View style={styles.featuredMetaItem}>
+            <Calendar color="rgba(255,255,255,0.85)" size={12} />
+            <Text style={styles.featuredMetaText}>{sampleEvent.date} · {sampleEvent.time}</Text>
+          </View>
+        </View>
+        <View style={styles.featuredMetaRow}>
+          <View style={styles.featuredMetaItem}>
+            <MapPin color="rgba(255,255,255,0.85)" size={12} />
+            <Text style={styles.featuredMetaText}>{sampleEvent.venueName} · {sampleEvent.distanceFromUser}</Text>
+          </View>
+        </View>
+        <View style={styles.featuredCtaRow}>
+          <View style={[styles.featuredCta, { backgroundColor: colors.aqua }]}>
+            <Ticket color={isDark ? '#060F13' : '#fff'} size={14} />
+            <Text style={[styles.featuredCtaText, { color: isDark ? '#060F13' : '#fff' }]}>Get tickets</Text>
+          </View>
+          <Text style={styles.featuredAttending}>{sampleEvent.attendingCount} going</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
 const StoryCard = React.memo(function StoryCard({
   story,
   isLiked,
@@ -970,5 +1028,105 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.9,
     transform: [{ scale: 0.985 }],
+  },
+  featuredCard: {
+    height: 240,
+    borderRadius: 18,
+    overflow: 'hidden' as const,
+    borderWidth: 1,
+    justifyContent: 'space-between',
+  },
+  featuredImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  featuredTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+  },
+  featuredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  featuredBadgeText: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
+  },
+  featuredVibePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  featuredVibeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  featuredBottom: {
+    padding: 16,
+    gap: 6,
+  },
+  featuredTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800' as const,
+    lineHeight: 25,
+  },
+  featuredTagline: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 13,
+    fontWeight: '500' as const,
+  },
+  featuredMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  featuredMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  featuredMetaText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  featuredCtaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  featuredCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  featuredCtaText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+  },
+  featuredAttending: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
 });
