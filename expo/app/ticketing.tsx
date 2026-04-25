@@ -332,6 +332,10 @@ export default function TicketingScreen() {
             </View>
           )}
 
+          <Text style={[styles.sourceDisclaimer, { color: colors.textSoft }]}>
+            Prices and availability sourced from Ticketmaster. Fees set by the seller.
+          </Text>
+
         </Animated.View>
       </ScrollView>
 
@@ -490,6 +494,13 @@ const styles = StyleSheet.create({
   tiersList: {
     paddingHorizontal: 16,
     gap: 10,
+  },
+  sourceDisclaimer: {
+    fontSize: 11,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginTop: 18,
+    lineHeight: 15,
   },
   tierCard: {
     borderRadius: 14,
