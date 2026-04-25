@@ -329,11 +329,6 @@ export default function TicketingScreen() {
             </View>
           )}
 
-          <View style={[styles.feeNotice, { backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }]}>
-            <Text style={[styles.feeNoticeText, { color: colors.textSoft }]}>
-              {event.serviceFeePercent}% service fee applies at checkout
-            </Text>
-          </View>
         </Animated.View>
       </ScrollView>
 

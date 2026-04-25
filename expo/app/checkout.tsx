@@ -104,8 +104,7 @@ export default function CheckoutScreen() {
   }, [params.quantity]);
 
   const subtotal = tier.price * quantity;
-  const serviceFee = Math.round(subtotal * event.serviceFeePercent / 100 * 100) / 100;
-  const total = subtotal + serviceFee;
+  const total = subtotal;
 
   const cardValid = useMemo(() => {
     if (paymentMethod === 'apple') return true;
@@ -375,13 +374,6 @@ export default function CheckoutScreen() {
                 <Text style={[styles.orderLineSub, { color: colors.textMuted }]}>{quantity} ticket{quantity > 1 ? 's' : ''} × ${tier.price}</Text>
               </View>
               <Text style={[styles.orderLineAmount, { color: colors.text }]}>${subtotal.toFixed(2)}</Text>
-            </View>
-
-            <View style={[styles.orderDivider, { backgroundColor: colors.border }]} />
-
-            <View style={styles.orderLineRow}>
-              <Text style={[styles.orderLineLabel, { color: colors.textMuted }]}>Service fee</Text>
-              <Text style={[styles.orderLineAmount, { color: colors.textMuted }]}>${serviceFee.toFixed(2)}</Text>
             </View>
 
             <View style={[styles.orderTotalDivider, { backgroundColor: colors.aqua }]} />
