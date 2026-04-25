@@ -1,3 +1,5 @@
+// v2
+// profile screen
 import React, { useMemo, useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
