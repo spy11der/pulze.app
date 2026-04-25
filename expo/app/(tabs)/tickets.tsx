@@ -101,17 +101,8 @@ export default function TicketsTab() {
 
   const handleGetTickets = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const tier = selectedTier ?? event.ticketTiers.find(t => !t.soldOut)?.id;
-    const qty = tier ? (quantities[tier] || 1) : 1;
-    router.push({
-      pathname: '/checkout',
-      params: {
-        eventId: event.id,
-        tierId: tier ?? '',
-        quantity: String(qty),
-      },
-    });
-  }, [selectedTier, quantities, event, router]);
+    console.log('[tickets] get tickets pressed', { eventId: event.id, selectedTier, quantities });
+  }, [selectedTier, quantities, event]);
 
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;

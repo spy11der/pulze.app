@@ -88,15 +88,8 @@ export default function TicketingScreen() {
     const tier = selectedTier ?? sortedTiers[0]?.id;
     if (!tier) return;
     const qty = quantities[tier] || 1;
-    router.push({
-      pathname: '/checkout',
-      params: {
-        eventId: event.id,
-        tierId: tier,
-        quantity: String(qty),
-      },
-    });
-  }, [selectedTier, quantities, event, router, sortedTiers]);
+    console.log('[ticketing] continue pressed', { eventId: event.id, tier, qty });
+  }, [selectedTier, quantities, event, sortedTiers]);
 
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;
