@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -88,7 +89,11 @@ export default function TicketingScreen() {
     const tier = selectedTier ?? sortedTiers[0]?.id;
     if (!tier) return;
     const qty = quantities[tier] || 1;
-    console.log('[ticketing] continue pressed', { eventId: event.id, tier, qty });
+    const url = `https://www.ticketmaster.com/search?q=${encodeURIComponent(event.title)}`;
+    console.log('[ticketing] get tickets on ticketmaster', { eventId: event.id, tier, qty, url });
+    Linking.openURL(url).catch((err) => {
+      console.error('[ticketing] failed to open ticketmaster url', err);
+    });
   }, [selectedTier, quantities, event, sortedTiers]);
 
   const selectedTierData = useMemo(() => {
@@ -364,7 +369,7 @@ export default function TicketingScreen() {
         >
           <Text style={[styles.continueBtnText, {
             color: selectedTier ? (isDark ? colors.background : '#fff') : colors.textSoft,
-          }]}>Continue</Text>
+          }]} numberOfLines={1}>Get tickets on Ticketmaster</Text>
           <ChevronRight
             color={selectedTier ? (isDark ? colors.background : '#fff') : colors.textSoft}
             size={18}
