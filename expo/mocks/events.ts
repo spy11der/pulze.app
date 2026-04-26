@@ -25,6 +25,7 @@ export interface FriendAttending {
 
 export interface PulzeEvent {
   id: string;
+  venueId: string;
   title: string;
   tagline: string;
   heroImage: string;
@@ -55,141 +56,7 @@ export interface PulzeEvent {
   tags: string[];
 }
 
-export interface Venue {
-  id: string;
-  name: string;
-  shortName: string;
-  image: string;
-  vibeScore: number;
-  energyType: 'quiet' | 'moderate' | 'high';
-  address: string;
-  latitude: number;
-  longitude: number;
-  distanceFromUser: string;
-}
-
-export const venues: Venue[] = [
-  {
-    id: 'v-001',
-    name: 'Fillmore Auditorium',
-    shortName: 'Fillmore',
-    image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=200&h=200&fit=crop',
-    vibeScore: 94,
-    energyType: 'high',
-    address: '1510 Clarkson St, Denver, CO',
-    latitude: 39.7407,
-    longitude: -104.9785,
-    distanceFromUser: '8 min away',
-  },
-  {
-    id: 'v-002',
-    name: 'Gothic Theatre',
-    shortName: 'Gothic',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&h=200&fit=crop',
-    vibeScore: 89,
-    energyType: 'high',
-    address: '3263 S Broadway, Englewood, CO',
-    latitude: 39.6536,
-    longitude: -104.9875,
-    distanceFromUser: '18 min away',
-  },
-  {
-    id: 'v-003',
-    name: 'Bluebird Theater',
-    shortName: 'Bluebird',
-    image: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=200&h=200&fit=crop',
-    vibeScore: 86,
-    energyType: 'moderate',
-    address: '3317 E Colfax Ave, Denver, CO',
-    latitude: 39.7401,
-    longitude: -104.9527,
-    distanceFromUser: '12 min away',
-  },
-  {
-    id: 'v-004',
-    name: 'Ogden Theatre',
-    shortName: 'Ogden',
-    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop',
-    vibeScore: 91,
-    energyType: 'high',
-    address: '935 E Colfax Ave, Denver, CO',
-    latitude: 39.7400,
-    longitude: -104.9740,
-    distanceFromUser: '6 min away',
-  },
-  {
-    id: 'v-005',
-    name: 'Cervantes Masterpiece Ballroom',
-    shortName: 'Cervantes',
-    image: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=200&h=200&fit=crop',
-    vibeScore: 88,
-    energyType: 'high',
-    address: '2637 Welton St, Denver, CO',
-    latitude: 39.7536,
-    longitude: -104.9788,
-    distanceFromUser: '10 min away',
-  },
-  {
-    id: 'v-006',
-    name: 'Summit Music Hall',
-    shortName: 'Summit',
-    image: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d50?w=200&h=200&fit=crop',
-    vibeScore: 83,
-    energyType: 'moderate',
-    address: '1902 Blake St, Denver, CO',
-    latitude: 39.7535,
-    longitude: -104.9938,
-    distanceFromUser: '14 min away',
-  },
-  {
-    id: 'v-007',
-    name: 'The Church Nightclub',
-    shortName: 'Church',
-    image: 'https://images.unsplash.com/photo-1504704911898-68304a7d2e80?w=200&h=200&fit=crop',
-    vibeScore: 96,
-    energyType: 'high',
-    address: '1160 Lincoln St, Denver, CO',
-    latitude: 39.7343,
-    longitude: -104.9847,
-    distanceFromUser: '9 min away',
-  },
-  {
-    id: 'v-008',
-    name: 'Meow Wolf Denver',
-    shortName: 'Meow Wolf',
-    image: 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=200&h=200&fit=crop',
-    vibeScore: 92,
-    energyType: 'high',
-    address: '1338 1st St, Denver, CO',
-    latitude: 39.7530,
-    longitude: -105.0072,
-    distanceFromUser: '15 min away',
-  },
-  {
-    id: 'v-009',
-    name: 'Swallow Hill Music Hall',
-    shortName: 'Swallow Hill',
-    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&h=200&fit=crop',
-    vibeScore: 62,
-    energyType: 'quiet',
-    address: '71 E Yale Ave, Denver, CO',
-    latitude: 39.6802,
-    longitude: -104.9784,
-    distanceFromUser: '22 min away',
-  },
-  {
-    id: 'v-010',
-    name: 'Oriental Theater',
-    shortName: 'Oriental',
-    image: 'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?w=200&h=200&fit=crop',
-    vibeScore: 78,
-    energyType: 'moderate',
-    address: '4335 W 44th Ave, Denver, CO',
-    latitude: 39.7786,
-    longitude: -105.0432,
-    distanceFromUser: '20 min away',
-  },
-];
+import { pulzeVenues } from '@/mocks/venues';
 
 export const venueEvents: Record<string, PulzeEvent> = {};
 
@@ -282,7 +149,7 @@ const eventTemplates: Array<{
     currentVibeAround: 'East Colfax is active — food trucks and pre-show crowds gathering.',
   },
   {
-    venueId: 'v-004',
+    venueId: 'v-007',
     title: 'Heyz Live at the Ogden',
     tagline: 'Rising star energy at Denver\'s Ogden Theatre.',
     heroImage: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&h=500&fit=crop',
@@ -305,7 +172,7 @@ const eventTemplates: Array<{
     currentVibeAround: 'Colfax has 3 shows tonight — active all the way down.',
   },
   {
-    venueId: 'v-005',
+    venueId: 'v-006',
     title: 'Big Something + Special Guests',
     tagline: 'Genre-bending jams at Cervantes.',
     heroImage: 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=800&h=500&fit=crop',
@@ -329,53 +196,7 @@ const eventTemplates: Array<{
     currentVibeAround: 'Five Points is active — crowds gathering on Welton St.',
   },
   {
-    venueId: 'v-006',
-    title: 'Two Feet: The Next Steps Tour',
-    tagline: 'Dark, sultry electronic-rock at Summit.',
-    heroImage: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d50?w=800&h=500&fit=crop',
-    date: 'Sat, Mar 14',
-    time: '8:00 PM – 11:30 PM',
-    doorsOpen: '7:00 PM',
-    description: 'Two Feet brings his signature blend of dark electronic, blues, and indie rock to Summit Music Hall. Known for moody, bass-heavy tracks, this show will be an atmospheric experience in Denver\'s Blake Street venue.',
-    energyType: 'moderate',
-    tags: ['Electronic', 'Indie', 'Dark Pop', 'Summit', 'Tonight'],
-    lineup: [
-      { id: 'g10', name: 'Two Feet', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1508854710579-5cecc3a9ff17?w=100&h=100&fit=crop&crop=face' },
-    ],
-    whatToExpect: [
-      'Moody, bass-driven live performance',
-      'Atmospheric lighting and production',
-      'Standing room with elevated side areas',
-      'Blake Street bar district energy before/after',
-    ],
-    bestTimeToArrive: '7:30 PM for front-of-stage spots',
-    currentVibeAround: 'Blake Street / LoDo area is packed — St. Patrick\'s Day weekend energy everywhere.',
-  },
-  {
-    venueId: 'v-007',
-    title: 'Justin Jay: Global Dance + TheHundred',
-    tagline: 'Late-night house and disco in a converted church.',
-    heroImage: 'https://images.unsplash.com/photo-1504704911898-68304a7d2e80?w=800&h=500&fit=crop',
-    date: 'Sat, Mar 14',
-    time: '10:00 PM – 2:00 AM',
-    doorsOpen: '10:00 PM',
-    description: 'Justin Jay takes over The Church Nightclub for a late-night house and disco set presented by Global Dance and TheHundred. The converted church venue adds an unforgettable atmosphere to what promises to be the hottest late-night dance party in Denver tonight.',
-    energyType: 'high',
-    tags: ['House', 'Disco', 'Late Night', 'Church', 'DJ Set', 'Tonight'],
-    lineup: [
-      { id: 'g11', name: 'Justin Jay', role: 'Headliner', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face' },
-    ],
-    whatToExpect: [
-      'Multi-room converted church venue experience',
-      'House and disco DJ sets until 2 AM',
-      'Stained glass windows and cathedral ceilings',
-      'Multiple bars and VIP bottle service',
-    ],
-    bestTimeToArrive: '10:30 PM — line gets long after 11',
-    currentVibeAround: 'Lincoln St is busy — this is the late-night spot tonight.',
-  },
-  {
-    venueId: 'v-008',
+    venueId: 'v-005',
     title: 'Vendredi Sur Mer at Meow Wolf',
     tagline: 'French dream-pop inside Denver\'s wildest art space.',
     heroImage: 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&h=500&fit=crop',
@@ -396,55 +217,6 @@ const eventTemplates: Array<{
     ],
     bestTimeToArrive: '6:00 PM to explore Meow Wolf before the set starts',
     currentVibeAround: 'Sun Valley is busy — Meow Wolf line already forming.',
-  },
-  {
-    venueId: 'v-009',
-    title: 'On A Winter\'s Night: Folk Legends',
-    tagline: 'Cliff Eberhardt, John Gorka, Lucy Kaplansky & Patty Larkin.',
-    heroImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&h=500&fit=crop',
-    date: 'Sat, Mar 14',
-    time: '8:00 PM – 10:30 PM',
-    doorsOpen: '7:00 PM',
-    description: 'Four folk legends — Cliff Eberhardt, John Gorka, Lucy Kaplansky, and Patty Larkin — share the stage at Swallow Hill Music Hall for "On A Winter\'s Night." An intimate, seated evening of storytelling and acoustic mastery.',
-    energyType: 'quiet',
-    tags: ['Folk', 'Acoustic', 'Intimate', 'Seated', 'Swallow Hill', 'Tonight'],
-    lineup: [
-      { id: 'g13', name: 'John Gorka', role: 'Featured', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face' },
-      { id: 'g14', name: 'Lucy Kaplansky', role: 'Featured', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face' },
-      { id: 'g15', name: 'Patty Larkin', role: 'Featured', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face' },
-      { id: 'g16', name: 'Cliff Eberhardt', role: 'Featured', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face' },
-    ],
-    whatToExpect: [
-      'Seated, intimate folk concert experience',
-      'In-the-round format with all 4 artists on stage together',
-      'Storytelling between songs',
-      'Wine and beer available at the venue',
-    ],
-    bestTimeToArrive: '7:15 PM for best seat selection',
-    currentVibeAround: 'South Denver is calm — perfect for a chill evening out.',
-  },
-  {
-    venueId: 'v-010',
-    title: 'HUMP! Film Fest 2026',
-    tagline: 'Dan Savage\'s legendary amateur film festival.',
-    heroImage: 'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?w=800&h=500&fit=crop',
-    date: 'Sat, Mar 14',
-    time: '7:00 PM – 10:00 PM',
-    doorsOpen: '6:30 PM',
-    description: 'The HUMP! Film Fest returns to Denver\'s Oriental Theater for a night of creativity, comedy, and bold storytelling. Dan Savage\'s annual amateur film festival celebrates expression and community in a fun, inclusive environment.',
-    energyType: 'moderate',
-    tags: ['Film', 'Festival', 'Comedy', 'Art', 'Oriental Theater', 'Tonight'],
-    lineup: [
-      { id: 'g17', name: 'Dan Savage', role: 'Host / Curator', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face' },
-    ],
-    whatToExpect: [
-      'Short film screenings curated by Dan Savage',
-      'Audience voting for favorite films',
-      'Full bar and concessions',
-      'Fun, inclusive community atmosphere',
-    ],
-    bestTimeToArrive: '6:30 PM — seats fill up fast',
-    currentVibeAround: 'Tennyson St is lively with dinner crowds and gallery walkers.',
   },
 ];
 
@@ -493,20 +265,18 @@ const tierMap: Record<string, string> = {
   'v-001': 'rock',
   'v-002': 'indie',
   'v-003': 'indie',
-  'v-004': 'rock',
-  'v-005': 'rock',
-  'v-006': 'indie',
-  'v-007': 'club',
-  'v-008': 'meowwolf',
-  'v-009': 'intimate',
-  'v-010': 'film',
+  'v-005': 'meowwolf',
+  'v-006': 'rock',
+  'v-007': 'rock',
 };
 
 for (const template of eventTemplates) {
-  const venue = venues.find(v => v.id === template.venueId)!;
+  const venue = pulzeVenues.find(v => v.id === template.venueId);
+  if (!venue) continue;
   const tiers = tierTemplates[tierMap[template.venueId] ?? 'indie'] ?? tierTemplates.indie;
   venueEvents[template.venueId] = {
     id: `evt-${template.venueId}`,
+    venueId: template.venueId,
     title: template.title,
     tagline: template.tagline,
     heroImage: template.heroImage,
@@ -517,9 +287,9 @@ for (const template of eventTemplates) {
     venueAddress: venue.address,
     venueLatitude: venue.latitude,
     venueLongitude: venue.longitude,
-    distanceFromUser: venue.distanceFromUser,
-    vibeScore: venue.vibeScore,
-    vibeLabel: venue.vibeScore >= 90 ? 'Almost sold out' : venue.vibeScore >= 75 ? 'Selling fast' : venue.vibeScore >= 60 ? 'Available' : 'Plenty left',
+    distanceFromUser: venue.eta,
+    vibeScore: venue.vibe_score,
+    vibeLabel: venue.vibe_score >= 90 ? 'Almost sold out' : venue.vibe_score >= 75 ? 'Selling fast' : venue.vibe_score >= 60 ? 'Available' : 'Plenty left',
     energyType: template.energyType,
     interestedCount: Math.floor(Math.random() * 600) + 200,
     attendingCount: Math.floor(Math.random() * 300) + 100,
@@ -540,6 +310,7 @@ for (const template of eventTemplates) {
 
 export const sampleEvent: PulzeEvent = venueEvents['v-001'] ?? {
   id: 'evt-001',
+  venueId: 'v-001',
   title: 'Nothing More + Catch Your Breath',
   tagline: 'Hard-hitting rock with Archers and Doobie opening the night.',
   heroImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=500&fit=crop',
@@ -644,7 +415,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'Heyz',
     eventName: 'Heyz Live at the Ogden',
     venue: 'Ogden Theatre',
-    venueId: 'v-004',
+    venueId: 'v-007',
     date: 'Tonight, Mar 14',
     startingPrice: 29,
     image: 'https://images.unsplash.com/photo-1508854710579-5cecc3a9ff17?w=400&h=400&fit=crop',
@@ -658,7 +429,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'Big Something',
     eventName: 'Big Something + Special Guests',
     venue: 'Cervantes Masterpiece',
-    venueId: 'v-005',
+    venueId: 'v-006',
     date: 'Tonight, Mar 14',
     startingPrice: 29,
     image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=400&h=400&fit=crop',
@@ -672,7 +443,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'Two Feet',
     eventName: 'The Next Steps Tour',
     venue: 'Summit Music Hall',
-    venueId: 'v-006',
+    venueId: 'v-001',
     date: 'Tonight, Mar 14',
     startingPrice: 22,
     image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=400&fit=crop',
@@ -686,7 +457,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'Justin Jay',
     eventName: 'Global Dance + TheHundred',
     venue: 'The Church Nightclub',
-    venueId: 'v-007',
+    venueId: 'v-001',
     date: 'Tonight, Mar 14',
     startingPrice: 20,
     image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
@@ -700,7 +471,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'Vendredi Sur Mer',
     eventName: 'Live at Meow Wolf',
     venue: 'Meow Wolf Denver',
-    venueId: 'v-008',
+    venueId: 'v-005',
     date: 'Tonight, Mar 14',
     startingPrice: 35,
     image: 'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?w=400&h=400&fit=crop',
@@ -714,7 +485,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'John Gorka & Friends',
     eventName: 'On A Winter\'s Night',
     venue: 'Swallow Hill Music',
-    venueId: 'v-009',
+    venueId: 'v-001',
     date: 'Tonight, Mar 14',
     startingPrice: 28,
     image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop',
@@ -728,7 +499,7 @@ export const artistListings: ArtistListing[] = [
     artistName: 'HUMP! Film Fest',
     eventName: 'HUMP! Film Fest 2026',
     venue: 'Oriental Theater',
-    venueId: 'v-010',
+    venueId: 'v-001',
     date: 'Tonight, Mar 14',
     startingPrice: 25,
     image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=400&h=400&fit=crop',
