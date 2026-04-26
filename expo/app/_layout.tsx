@@ -98,6 +98,10 @@ function AppContent() {
     setSplashDone(true);
   }, []);
 
+  if (!onboardingChecked) {
+    return null;
+  }
+
   if (authLoading && !splashDone) {
     return (
       <>
