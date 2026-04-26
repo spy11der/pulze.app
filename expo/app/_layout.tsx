@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -63,43 +63,25 @@ function RootLayoutNav() {
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { isDark } = useTheme();
-  const router = useRouter();
-  const segments = useSegments();
   const [splashDone, setSplashDone] = useState<boolean>(false);
-  const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
+  const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const v = await AsyncStorage.getItem('pulze_onboarded');
-        if (mounted) setNeedsOnboarding(v !== 'true');
-      } catch (e) {
-        console.log('[Onboarding] read failed', e);
-      } finally {
-        if (mounted) setOnboardingChecked(true);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
+    AsyncStorage.getItem('pulze_onboarded').then((value) => {
+      setHasOnboarded(value === 'true');
+    });
   }, []);
-
-  useEffect(() => {
-    if (!onboardingChecked) return;
-    if (!needsOnboarding) return;
-    const current = segments.join('/');
-    if (current.includes('onboarding')) return;
-    router.replace('/onboarding');
-  }, [onboardingChecked, needsOnboarding, segments, router]);
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
   }, []);
 
-  if (!onboardingChecked) {
+  if (hasOnboarded === null) {
     return null;
+  }
+
+  if (hasOnboarded === false) {
+    return <Redirect href="/onboarding" />;
   }
 
   if (authLoading && !splashDone) {

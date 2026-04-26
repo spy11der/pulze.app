@@ -251,13 +251,9 @@ export default function OnboardingScreen() {
     goTo(3);
   }, [goTo]);
 
-  const handleFinish = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDED_KEY, 'true');
-    } catch (err) {
-      console.log('[Onboarding] persist failed', err);
-    }
-    router.replace('/(tabs)');
+  const handleComplete = useCallback(async () => {
+    await AsyncStorage.setItem(ONBOARDED_KEY, 'true');
+    router.replace('/(tabs)/');
   }, [router]);
 
   return (
@@ -349,7 +345,7 @@ export default function OnboardingScreen() {
           <Text style={styles.subtext}>Let&apos;s find somewhere worth going tonight.</Text>
           <Pressable
             style={styles.primaryButton}
-            onPress={handleFinish}
+            onPress={handleComplete}
             testID="onboarding-finish"
           >
             <Text style={styles.primaryButtonText}>Open Pulze</Text>
