@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
@@ -54,6 +55,7 @@ function RootLayoutNav() {
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="staff/scan" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
   );
 }
@@ -61,7 +63,36 @@ function RootLayoutNav() {
 function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { isDark } = useTheme();
+  const router = useRouter();
+  const segments = useSegments();
   const [splashDone, setSplashDone] = useState<boolean>(false);
+  const [onboardingChecked, setOnboardingChecked] = useState<boolean>(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const v = await AsyncStorage.getItem('pulze_onboarded');
+        if (mounted) setNeedsOnboarding(v !== 'true');
+      } catch (e) {
+        console.log('[Onboarding] read failed', e);
+      } finally {
+        if (mounted) setOnboardingChecked(true);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!onboardingChecked) return;
+    if (!needsOnboarding) return;
+    const current = segments.join('/');
+    if (current.includes('onboarding')) return;
+    router.replace('/onboarding');
+  }, [onboardingChecked, needsOnboarding, segments, router]);
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
