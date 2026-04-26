@@ -40,6 +40,7 @@ import {
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Image as RNImage } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { pulzeVenues } from '@/mocks/venues';
@@ -64,11 +65,9 @@ const DENVER_REGION: Region = {
 const GOOGLE_MAP_ID = '2783466a9a2d6e2483f0e07a';
 
 function getVibeColor(score: number): string {
-  if (score >= 80) return '#E85D50';
-  if (score >= 60) return '#E8A040';
-  if (score >= 40) return '#C8B850';
-  if (score >= 20) return '#50B880';
-  return '#5098C0';
+  if (score >= 61) return '#2BBFBA';
+  if (score >= 31) return '#FFB800';
+  return '#FF4444';
 }
 
 function getStatusInfo(status: string): { label: string; color: string } {
@@ -204,21 +203,34 @@ const RefinedMarker = React.memo(function RefinedMarker({
   isDark: boolean;
 }) {
   const color = getVibeColor(venue.vibe_score);
-  const isHot = venue.vibe_score >= 60;
+  const isHot = venue.vibe_score > 60;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!isHot) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.4, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 1000, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isHot, pulseAnim]);
 
   return (
     <Marker
       coordinate={{ latitude: venue.latitude, longitude: venue.longitude }}
       onPress={onPress}
       anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={false}
+      tracksViewChanges={isHot && Platform.OS !== 'web'}
       flat
       stopPropagation
       testID={`venue-marker-${venue.id}`}
     >
       <View style={mStyles.root}>
         {isHot ? (
-          <View style={[mStyles.pulse, { backgroundColor: color, opacity: 0.15 }]} />
+          <Animated.View style={[mStyles.pulse, { backgroundColor: color, opacity: 0.18, transform: [{ scale: pulseAnim }] }]} />
         ) : null}
         <View style={[
           mStyles.dot,
@@ -245,7 +257,7 @@ const RefinedMarker = React.memo(function RefinedMarker({
       </View>
     </Marker>
   );
-}, () => true);
+});
 
 const ClusterDot = React.memo(function ClusterDot({
   cluster,
@@ -302,15 +314,10 @@ const FilterPill = React.memo(function FilterPill({
 }) {
   const IconComp = ICON_MAP[iconName];
 
-  const accentColor = filterId === 'pulze' ? colors.coral
-    : filterId === 'quiet' ? colors.quiet
-    : colors.aqua;
-
-  const pillBg = isActive
-    ? isDark ? 'rgba(14, 20, 32, 0.96)' : 'rgba(255,255,255,0.97)'
-    : isDark ? 'rgba(14, 20, 32, 0.92)' : 'rgba(255,255,255,0.94)';
-
-  const tColor = isActive ? accentColor : isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)';
+  const TEAL = '#2BBFBA';
+  const pillBg = isActive ? TEAL : 'transparent';
+  const tColor = isActive ? '#ffffff' : TEAL;
+  const borderColor = isActive ? TEAL : TEAL;
 
   return (
     <Pressable
@@ -319,7 +326,13 @@ const FilterPill = React.memo(function FilterPill({
         styles.filterPill,
         {
           backgroundColor: pillBg,
-          borderColor: isActive ? accentColor + '40' : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+          borderColor,
+        },
+        isActive && {
+          shadowColor: TEAL,
+          shadowOpacity: 0.6,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 0 },
         },
         pressed && styles.pressed,
       ]}
@@ -434,9 +447,17 @@ function VenueCard({
         backgroundColor: cardBg,
         shadowColor: isDark ? '#000' : '#2a3a4a',
         shadowOpacity: isDark ? 0.4 : 0.12,
+        overflow: 'hidden',
       }]}>
+        <LinearGradient
+          colors={['rgba(43,191,186,0.9)', 'rgba(43,191,186,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.cardTopAccent}
+          pointerEvents="none"
+        />
         <View style={styles.cardHandle}>
-          <View style={[styles.handleBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
+          <View style={[styles.handleBar, { backgroundColor: 'rgba(43,191,186,0.4)' }]} />
         </View>
 
         <View style={styles.cardTopActions}>
@@ -446,9 +467,9 @@ function VenueCard({
             testID="sheet-heart"
           >
             <Heart
-              color={isHearted ? colors.coral : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)')}
+              color={'#2BBFBA'}
               size={14}
-              fill={isHearted ? colors.coral : 'transparent'}
+              fill={isHearted ? '#2BBFBA' : 'transparent'}
             />
           </Pressable>
           <Pressable
@@ -517,14 +538,14 @@ function VenueCard({
             style={({ pressed }) => [
               styles.heartBtn,
               {
-                backgroundColor: isHearted ? (isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)') : subtleBg,
-                borderColor: isHearted ? colors.coral + '40' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
+                backgroundColor: isHearted ? 'rgba(43,191,186,0.12)' : subtleBg,
+                borderColor: isHearted ? 'rgba(43,191,186,0.4)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
               },
               pressed && styles.pressed,
             ]}
             testID="sheet-heart-action"
           >
-            <Heart color={isHearted ? colors.coral : colors.textMuted} size={15} fill={isHearted ? colors.coral : 'transparent'} />
+            <Heart color={'#2BBFBA'} size={15} fill={isHearted ? '#2BBFBA' : 'transparent'} />
           </Pressable>
           <Pressable
             onPress={onDirections}
@@ -792,8 +813,14 @@ export default function MapScreen() {
             {
               backgroundColor: isDark ? 'rgba(14, 20, 32, 0.96)' : 'rgba(255,255,255,0.97)',
               borderColor: isSearchFocused
-                ? (isDark ? 'rgba(53, 212, 207, 0.4)' : 'rgba(26, 168, 163, 0.4)')
+                ? 'rgba(43,191,186,0.6)'
                 : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+            },
+            isSearchFocused && {
+              shadowColor: '#2BBFBA',
+              shadowOpacity: 0.4,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 0 },
             },
           ]}>
             <Search color={isSearchFocused ? colors.aqua : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')} size={16} />
@@ -1112,6 +1139,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
+  },
+  cardTopAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
   cardHandle: {
     alignItems: 'center',
