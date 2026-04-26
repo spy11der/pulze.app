@@ -80,6 +80,7 @@ export default function TicketsTab() {
             ) : null}
 
             {allArtists.length > 0 ? (
+            <>
             <View style={styles.sectionBlock}>
               <View style={styles.artistSectionHeader}>
                 <View style={styles.artistSectionTitleRow}>
@@ -109,6 +110,7 @@ export default function TicketsTab() {
                 ))}
               </View>
             </View>
+            </>
             ) : null}
 
           </View>
