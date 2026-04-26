@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   Animated,
   Image,
@@ -13,50 +13,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
-  Bookmark,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Heart,
   MapPin,
-  Minus,
-  Navigation,
-  Plus,
-
-  Sparkles,
-  Star,
   Ticket,
   TrendingUp,
-  Users,
   Zap,
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { sampleEvent, artistListings } from '@/mocks/events';
+import { artistListings } from '@/mocks/events';
 import type { ArtistListing } from '@/mocks/events';
-import { DirectionsSheet } from '@/components/DirectionsSheet';
 
 export default function TicketsTab() {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
-
-  const [selectedTier, setSelectedTier] = useState<string | null>(null);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [saved, setSaved] = useState<boolean>(false);
 
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
 
-  const event = sampleEvent;
-
   const trendingArtists = useMemo(() => artistListings.filter(a => a.trending), []);
   const allArtists = useMemo(() => artistListings, []);
-
-  const sortedTiers = useMemo(() => {
-    return [...event.ticketTiers].sort((a, b) => a.price - b.price);
-  }, [event.ticketTiers]);
 
   const handleArtistTap = useCallback((artist: ArtistListing) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -69,52 +46,6 @@ export default function TicketsTab() {
       Animated.timing(contentSlide, { toValue: 0, duration: 500, delay: 200, useNativeDriver: true }),
     ]).start();
   }, [heroOpacity, contentSlide]);
-
-  const handleQuantityChange = useCallback((tierId: string, delta: number) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setQuantities(prev => {
-      const current = prev[tierId] ?? 0;
-      const next = Math.max(0, Math.min(current + delta, 10));
-      return { ...prev, [tierId]: next };
-    });
-  }, []);
-
-  const handleSelectTier = useCallback((tierId: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedTier(prev => prev === tierId ? null : tierId);
-    if (!quantities[tierId]) {
-      setQuantities(prev => ({ ...prev, [tierId]: 1 }));
-    }
-  }, [quantities]);
-
-  const handleSave = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSaved(s => !s);
-  }, []);
-
-  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
-
-  const handleDirections = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setDirectionsVisible(true);
-  }, []);
-
-  const handleGetTickets = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    console.log('[tickets] get tickets pressed', { eventId: event.id, selectedTier, quantities });
-  }, [selectedTier, quantities, event]);
-
-  const selectedTierData = useMemo(() => {
-    if (!selectedTier) return null;
-    return event.ticketTiers.find(t => t.id === selectedTier) ?? null;
-  }, [selectedTier, event]);
-
-  const stickyTotal = useMemo(() => {
-    if (!selectedTierData) return 0;
-    return selectedTierData.price * (quantities[selectedTierData.id] ?? 1);
-  }, [selectedTierData, quantities]);
-
-  const energyColor = colors.aqua;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="tickets-tab-screen">
@@ -272,61 +203,6 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden' as const,
   },
-  heroContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
-    zIndex: 1,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 140,
-  },
-  heroTopBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  heroTitleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  heroTitleBadgeText: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-  },
-  heroActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  heroIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollContent: {
     position: 'relative',
     zIndex: 2,
@@ -335,214 +211,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 16,
   },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tagPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-  },
-  eventTitle: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    lineHeight: 34,
-    letterSpacing: -0.3,
-  },
-  eventTagline: {
-    fontSize: 16,
-    lineHeight: 22,
-    marginTop: -4,
-  },
-  quickInfoCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1,
-  },
-  quickInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  quickInfoText: {
-    flex: 1,
-    gap: 2,
-  },
-  quickInfoLabel: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  quickInfoSub: {
-    fontSize: 13,
-  },
-  quickInfoDivider: {
-    height: 1,
-    marginLeft: 32,
-  },
-  liveStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  vibeScoreCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  vibeScoreNum: {
-    fontSize: 32,
-    fontWeight: '900' as const,
-  },
-  vibeScoreLabel: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  statMiniCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  statMiniNum: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-  },
-  statMiniLabel: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  energyBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  energyBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  energyBannerText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  energyDots: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  energyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  friendsCard: {
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-  },
-  friendsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  friendsTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  friendsAvatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  friendAvatarWrap: {
-    borderRadius: 18,
-  },
-  friendAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-  },
-  friendsCount: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginLeft: 10,
-  },
-  hostCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1,
-  },
-  hostAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  hostInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  hostNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  hostName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  hostLabel: {
-    fontSize: 13,
-  },
   sectionBlock: {
     gap: 10,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '800' as const,
-  },
-  sectionSub: {
-    fontSize: 14,
-    marginTop: -6,
-  },
-  sectionBody: {
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  expectRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingLeft: 4,
-  },
-  expectDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 7,
-  },
-  expectText: {
-    fontSize: 15,
-    lineHeight: 22,
-    flex: 1,
   },
   artistSectionHeader: {
     gap: 4,
@@ -743,249 +417,5 @@ const styles = StyleSheet.create({
   compactSellingFastText: {
     fontSize: 10,
     fontWeight: '700' as const,
-  },
-  dividerLine: {
-    height: 1,
-    marginVertical: 4,
-  },
-  featuredEventHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featuredEventLabel: {
-    fontSize: 13,
-    fontWeight: '800' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  lineupScroll: {
-    gap: 12,
-    paddingRight: 4,
-  },
-  lineupCard: {
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 20,
-    padding: 16,
-    width: 120,
-    borderWidth: 1,
-  },
-  lineupAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  lineupName: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    textAlign: 'center' as const,
-  },
-  lineupRole: {
-    fontSize: 12,
-    textAlign: 'center' as const,
-  },
-  pulzeInsightCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-  },
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  insightLabel: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  insightValue: {
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 2,
-  },
-  insightDivider: {
-    height: 1,
-    marginLeft: 24,
-  },
-  ticketListContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  ticketListRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 14,
-  },
-  ticketListRowBorder: {
-    borderBottomWidth: 1,
-  },
-  ticketListRadio: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ticketListRadioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ticketListRadioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  ticketListInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  ticketListName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  ticketListDesc: {
-    fontSize: 13,
-  },
-  ticketListPrice: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  quantityCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  quantityCardLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  qtyBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyValue: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    minWidth: 24,
-    textAlign: 'center' as const,
-  },
-  mapPreviewCard: {
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-    borderWidth: 1,
-  },
-  mapPreviewTitle: {
-    fontSize: 17,
-    fontWeight: '800' as const,
-  },
-  mapPlaceholder: {
-    height: 140,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  mapPlaceholderText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  mapPlaceholderAddr: {
-    fontSize: 12,
-  },
-  mapActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  mapActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 13,
-  },
-  mapActionText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  mapActionBtnOutline: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 13,
-    borderWidth: 1,
-  },
-  mapActionOutlineText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  stickyBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    borderTopWidth: 1,
-  },
-  stickyInfo: {
-    gap: 2,
-  },
-  stickyPrice: {
-    fontSize: 22,
-    fontWeight: '900' as const,
-  },
-  stickyMeta: {
-    fontSize: 13,
-  },
-  stickyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  stickyBtnText: {
-    fontSize: 16,
-    fontWeight: '800' as const,
   },
 });
