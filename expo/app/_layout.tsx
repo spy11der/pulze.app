@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Redirect, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
+import { WelcomeModal } from '@/components/WelcomeModal';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { BiometricAuthProvider } from '@/providers/BiometricAuthProvider';
 import { DataProvider } from '@/providers/DataProvider';
@@ -55,7 +55,6 @@ function RootLayoutNav() {
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="staff/scan" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
   );
 }
@@ -64,25 +63,10 @@ function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { isDark } = useTheme();
   const [splashDone, setSplashDone] = useState<boolean>(false);
-  const [onboarded, setOnboarded] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    AsyncStorage.getItem('pulze_onboarded').then((val) => {
-      setOnboarded(val === 'true');
-    });
-  }, []);
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
   }, []);
-
-  if (onboarded === null) {
-    return null;
-  }
-
-  if (onboarded === false) {
-    return <Redirect href="/onboarding" />;
-  }
 
   if (authLoading && !splashDone) {
     return (
@@ -120,6 +104,7 @@ function AppContent() {
           />
         )}
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
+        <WelcomeModal />
       </BiometricAuthProvider>
       </WalletPassProvider>
       </AgeVerificationProvider>
