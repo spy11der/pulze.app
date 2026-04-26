@@ -55,6 +55,7 @@ function RootLayoutNav() {
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="staff/scan" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+      <Stack.Screen name="activity" options={{ presentation: 'card', headerShown: false }} />
     </Stack>
   );
 }

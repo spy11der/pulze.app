@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, Copy, CreditCard, Edit3, LogOut, Moon, QrCode, ScanLine, Settings, Shield, ShieldCheck, Sun, Ticket, Users, Wallet, MapPin, Clock } from 'lucide-react-native';
+import { Bell, ChevronRight, Copy, CreditCard, Edit3, LogOut, Moon, QrCode, ScanLine, Settings, Shield, ShieldCheck, Sun, Ticket, Users, Wallet, MapPin } from 'lucide-react-native';
 import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friends';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -345,10 +345,10 @@ export default function ProfileScreen() {
             testID="row-settings"
           />
           <MenuRow
-            icon={<Clock />}
+            icon={<Bell />}
             label="Activity"
-            sublabel="Recent vibes and check-ins"
-            onPress={() => router.push('/(tabs)')}
+            sublabel="Notifications and nearby check-ins"
+            onPress={() => router.push('/activity')}
             testID="row-activity"
           />
         </View>
