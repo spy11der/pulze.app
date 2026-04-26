@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ArrowLeft,
   Calendar,
@@ -84,12 +85,40 @@ export default function TicketingScreen() {
     });
   }, []);
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     const tier = selectedTier ?? sortedTiers[0]?.id;
     if (!tier) return;
     const qty = quantities[tier] || 1;
+    const tierData = event.ticketTiers.find(t => t.id === tier);
+    const tierName = tierData?.name ?? 'General';
+    const tierPrice = tierData?.price ?? 0;
     const url = `https://www.ticketmaster.com/search?q=${encodeURIComponent(event.title)}`;
+
+    try {
+      const PURCHASES_KEY = 'pulze_purchases_v1';
+      const existing = await AsyncStorage.getItem(PURCHASES_KEY);
+      const list: unknown[] = existing ? JSON.parse(existing) : [];
+      const record = {
+        id: Date.now().toString(),
+        eventId: event.id,
+        eventTitle: event.title,
+        venueName: event.venueName,
+        date: event.date,
+        tierName,
+        quantity: qty,
+        total: tierPrice * qty,
+        paymentMethod: 'Ticketmaster',
+        purchasedAt: new Date().toISOString(),
+        source: 'ticketmaster',
+      };
+      const updated = [...list, record];
+      await AsyncStorage.setItem(PURCHASES_KEY, JSON.stringify(updated));
+      console.log('[ticketing] saved purchase', record);
+    } catch (err) {
+      console.error('[ticketing] failed to persist purchase', err);
+    }
+
     console.log('[ticketing] get tickets on ticketmaster', { eventId: event.id, tier, qty, url });
     Linking.openURL(url).catch((err) => {
       console.error('[ticketing] failed to open ticketmaster url', err);
