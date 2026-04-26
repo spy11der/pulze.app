@@ -35,12 +35,12 @@ export const DarkColors: AppColors = {
   text: '#ECF4F6',
   textMuted: '#7BA3AD',
   textSoft: '#567880',
-  aqua: '#2BBFBA',
-  aquaBright: '#5CE8DC',
-  lime: '#2BBFBA',      // was green — now teal
-  amber: '#2BBFBA',     // was yellow — now teal
-  coral: '#2BBFBA',     // was red-orange — now teal
-  pink: '#5CE8DC',      // was pink — now aquaBright
+  aqua: '#1E9E9A',
+  aquaBright: '#2BBFBA',
+  lime: '#1E9E9A',      // was green — now teal
+  amber: '#1E9E9A',     // was yellow — now teal
+  coral: '#1E9E9A',     // was red-orange — now teal
+  pink: '#2BBFBA',      // was pink — now aquaBright
   quiet: '#567880',     // was blue-grey — keep as muted
   overlay: 'rgba(6, 15, 19, 0.80)',
   shadow: 'rgba(0, 0, 0, 0.32)',
