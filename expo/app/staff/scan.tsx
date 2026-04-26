@@ -46,7 +46,12 @@ export default function StaffScanScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
   const [result, setResult] = useState<ValidationResult | null>(null);
+  const [admittedCount, setAdmittedCount] = useState<number>(0);
   const lastScanAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    setAdmittedCount(0);
+  }, []);
 
   const handleBarCodeScanned = useCallback((data: string) => {
     const now = Date.now();
@@ -57,6 +62,10 @@ export default function StaffScanScreen() {
 
     const validation = validateTicket(data);
     setResult(validation);
+
+    if (validation.status === 'valid') {
+      setAdmittedCount((c) => c + 1);
+    }
 
     if (Platform.OS !== 'web') {
       if (validation.status === 'valid') {
@@ -173,7 +182,9 @@ export default function StaffScanScreen() {
             <Text style={styles.headerEvent} numberOfLines={1}>{eventName}</Text>
             <Text style={styles.headerVenue} numberOfLines={1}>{venueName}</Text>
           </View>
-          <View style={styles.closeBtnPlaceholder} />
+          <View style={[styles.counterBadge, { borderColor: colors.aqua }]} testID="admitted-counter">
+            <Text style={[styles.counterText, { color: colors.aqua }]} numberOfLines={1}>{admittedCount} admitted</Text>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -210,6 +221,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
   closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   closeBtnPlaceholder: { width: 40, height: 40 },
+  counterBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.pill, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
+  counterText: { fontSize: FontSize.small, fontWeight: FontWeight.bold },
   headerTextWrap: { flex: 1, alignItems: 'center' },
   headerEvent: { color: '#FFFFFF', fontSize: FontSize.subtitle, fontWeight: FontWeight.bold },
   headerVenue: { color: 'rgba(255,255,255,0.78)', fontSize: FontSize.small, marginTop: 2 },
