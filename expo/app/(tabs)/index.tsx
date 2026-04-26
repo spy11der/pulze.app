@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bookmark, Calendar, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, Send, Star, Ticket, Trash2, X } from 'lucide-react-native';
+import { Bookmark, Calendar, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, RadioTower, Send, Star, Ticket, Trash2, Users, X } from 'lucide-react-native';
+import { RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
@@ -57,6 +58,23 @@ export default function FeedScreen() {
   const { colors, isDark } = useTheme();
   const [feedMode, setFeedMode] = useState<FeedMode>('everyone');
   const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setIsLoading(true);
+    const t = setTimeout(() => {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   const { vibes, removeVibe, vibeCount } = useData();
   const { isFavorited, toggleFavorite } = useFavorites();
@@ -135,6 +153,14 @@ export default function FeedScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.aqua}
+            colors={[colors.aqua]}
+          />
+        }
       >
         <View style={styles.headerSection}>
           <View style={styles.topRow}>
@@ -158,24 +184,21 @@ export default function FeedScreen() {
           {([
             { id: 'everyone' as FeedMode, label: 'Everyone', icon: Eye },
             { id: 'friends' as FeedMode, label: 'Friends', icon: Compass },
-            { id: 'my_vibes' as FeedMode, label: 'Going', icon: Ticket },
+            { id: 'my_vibes' as FeedMode, label: 'My Vibes', icon: Ticket },
           ]).map((m) => {
             const active = feedMode === m.id;
             return (
               <Pressable
                 key={m.id}
                 onPress={() => setFeedMode(m.id)}
-                style={[
-                  styles.modeButton,
-                  {
-                    backgroundColor: active ? colors.aqua : 'transparent',
-                    borderColor: active ? colors.aqua : colors.border,
-                  },
-                ]}
+                style={styles.modeTab}
                 testID={`feed-mode-${m.id}`}
               >
-                <m.icon color={active ? (isDark ? '#060F13' : '#fff') : colors.textMuted} size={14} />
-                <Text style={[styles.modeText, { color: active ? (isDark ? '#060F13' : '#fff') : colors.textMuted }]}>{m.label}</Text>
+                <View style={styles.modeTabInner}>
+                  <m.icon color={active ? colors.text : '#888'} size={14} />
+                  <Text style={[styles.modeTabText, { color: active ? colors.text : '#888', fontWeight: active ? '700' : '500' }]}>{m.label}</Text>
+                </View>
+                <View style={[styles.modeTabUnderline, { backgroundColor: active ? colors.aqua : 'transparent' }]} />
               </Pressable>
             );
           })}
@@ -205,7 +228,14 @@ export default function FeedScreen() {
           </ScrollView>
         )}
 
-        {feedMode === 'my_vibes' ? (
+        {isLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : feedMode === 'my_vibes' ? (
           <>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Your plans</Text>
@@ -227,6 +257,32 @@ export default function FeedScreen() {
               ))
             )}
           </>
+        ) : feedMode === 'friends' && filteredStories.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]} testID="empty-friends">
+            <Users color={colors.aqua} size={32} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Your friends haven&apos;t posted yet</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Invite them to Pulze</Text>
+          </View>
+        ) : filteredStories.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]} testID="empty-feed">
+            <RadioTower color={colors.aqua} size={32} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No vibes yet tonight</Text>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Be the first to check in somewhere</Text>
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/(tabs)/post');
+              }}
+              style={({ pressed }) => [
+                styles.emptyCta,
+                { backgroundColor: colors.aqua },
+                pressed && { opacity: 0.85 },
+              ]}
+              testID="empty-checkin-cta"
+            >
+              <Text style={[styles.emptyCtaText, { color: isDark ? '#060F13' : '#fff' }]}>Check In Now</Text>
+            </Pressable>
+          </View>
         ) : (
           <>
             <View style={styles.sectionHeader}>
@@ -238,10 +294,11 @@ export default function FeedScreen() {
                 router.push({ pathname: '/ticketing', params: { venueId: sampleEvent.venueId } });
               }}
             />
-            {filteredStories.map((story) => (
+            {filteredStories.map((story, idx) => (
               <StoryCard
                 key={story.id}
                 story={story}
+                isLive={idx < 2}
                 isLiked={likedPosts[story.id] ?? false}
                 likeCount={likeCounts[story.id] ?? story.likes}
                 isSaved={savedPosts[story.id] ?? isFavorited(story.venueId)}
@@ -322,8 +379,55 @@ const FeaturedEventCard = React.memo(function FeaturedEventCard({
   );
 });
 
+const SkeletonCard = React.memo(function SkeletonCard() {
+  const { colors, isDark } = useTheme();
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.7, duration: 900, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  const blockColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+  return (
+    <Animated.View
+      style={[
+        styles.storyCard,
+        { backgroundColor: colors.surface, borderColor: colors.border, opacity },
+      ]}
+      testID="skeleton-card"
+    >
+      <View style={[styles.storyImage, { backgroundColor: blockColor }]} />
+      <View style={styles.storyBody}>
+        <View style={styles.storyTop}>
+          <View style={[styles.storyHeading, { gap: 6 }]}>
+            <View style={{ height: 14, width: '70%', borderRadius: 4, backgroundColor: blockColor }} />
+            <View style={{ height: 12, width: '50%', borderRadius: 4, backgroundColor: blockColor }} />
+          </View>
+          <View style={[styles.scoreBadge, { backgroundColor: blockColor }]} />
+        </View>
+        <View style={{ height: 12, width: '90%', borderRadius: 4, backgroundColor: blockColor }} />
+        <View style={{ height: 12, width: '60%', borderRadius: 4, backgroundColor: blockColor }} />
+        <View style={styles.storyMeta}>
+          <View style={{ height: 22, width: 60, borderRadius: 8, backgroundColor: blockColor }} />
+          <View style={{ height: 22, width: 70, borderRadius: 8, backgroundColor: blockColor }} />
+          <View style={{ height: 22, width: 50, borderRadius: 8, backgroundColor: blockColor }} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+});
+
 const StoryCard = React.memo(function StoryCard({
   story,
+  isLive,
   isLiked,
   likeCount,
   isSaved,
@@ -333,6 +437,7 @@ const StoryCard = React.memo(function StoryCard({
   onSave,
 }: {
   story: (typeof vibeStories)[number];
+  isLive?: boolean;
   isLiked: boolean;
   likeCount: number;
   isSaved: boolean;
@@ -356,7 +461,20 @@ const StoryCard = React.memo(function StoryCard({
       testID={`story-${story.id}`}
     >
       {story.image && (
-        <Image source={{ uri: story.image }} style={styles.storyImage} />
+        <View style={styles.storyImageWrap}>
+          <Image source={{ uri: story.image }} style={styles.storyImage} />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']}
+            style={styles.storyImageGradient}
+            pointerEvents="none"
+          />
+          {isLive && (
+            <View style={[styles.liveBadge, { backgroundColor: colors.aqua }]} testID={`live-${story.id}`}>
+              <View style={styles.liveDot} />
+              <Text style={[styles.liveBadgeText, { color: isDark ? '#060F13' : '#fff' }]}>LIVE</Text>
+            </View>
+          )}
+        </View>
       )}
 
       <View style={styles.storyBody}>
@@ -864,6 +982,67 @@ const styles = StyleSheet.create({
   modeText: {
     fontSize: 13,
     fontWeight: '600' as const,
+  },
+  modeTab: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  modeTabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  modeTabText: {
+    fontSize: 13,
+  },
+  modeTabUnderline: {
+    height: 2,
+    width: '60%',
+    borderRadius: 2,
+  },
+  emptyCta: {
+    marginTop: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  emptyCtaText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  storyImageWrap: {
+    position: 'relative' as const,
+  },
+  storyImageGradient: {
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+  },
+  liveBadge: {
+    position: 'absolute' as const,
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  liveBadgeText: {
+    fontSize: 10,
+    fontWeight: '800' as const,
+    letterSpacing: 0.6,
   },
   filterRow: {
     gap: 6,
