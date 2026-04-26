@@ -53,6 +53,7 @@ function RootLayoutNav() {
       <Stack.Screen name="location-selector" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="staff/scan" options={{ presentation: 'fullScreenModal', headerShown: false }} />
     </Stack>
   );
 }
