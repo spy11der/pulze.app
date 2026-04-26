@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
 import {
   Camera,
   Check,
@@ -28,7 +27,6 @@ import {
   MapPin,
   Navigation,
   Pencil,
-  Radio,
   Send,
   Sparkles,
   Ticket,
@@ -275,184 +273,6 @@ function PlaceholderTagPill({ colors, isDark }: { colors: ReturnType<typeof useT
 }
 
 const MemoTagChip = React.memo(TagChip);
-
-function VibeMeter({
-  score,
-  totalSelected,
-  colors,
-  isDark,
-}: {
-  score: number;
-  totalSelected: number;
-  colors: ReturnType<typeof useTheme>['colors'];
-  isDark: boolean;
-}) {
-  const fillAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
-
-  const fillTarget = totalSelected > 0 ? score / 100 : 0;
-  const [displayProgress, setDisplayProgress] = useState<number>(0);
-  useEffect(() => {
-    Animated.spring(fillAnim, {
-      toValue: fillTarget,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: false,
-    }).start();
-    const id = fillAnim.addListener(({ value }) => setDisplayProgress(value));
-    return () => fillAnim.removeListener(id);
-  }, [fillTarget, fillAnim]);
-
-  const lastBucketRef = useRef<number>(-1);
-  useEffect(() => {
-    if (totalSelected === 0) {
-      lastBucketRef.current = -1;
-      return;
-    }
-    const bucket = Math.floor(score / 10);
-    if (lastBucketRef.current !== -1 && bucket !== lastBucketRef.current) {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    lastBucketRef.current = bucket;
-  }, [score, totalSelected]);
-
-  const shouldPulse = score > 70;
-  useEffect(() => {
-    if (shouldPulse) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.015,
-            duration: 900,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 900,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-    return undefined;
-  }, [shouldPulse, pulseAnim]);
-
-  useEffect(() => {
-    if (totalSelected > 0) {
-      const shimmer = Animated.loop(
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        })
-      );
-      shimmer.start();
-      return () => shimmer.stop();
-    }
-    return undefined;
-  }, [totalSelected, shimmerAnim]);
-
-  const meterColor = PULZE_TEAL;
-  const fillOpacity = totalSelected === 0 ? 0.18 : 0.3 + 0.7 * (score / 100);
-  const isHot = score >= 70 && totalSelected > 0;
-
-  const intensityLabel = getVibeIntensityLabel(score);
-
-  const arcRadius = 90;
-  const arcStroke = 14;
-  const arcWidth = (arcRadius + arcStroke) * 2;
-  const arcHeight = arcRadius + arcStroke * 2;
-  const arcLength = Math.PI * arcRadius;
-  const arcPath = `M ${arcStroke} ${arcRadius + arcStroke} A ${arcRadius} ${arcRadius} 0 0 1 ${arcStroke + arcRadius * 2} ${arcRadius + arcStroke}`;
-  const dashOffset = arcLength * (1 - displayProgress);
-
-  return (
-    <Animated.View
-      style={[
-        styles.vibeMeterCard,
-        {
-          backgroundColor: isDark ? '#0A1820' : '#F0F4F6',
-          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-          transform: [{ scale: pulseAnim }],
-        },
-      ]}
-    >
-      <View style={styles.vibeMeterHeader}>
-        <View style={styles.vibeMeterLeft}>
-          <View style={[styles.vibeMeterIconWrap, { backgroundColor: `${meterColor}22` }]}>
-            <Radio color={meterColor} size={14} />
-          </View>
-          <Text style={[styles.vibeMeterLabel, { color: colors.textMuted }]}>
-            VIBE METER
-          </Text>
-        </View>
-        {totalSelected > 0 && (
-          <Text style={[styles.vibeMeterIntensityBadge, { color: meterColor, backgroundColor: `${meterColor}14` }]}>
-            {intensityLabel}
-          </Text>
-        )}
-      </View>
-
-      <View
-        style={[
-          styles.vibeArcWrap,
-          isHot && {
-            shadowColor: PULZE_TEAL,
-            shadowOpacity: 0.8,
-            shadowRadius: 16,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 10,
-          },
-        ]}
-      >
-        <Svg width={arcWidth} height={arcHeight}>
-          <Path
-            d={arcPath}
-            stroke={isDark ? '#0A2228' : '#DCE4E8'}
-            strokeWidth={arcStroke}
-            strokeLinecap="round"
-            fill="none"
-          />
-          <Path
-            d={arcPath}
-            stroke={meterColor}
-            strokeWidth={arcStroke}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={`${arcLength} ${arcLength}`}
-            strokeDashoffset={dashOffset}
-            opacity={fillOpacity}
-          />
-        </Svg>
-        <View style={styles.vibeArcCenter} pointerEvents="none">
-          <Text style={[styles.vibeArcScore, { color: meterColor }]}>
-            {totalSelected > 0 ? score : '—'}
-          </Text>
-          <Text style={[styles.vibeArcLabel, { color: colors.textSoft }]}>VIBE</Text>
-        </View>
-      </View>
-
-      <View style={styles.vibeMeterLabelsRow}>
-        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Calm</Text>
-        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Fired up</Text>
-      </View>
-
-      {totalSelected === 0 && (
-        <Text style={[styles.vibeMeterHint, { color: colors.textSoft }]}>
-          Select tags above to charge the meter
-        </Text>
-      )}
-    </Animated.View>
-  );
-}
 
 function LivePreviewCard({
   tags,
@@ -821,7 +641,7 @@ export default function PostScreen() {
     addVibe(
       {
         privacy: selectedPrivacy,
-        energy: energyScore,
+        energy: 75,
         caption,
         venue: locationName,
         neighborhood: locationNeighborhood,
@@ -1234,13 +1054,6 @@ export default function PostScreen() {
             Optional — tag an event you're going to
           </Text>
         </View>
-
-        <VibeMeter
-          score={energyScore}
-          totalSelected={totalSelected}
-          colors={colors}
-          isDark={isDark}
-        />
 
         <LivePreviewCard
           tags={selectedTags}
