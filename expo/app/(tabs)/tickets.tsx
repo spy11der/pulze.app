@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
+  Calendar,
   MapPin,
   Ticket,
   TrendingUp,
@@ -57,6 +58,28 @@ export default function TicketsTab() {
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>
 
+            {allArtists.length === 0 ? (
+              <View style={styles.emptyStateCentered}>
+                <Calendar color={colors.aqua} size={48} />
+                <Text style={[styles.emptyHeading, { color: colors.text }]}>Nothing on tonight</Text>
+                <Text style={[styles.emptySub, { color: colors.textSoft }]}>
+                  Check back later or expand your city
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/(tabs)/map');
+                  }}
+                  style={({ pressed }) => [styles.emptyCtaBtn, { backgroundColor: colors.aqua }, pressed && { opacity: 0.85 }]}
+                  testID="explore-map-btn"
+                >
+                  <MapPin color="#fff" size={16} />
+                  <Text style={styles.emptyCtaText}>Explore Map</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {allArtists.length > 0 ? (
             <View style={styles.sectionBlock}>
               <View style={styles.artistSectionHeader}>
                 <View style={styles.artistSectionTitleRow}>
@@ -86,6 +109,7 @@ export default function TicketsTab() {
                 ))}
               </View>
             </View>
+            ) : null}
 
           </View>
         </Animated.View>
@@ -416,6 +440,39 @@ const styles = StyleSheet.create({
   },
   compactSellingFastText: {
     fontSize: 10,
+    fontWeight: '700' as const,
+  },
+  emptyStateCentered: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  emptyHeading: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginTop: 16,
+    textAlign: 'center' as const,
+  },
+  emptySub: {
+    fontSize: 14,
+    textAlign: 'center' as const,
+    marginTop: 8,
+    maxWidth: 260,
+    lineHeight: 20,
+  },
+  emptyCtaBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 24,
+  },
+  emptyCtaText: {
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '700' as const,
   },
 });

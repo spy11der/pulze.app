@@ -131,11 +131,11 @@ export default function MyTicketsScreen() {
         {purchases.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={[styles.emptyIcon, { backgroundColor: isDark ? 'rgba(43, 191, 186, 0.08)' : 'rgba(26, 158, 153, 0.06)' }]}>
-              <Ticket color={colors.aqua} size={40} />
+              <Ticket color={colors.aqua} size={48} />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No tickets yet</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Your purchased event tickets will appear here as scannable passes.
+              Events you explore through Pulze will appear here
             </Text>
             <Pressable
               onPress={() => {
@@ -282,7 +282,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-    gap: 14,
   },
   emptyIcon: {
     width: 80,
@@ -294,21 +293,24 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
+    marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 14,
     textAlign: 'center' as const,
     lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 260,
   },
   browseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 24,
   },
   browseBtnText: {
     fontSize: 15,

@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Image,
+  Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -11,8 +13,9 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronRight, QrCode, Search, ShieldCheck, UserPlus, X } from 'lucide-react-native';
+import { ChevronRight, Inbox, QrCode, Search, Share2, ShieldCheck, Users, UserPlus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { currentUser } from '@/constants/identity';
 
 import { TierBadge } from '@/components/TierBadge';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -129,6 +132,18 @@ export default function FriendsScreen() {
     console.log('[Friends] Scan QR code pressed');
   }, []);
 
+  const handleSharePulzeId = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await Share.share({
+        message: `Add me on Pulze! My ID: ${currentUser.pulzeId} — ${currentUser.profileUrl}`,
+        url: Platform.OS === 'ios' ? currentUser.profileUrl : undefined,
+      });
+    } catch (e) {
+      console.log('[Friends] Share error:', e);
+    }
+  }, []);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen
@@ -227,19 +242,31 @@ export default function FriendsScreen() {
           ))}
         </ScrollView>
 
-        {requests.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Animated.View style={{ opacity: pulseAnim }}>
-                <UserPlus color={colors.coral} size={18} />
-              </Animated.View>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Friend Requests</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Animated.View style={{ opacity: requests.length > 0 ? pulseAnim : 1 }}>
+              <UserPlus color={requests.length > 0 ? colors.coral : colors.textSoft} size={18} />
+            </Animated.View>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Friend Requests</Text>
+            {requests.length > 0 && (
               <View style={[styles.requestCountBadge, { backgroundColor: colors.coral }]}>
                 <Text style={styles.requestCountText}>{requests.length}</Text>
               </View>
+            )}
+          </View>
+          {requests.length === 0 ? (
+            <View style={styles.emptyStateCentered}>
+              <Inbox color={colors.aqua} size={48} />
+              <Text style={[styles.emptyHeading, { color: colors.text }]}>No pending requests</Text>
+              <Text style={[styles.emptySub, { color: colors.textSoft }]}>
+                Requests you receive will appear here
+              </Text>
             </View>
+          ) : null}
+          {requests.length > 0 ? (
+            <View>
             {requests.map((request) => (
-              <View key={request.id}>
+              <View key={request.id} style={{ marginTop: 12 }}>
                 <View style={[styles.requestCard, { backgroundColor: colors.surface, borderColor: isDark ? 'rgba(255, 109, 94, 0.2)' : 'rgba(224, 85, 69, 0.15)' }]}>
                   <Image source={{ uri: request.avatar }} style={styles.avatar} />
                   <View style={styles.requestInfo}>
@@ -273,8 +300,9 @@ export default function FriendsScreen() {
                 )}
               </View>
             ))}
-          </View>
-        )}
+            </View>
+          ) : null}
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -285,12 +313,30 @@ export default function FriendsScreen() {
           </View>
 
           {filteredFriends.length === 0 && searchQuery.trim() ? (
-            <View style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Search color={colors.textSoft} size={24} />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>No results found</Text>
-              <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                Try searching by name, @handle, or Pulze ID
+            <View style={styles.emptyStateCentered}>
+              <Search color={colors.aqua} size={48} />
+              <Text style={[styles.emptyHeading, { color: colors.text }]} numberOfLines={2}>
+                No one found for &quot;{searchQuery.trim()}&quot;
               </Text>
+              <Text style={[styles.emptySub, { color: colors.textSoft }]}>
+                Try searching by Pulze ID
+              </Text>
+            </View>
+          ) : filteredFriends.length === 0 && friends.length === 0 ? (
+            <View style={styles.emptyStateCentered}>
+              <Users color={colors.aqua} size={48} />
+              <Text style={[styles.emptyHeading, { color: colors.text }]}>No friends yet</Text>
+              <Text style={[styles.emptySub, { color: colors.textSoft }]}>
+                Share your Pulze ID to connect
+              </Text>
+              <Pressable
+                onPress={handleSharePulzeId}
+                style={({ pressed }) => [styles.emptyCtaBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
+                testID="share-pulze-id-btn"
+              >
+                <Share2 color={isDark ? colors.background : '#fff'} size={16} />
+                <Text style={[styles.emptyCtaText, { color: isDark ? colors.background : '#fff' }]}>Share My ID</Text>
+              </Pressable>
             </View>
           ) : (
             filteredFriends.map((friend) => (
@@ -513,6 +559,38 @@ const styles = StyleSheet.create({
     padding: 28,
     alignItems: 'center',
     gap: 10,
+  },
+  emptyStateCentered: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyHeading: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginTop: 16,
+    textAlign: 'center' as const,
+  },
+  emptySub: {
+    fontSize: 14,
+    textAlign: 'center' as const,
+    marginTop: 8,
+    maxWidth: 260,
+    lineHeight: 20,
+  },
+  emptyCtaBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 24,
+  },
+  emptyCtaText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
   emptyTitle: {
     fontSize: 17,

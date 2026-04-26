@@ -284,22 +284,21 @@ export default function SecureWalletScreen() {
         )}
 
         {!isLoading && documents.length === 0 && !showAddForm && (
-          <Pressable
-            onPress={handleOpenAdd}
-            style={({ pressed }) => [styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}
-          >
-            <View style={[styles.emptyIcon, { backgroundColor: accentGradientStart }]}>
-              <CreditCard color={colors.aqua} size={32} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No documents yet</Text>
-            <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
-              Add your driver's license, state ID, or passport to keep them securely stored.
+          <View style={styles.emptyStateCentered}>
+            <Shield color={colors.aqua} size={48} />
+            <Text style={[styles.emptyHeading, { color: colors.text }]}>Your wallet is empty</Text>
+            <Text style={[styles.emptySub, { color: colors.textSoft }]}>
+              Add your ID to verify your age at venues and events
             </Text>
-            <View style={[styles.emptyAddBtn, { backgroundColor: colors.aqua }]}>
+            <Pressable
+              onPress={handleOpenAdd}
+              style={({ pressed }) => [styles.emptyCtaBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
+              testID="empty-add-id-btn"
+            >
               <Plus color={isDark ? colors.background : '#fff'} size={16} />
-              <Text style={[styles.emptyAddBtnText, { color: isDark ? colors.background : '#fff' }]}>Add Document</Text>
-            </View>
-          </Pressable>
+              <Text style={[styles.emptyCtaText, { color: isDark ? colors.background : '#fff' }]}>Add ID</Text>
+            </Pressable>
+          </View>
         )}
 
         {documents.map((doc) => {
@@ -691,6 +690,38 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   emptyAddBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  emptyStateCentered: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 50,
+    paddingHorizontal: 24,
+  },
+  emptyHeading: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginTop: 16,
+    textAlign: 'center' as const,
+  },
+  emptySub: {
+    fontSize: 14,
+    textAlign: 'center' as const,
+    marginTop: 8,
+    maxWidth: 260,
+    lineHeight: 20,
+  },
+  emptyCtaBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 24,
+  },
+  emptyCtaText: {
     fontSize: 15,
     fontWeight: '700' as const,
   },
