@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -14,22 +15,55 @@ import { Camera, Check, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAuth } from '@/providers/AuthProvider';
+import { supabase } from '@/services/supabase';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
 
-  const [displayName, setDisplayName] = useState<string>('Jordan Pulze');
-  const [username, setUsername] = useState<string>('jordan.pulze');
+  const [displayName, setDisplayName] = useState<string>(user?.displayName ?? 'Jordan Pulze');
+  const [username, setUsername] = useState<string>(user?.username ?? 'jordan.pulze');
   const [bio, setBio] = useState<string>('Always looking for something good happening tonight.');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'You must be signed in to update your profile.');
+      return;
+    }
+    setIsSaving(true);
     console.log('[EditProfile] Saving profile:', { displayName, username, bio });
-    Alert.alert('Profile updated', 'Your changes have been saved.');
-    router.back();
-  }, [displayName, username, bio, router]);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: displayName, username, bio })
+        .eq('id', user.id);
+
+      if (error) {
+        console.log('[EditProfile] Save error:', error.message);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Could not save', error.message);
+        setIsSaving(false);
+        return;
+      }
+
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Profile updated', 'Your changes have been saved.');
+      setIsSaving(false);
+      router.back();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Something went wrong.';
+      console.log('[EditProfile] Save exception:', message);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Could not save', message);
+      setIsSaving(false);
+    }
+  }, [displayName, username, bio, router, user, isSaving]);
 
   const handleCancel = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -50,9 +84,19 @@ export default function EditProfileScreen() {
             </Pressable>
           ),
           headerRight: () => (
-            <Pressable onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.aqua }]}>
-              <Check color={isDark ? colors.background : '#fff'} size={18} />
-              <Text style={[styles.saveBtnText, { color: isDark ? colors.background : '#fff' }]}>Save</Text>
+            <Pressable
+              onPress={handleSave}
+              disabled={isSaving}
+              style={[styles.saveBtn, { backgroundColor: colors.aqua, opacity: isSaving ? 0.7 : 1 }]}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color={isDark ? colors.background : '#fff'} />
+              ) : (
+                <Check color={isDark ? colors.background : '#fff'} size={18} />
+              )}
+              <Text style={[styles.saveBtnText, { color: isDark ? colors.background : '#fff' }]}>
+                {isSaving ? 'Saving…' : 'Save'}
+              </Text>
             </Pressable>
           ),
         }}
