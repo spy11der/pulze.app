@@ -1,527 +1,234 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  ShieldCheck,
-  X,
-} from 'lucide-react-native';
-
+import { CheckCircle2, X, AlertTriangle, ShieldCheck, RefreshCcw, Camera } from 'lucide-react-native';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Spacing, Radius, FontSize, FontWeight } from '@/constants/colors';
 
-type ScanState = 'idle' | 'success' | 'already' | 'invalid';
+type ValidationStatus = 'valid' | 'already_scanned' | 'invalid';
 
-interface ScanPayload {
-  ticketId: string;
-  guestName: string;
-  tier: string;
-  is21Plus: boolean;
-  status: 'valid' | 'used' | 'invalid';
+interface ValidationResult {
+  status: ValidationStatus;
+  guestName?: string;
+  tier?: string;
+  is21Plus?: boolean;
 }
 
-const DEBOUNCE_MS = 1500;
-
-const usedTickets = new Set<string>();
-
-function parsePayload(raw: string): ScanPayload | null {
-  try {
-    const obj = JSON.parse(raw) as Partial<ScanPayload> & { id?: string; name?: string };
-    const ticketId = (obj.ticketId ?? obj.id ?? '').toString();
-    if (!ticketId) return null;
-    return {
-      ticketId,
-      guestName: (obj.guestName ?? obj.name ?? 'Guest').toString(),
-      tier: (obj.tier ?? 'General Admission').toString(),
-      is21Plus: Boolean(obj.is21Plus),
-      status: 'valid',
-    };
-  } catch {
-    if (raw.startsWith('PULZE:')) {
-      const parts = raw.split('|');
-      const ticketId = parts[0]?.replace('PULZE:', '') ?? '';
-      if (!ticketId) return null;
-      return {
-        ticketId,
-        guestName: parts[1] ?? 'Guest',
-        tier: parts[2] ?? 'General Admission',
-        is21Plus: parts[3] === '21+',
-        status: 'valid',
-      };
-    }
-    return null;
+function validateTicket(qr: string): ValidationResult {
+  console.log('[Scan] validateTicket called with:', qr);
+  if (typeof qr !== 'string' || qr.length === 0) {
+    return { status: 'invalid' };
   }
+  if (qr.startsWith('PULZE-')) {
+    return {
+      status: 'valid',
+      guestName: 'Alex Johnson',
+      tier: 'General Admission',
+      is21Plus: true,
+    };
+  }
+  if (qr.startsWith('USED-')) {
+    return { status: 'already_scanned' };
+  }
+  return { status: 'invalid' };
 }
+
+const SCAN_DEBOUNCE_MS = 1500;
 
 export default function StaffScanScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ eventName?: string; venueName?: string }>();
-
   const eventName = params.eventName ?? 'Event';
   const venueName = params.venueName ?? 'Venue';
 
   const [permission, requestPermission] = useCameraPermissions();
-  const [state, setState] = useState<ScanState>('idle');
-  const [payload, setPayload] = useState<ScanPayload | null>(null);
+  const [result, setResult] = useState<ValidationResult | null>(null);
+  const lastScanAtRef = useRef<number>(0);
 
-  const lastScanRef = useRef<number>(0);
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' && !permission?.granted) {
-      void requestPermission();
+  const handleBarCodeScanned = useCallback((data: string) => {
+    const now = Date.now();
+    if (now - lastScanAtRef.current < SCAN_DEBOUNCE_MS) {
+      return;
     }
-  }, [permission?.granted, requestPermission]);
+    lastScanAtRef.current = now;
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanLineAnim, {
-          toValue: 1,
-          duration: 1600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanLineAnim, {
-          toValue: 0,
-          duration: 1600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scanLineAnim]);
+    const validation = validateTicket(data);
+    setResult(validation);
 
-  useEffect(() => {
-    return () => {
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-    };
+    if (Platform.OS !== 'web') {
+      if (validation.status === 'valid') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      }
+    }
   }, []);
 
-  const scheduleReset = useCallback(() => {
-    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-    resetTimerRef.current = setTimeout(() => {
-      setState('idle');
-      setPayload(null);
-    }, 2200);
+  const handleScanAgain = useCallback(() => {
+    setResult(null);
+    lastScanAtRef.current = Date.now();
   }, []);
-
-  const handleBarcodeScanned = useCallback(
-    (scan: { type: string; data: string }) => {
-      const now = Date.now();
-      if (now - lastScanRef.current < DEBOUNCE_MS) return;
-      if (state !== 'idle') return;
-      lastScanRef.current = now;
-
-      console.log('[StaffScan] scanned', scan.type, scan.data);
-
-      const parsed = parsePayload(scan.data);
-
-      if (!parsed) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setPayload(null);
-        setState('invalid');
-        scheduleReset();
-        return;
-      }
-
-      if (usedTickets.has(parsed.ticketId)) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setPayload(parsed);
-        setState('already');
-        scheduleReset();
-        return;
-      }
-
-      usedTickets.add(parsed.ticketId);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setPayload(parsed);
-      setState('success');
-      scheduleReset();
-    },
-    [state, scheduleReset]
-  );
 
   const handleClose = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
-  }, [router]);
-
-  const handleDismissOverlay = useCallback(() => {
-    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-    setState('idle');
-    setPayload(null);
+    if (router.canGoBack()) router.back();
   }, []);
 
-  const scanLineTranslate = useMemo(
-    () =>
-      scanLineAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 240],
-      }),
-    [scanLineAnim]
-  );
+  useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestPermission().catch(() => {});
+    }
+  }, [permission, requestPermission]);
+
+  const renderOverlay = () => {
+    if (!result) return null;
+    if (result.status === 'valid') {
+      return (
+        <View style={[styles.overlay, { backgroundColor: 'rgba(15, 110, 70, 0.96)' }]} testID="overlay-success">
+          <CheckCircle2 size={96} color="#FFFFFF" strokeWidth={2.4} />
+          <Text style={styles.overlayTitle}>Welcome in</Text>
+          <View style={styles.guestCard}>
+            <Text style={styles.guestName}>{result.guestName}</Text>
+            <Text style={styles.guestTier}>{result.tier}</Text>
+            {result.is21Plus ? (
+              <View style={styles.ageBadge}>
+                <ShieldCheck size={16} color="#0D2B1A" />
+                <Text style={styles.ageBadgeText}>21+ Verified</Text>
+              </View>
+            ) : null}
+          </View>
+          <TouchableOpacity style={styles.againButton} onPress={handleScanAgain} testID="scan-again">
+            <RefreshCcw size={18} color="#FFFFFF" />
+            <Text style={styles.againText}>Scan next</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (result.status === 'already_scanned') {
+      return (
+        <View style={[styles.overlay, { backgroundColor: 'rgba(180, 130, 20, 0.96)' }]} testID="overlay-used">
+          <AlertTriangle size={96} color="#FFFFFF" strokeWidth={2.4} />
+          <Text style={styles.overlayTitle}>Already scanned</Text>
+          <Text style={styles.overlaySubtitle}>This ticket was already used</Text>
+          <TouchableOpacity style={styles.againButton} onPress={handleScanAgain} testID="scan-again">
+            <RefreshCcw size={18} color="#FFFFFF" />
+            <Text style={styles.againText}>Scan next</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.overlay, { backgroundColor: 'rgba(180, 40, 40, 0.96)' }]} testID="overlay-invalid">
+        <X size={96} color="#FFFFFF" strokeWidth={2.6} />
+        <Text style={styles.overlayTitle}>Invalid ticket</Text>
+        <Text style={styles.overlaySubtitle}>This QR code is not recognized</Text>
+        <TouchableOpacity style={styles.againButton} onPress={handleScanAgain} testID="scan-again">
+          <RefreshCcw size={18} color="#FFFFFF" />
+          <Text style={styles.againText}>Scan next</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
-    <View style={[styles.screen, { backgroundColor: '#000' }]}>
+    <View style={[styles.root, { backgroundColor: '#000' }]} testID="staff-scan-screen">
       <Stack.Screen options={{ headerShown: false }} />
 
-      {Platform.OS !== 'web' ? (
+      {Platform.OS === 'web' ? (
+        <View style={styles.webFallback}>
+          <Camera size={48} color={colors.aqua} />
+          <Text style={[styles.webText, { color: colors.text }]}>Camera scanning is not available on web</Text>
+        </View>
+      ) : permission?.granted ? (
         <CameraView
-          style={StyleSheet.absoluteFill}
+          style={StyleSheet.absoluteFillObject}
           facing="back"
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={state === 'idle' ? handleBarcodeScanned : undefined}
+          onBarcodeScanned={({ data }) => handleBarCodeScanned(data)}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.webFallback]}>
-          <Text style={styles.webText}>Camera scanning is only available on iOS or Android.</Text>
+        <View style={styles.permissionView}>
+          {!permission ? (
+            <ActivityIndicator color={colors.aqua} />
+          ) : (
+            <>
+              <Camera size={48} color={colors.aqua} />
+              <Text style={styles.permissionText}>Camera access is required to scan tickets</Text>
+              <TouchableOpacity style={[styles.permissionBtn, { backgroundColor: colors.aqua }]} onPress={() => requestPermission()}>
+                <Text style={styles.permissionBtnText}>Grant access</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       )}
 
-      <View style={styles.dimOverlay} pointerEvents="none" />
-
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable
-          onPress={handleClose}
-          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-          hitSlop={12}
-          testID="staff-scan-close"
-        >
-          <X color="#fff" size={22} />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {eventName}
-          </Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {venueName}
-          </Text>
-        </View>
-        <View style={styles.closeBtnPlaceholder} />
-      </View>
-
-      <View style={styles.frameWrap} pointerEvents="none">
-        <View style={styles.scanFrame}>
-          <View style={[styles.corner, styles.cornerTL, { borderColor: colors.aquaBright }]} />
-          <View style={[styles.corner, styles.cornerTR, { borderColor: colors.aquaBright }]} />
-          <View style={[styles.corner, styles.cornerBL, { borderColor: colors.aquaBright }]} />
-          <View style={[styles.corner, styles.cornerBR, { borderColor: colors.aquaBright }]} />
-          <Animated.View
-            style={[
-              styles.scanLine,
-              {
-                backgroundColor: colors.aquaBright,
-                transform: [{ translateY: scanLineTranslate }],
-              },
-            ]}
-          />
-        </View>
-        <View style={styles.hintWrap}>
-          <Text style={styles.hintText}>Align the QR code inside the frame</Text>
-        </View>
-      </View>
-
-      {state !== 'idle' && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={handleDismissOverlay}
-          testID="staff-scan-result"
-        >
-          <ResultOverlay
-            state={state}
-            payload={payload}
-            insets={insets}
-            isDark={isDark}
-          />
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-interface ResultOverlayProps {
-  state: ScanState;
-  payload: ScanPayload | null;
-  insets: { top: number; bottom: number; left: number; right: number };
-  isDark: boolean;
-}
-
-function ResultOverlay({ state, payload, insets }: ResultOverlayProps) {
-  const config = useMemo(() => {
-    if (state === 'success') {
-      return {
-        bg: '#0F8F46',
-        accent: '#1FBF66',
-        title: 'ADMIT',
-        subtitle: 'Valid ticket',
-        icon: <CheckCircle2 color="#fff" size={88} strokeWidth={2.4} />,
-      } as const;
-    }
-    if (state === 'already') {
-      return {
-        bg: '#B8830A',
-        accent: '#F0B400',
-        title: 'ALREADY SCANNED',
-        subtitle: 'This ticket was already used',
-        icon: <Clock color="#fff" size={88} strokeWidth={2.4} />,
-      } as const;
-    }
-    return {
-      bg: '#B22A22',
-      accent: '#E8443A',
-      title: 'INVALID',
-      subtitle: 'Invalid ticket',
-      icon: <AlertTriangle color="#fff" size={88} strokeWidth={2.4} />,
-    } as const;
-  }, [state]);
-
-  return (
-    <View style={[styles.overlayFill, { backgroundColor: config.bg }]}>
-      <View style={[styles.overlayContent, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 32 }]}>
-        <View style={styles.iconCircle}>{config.icon}</View>
-        <Text style={styles.overlayTitle}>{config.title}</Text>
-        <Text style={styles.overlaySubtitle}>{config.subtitle}</Text>
-
-        {state === 'success' && payload && (
-          <View style={styles.detailsCard}>
-            <Text style={styles.detailLabel}>Guest</Text>
-            <Text style={styles.detailValue}>{payload.guestName}</Text>
-
-            <View style={styles.detailDivider} />
-
-            <Text style={styles.detailLabel}>Ticket</Text>
-            <Text style={styles.detailValue}>{payload.tier}</Text>
-
-            {payload.is21Plus && (
-              <>
-                <View style={styles.detailDivider} />
-                <View style={styles.badge21}>
-                  <ShieldCheck color="#0F8F46" size={18} />
-                  <Text style={styles.badge21Text}>21+ VERIFIED</Text>
-                </View>
-              </>
-            )}
+      <SafeAreaView edges={['top']} style={styles.headerWrap} pointerEvents="box-none">
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.closeBtn} onPress={handleClose} testID="close-scan">
+            <X size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerEvent} numberOfLines={1}>{eventName}</Text>
+            <Text style={styles.headerVenue} numberOfLines={1}>{venueName}</Text>
           </View>
-        )}
+          <View style={styles.closeBtnPlaceholder} />
+        </View>
+      </SafeAreaView>
 
-        <Text style={styles.tapHint}>Tap to dismiss</Text>
-      </View>
+      {!result && (
+        <View style={styles.frameWrap} pointerEvents="none">
+          <View style={styles.frame}>
+            <View style={[styles.corner, styles.cornerTL, { borderColor: colors.aquaBright }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: colors.aquaBright }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: colors.aquaBright }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: colors.aquaBright }]} />
+          </View>
+          <Text style={styles.frameHint}>Align QR within the frame</Text>
+        </View>
+      )}
+
+      {renderOverlay()}
     </View>
   );
 }
+
+const FRAME_SIZE = 260;
+const CORNER = 28;
+const CORNER_W = 4;
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  webFallback: {
-    backgroundColor: '#0a0a0a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  webText: {
-    color: '#ccc',
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  dimOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  root: { flex: 1 },
+  webFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: Spacing.xl },
+  webText: { fontSize: FontSize.body, fontWeight: FontWeight.medium, textAlign: 'center' },
+  permissionView: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: 16 },
+  permissionText: { color: '#FFFFFF', textAlign: 'center', fontSize: FontSize.body, fontWeight: FontWeight.medium },
+  permissionBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: Radius.pill },
+  permissionBtnText: { color: '#000', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  headerWrap: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
+  closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   closeBtnPlaceholder: { width: 40, height: 40 },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800' as const,
-  },
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 12,
-    fontWeight: '500' as const,
-    marginTop: 2,
-  },
-  pressed: { opacity: 0.7 },
-  frameWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-  },
-  scanFrame: {
-    width: 260,
-    height: 260,
-    overflow: 'hidden',
-  },
-  corner: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderColor: '#5CE8DC',
-  },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
-    borderTopLeftRadius: 14,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
-    borderTopRightRadius: 14,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
-    borderBottomLeftRadius: 14,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
-    borderBottomRightRadius: 14,
-  },
-  scanLine: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    height: 2,
-    borderRadius: 2,
-    opacity: 0.85,
-    shadowColor: '#5CE8DC',
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  hintWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  hintText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  overlayFill: { flex: 1 },
-  overlayContent: {
-    flex: 1,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-  },
-  iconCircle: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.32)',
-  },
-  overlayTitle: {
-    color: '#fff',
-    fontSize: 38,
-    fontWeight: '900' as const,
-    letterSpacing: 1.5,
-    textAlign: 'center',
-  },
-  overlaySubtitle: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 17,
-    fontWeight: '600' as const,
-    textAlign: 'center',
-  },
-  detailsCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 22,
-    padding: 22,
-    marginTop: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-  },
-  detailLabel: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 12,
-    fontWeight: '700' as const,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '800' as const,
-    marginTop: 4,
-  },
-  detailDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    marginVertical: 14,
-  },
-  badge21: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 8,
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  badge21Text: {
-    color: '#0F8F46',
-    fontSize: 13,
-    fontWeight: '900' as const,
-    letterSpacing: 1,
-  },
-  tapHint: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    fontWeight: '600' as const,
-    marginTop: 28,
-  },
+  headerTextWrap: { flex: 1, alignItems: 'center' },
+  headerEvent: { color: '#FFFFFF', fontSize: FontSize.subtitle, fontWeight: FontWeight.bold },
+  headerVenue: { color: 'rgba(255,255,255,0.78)', fontSize: FontSize.small, marginTop: 2 },
+  frameWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  frame: { width: FRAME_SIZE, height: FRAME_SIZE },
+  corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: '#5CE8DC' },
+  cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W, borderTopLeftRadius: 6 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_W, borderRightWidth: CORNER_W, borderTopRightRadius: 6 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_W, borderLeftWidth: CORNER_W, borderBottomLeftRadius: 6 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_W, borderRightWidth: CORNER_W, borderBottomRightRadius: 6 },
+  frameHint: { color: 'rgba(255,255,255,0.78)', marginTop: Spacing.lg, fontSize: FontSize.small, fontWeight: FontWeight.medium },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.lg },
+  overlayTitle: { color: '#FFFFFF', fontSize: FontSize.display, fontWeight: FontWeight.heavy, marginTop: Spacing.md },
+  overlaySubtitle: { color: 'rgba(255,255,255,0.92)', fontSize: FontSize.body, fontWeight: FontWeight.medium, textAlign: 'center' },
+  guestCard: { backgroundColor: 'rgba(0,0,0,0.22)', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderRadius: Radius.lg, alignItems: 'center', gap: 6 },
+  guestName: { color: '#FFFFFF', fontSize: FontSize.title, fontWeight: FontWeight.bold },
+  guestTier: { color: 'rgba(255,255,255,0.85)', fontSize: FontSize.body },
+  ageBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#B6F3C6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.pill, marginTop: 8 },
+  ageBadgeText: { color: '#0D2B1A', fontWeight: FontWeight.bold, fontSize: FontSize.small },
+  againButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.28)', paddingHorizontal: 22, paddingVertical: 12, borderRadius: Radius.pill, marginTop: Spacing.md },
+  againText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
 });
