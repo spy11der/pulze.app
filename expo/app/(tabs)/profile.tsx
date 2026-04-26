@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, Copy, CreditCard, Edit3, LogOut, Moon, QrCode, Settings, Shield, ShieldCheck, Sun, Ticket, Users, Wallet, MapPin, Clock } from 'lucide-react-native';
+import { ChevronRight, Copy, CreditCard, Edit3, LogOut, Moon, QrCode, ScanLine, Settings, Shield, ShieldCheck, Sun, Ticket, Users, Wallet, MapPin, Clock } from 'lucide-react-native';
 import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friends';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -354,6 +354,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 24 }]}>
+          <MenuRow
+            icon={<ScanLine />}
+            label="Staff Mode"
+            sublabel="Scan tickets at the door"
+            onPress={() => router.push({ pathname: '/staff/scan', params: { eventName: 'Nothing More', venueName: 'Fillmore Auditorium' } })}
+            testID="row-staff-mode"
+          />
           <MenuRow
             icon={<LogOut />}
             label="Sign out"
