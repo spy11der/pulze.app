@@ -1,9 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -14,21 +16,33 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BellRing,
   Bookmark,
+  Bug,
+  Calendar,
   ChevronDown,
   FileText,
   Fingerprint,
+  Flame,
+  Info,
   Lock,
+  Mail,
   MapPin,
+  MessageSquare,
+  Monitor,
   Moon,
   ScanFace,
+  Share2,
   Shield,
   ShieldAlert,
+  Star,
   Sun,
   Trash2,
+  UserPlus,
+  Users,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
 import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
@@ -36,11 +50,27 @@ import { useData } from '@/providers/DataProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import type { UserPreferences } from '@/providers/DataProvider';
 
-const privacyLabels: Record<UserPreferences['defaultPrivacy'], string> = {
-  public: 'Public vibe only',
-  friends: 'Friends can see details',
-  private: 'Private save',
+const NOTIF_KEY = 'pulze_notification_prefs';
+
+type NotificationPrefs = {
+  friendsCheckIn: boolean;
+  venuesBusy: boolean;
+  eventReminders: boolean;
+  friendRequests: boolean;
 };
+
+const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
+  friendsCheckIn: true,
+  venuesBusy: true,
+  eventReminders: true,
+  friendRequests: true,
+};
+
+const privacyOptions: { id: UserPreferences['defaultPrivacy']; label: string; sub: string }[] = [
+  { id: 'public', label: 'Public', sub: 'Anyone on Pulze can see your vibes' },
+  { id: 'friends', label: 'Friends Only', sub: 'Only your friends see details' },
+  { id: 'private', label: 'Private', sub: 'Saved for you only' },
+];
 
 const locationLabels: Record<UserPreferences['locationVisibility'], string> = {
   precise: 'Precise location',
@@ -62,18 +92,40 @@ export default function SettingsScreen() {
   const { logout } = useAuth();
   const router = useRouter();
 
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIF_PREFS);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(NOTIF_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<NotificationPrefs>;
+          setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...parsed });
+        }
+      } catch (e) {
+        console.log('[Settings] notif prefs load error', e);
+      }
+    })();
+  }, []);
+
+  const updateNotif = useCallback(async (key: keyof NotificationPrefs) => {
+    void Haptics.selectionAsync();
+    setNotifPrefs((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(next)).catch((e) => console.log('[Settings] notif save error', e));
+      return next;
+    });
+  }, []);
+
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggleBiometric();
   }, [toggleBiometric]);
 
-  const cyclePrivacy = useCallback(() => {
+  const selectPrivacy = useCallback((p: UserPreferences['defaultPrivacy']) => {
     void Haptics.selectionAsync();
-    const order: UserPreferences['defaultPrivacy'][] = ['public', 'friends', 'private'];
-    const idx = order.indexOf(preferences.defaultPrivacy);
-    const next = order[(idx + 1) % order.length];
-    updatePreference('defaultPrivacy', next);
-  }, [preferences.defaultPrivacy, updatePreference]);
+    updatePreference('defaultPrivacy', p);
+  }, [updatePreference]);
 
   const cycleLocation = useCallback(() => {
     void Haptics.selectionAsync();
@@ -101,26 +153,55 @@ export default function SettingsScreen() {
     void setThemeMode(t);
   }, [setThemeMode]);
 
+  const handleSharePulze = useCallback(async () => {
+    void Haptics.selectionAsync();
+    try {
+      await Share.share({
+        message: 'Check out Pulze — know before you go. https://pulze.app',
+      });
+    } catch (e) {
+      console.log('[Settings] share error', e);
+    }
+  }, []);
+
+  const handleRate = useCallback(() => {
+    void Haptics.selectionAsync();
+    Alert.alert('Rate Pulze', 'Coming soon');
+  }, []);
+
+  const openMail = useCallback((subject: string) => {
+    void Haptics.selectionAsync();
+    const url = `mailto:hello@pulze.app?subject=${encodeURIComponent(subject)}`;
+    Linking.openURL(url).catch((e) => {
+      console.log('[Settings] mail error', e);
+      Alert.alert('Email unavailable', 'Please email hello@pulze.app');
+    });
+  }, []);
+
   const handleDeleteAccount = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
       'Delete Account',
-      'This action is permanent and cannot be undone. All your data will be erased.',
+      'Are you sure you want to delete your account?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Continue',
           style: 'destructive',
           onPress: () => {
-            Alert.alert(
-              'Confirm Deletion',
-              'Are you absolutely sure? This is your last chance.',
+            Alert.prompt?.(
+              'This cannot be undone',
+              'Type DELETE to confirm permanent account deletion.',
               [
-                { text: 'Go back', style: 'cancel' },
+                { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Delete forever',
                   style: 'destructive',
-                  onPress: async () => {
+                  onPress: async (typed?: string) => {
+                    if ((typed ?? '').trim() !== 'DELETE') {
+                      Alert.alert('Not deleted', 'You must type DELETE exactly to confirm.');
+                      return;
+                    }
                     console.log('[Settings] Account deletion confirmed');
                     try {
                       await SecureStore.deleteItemAsync('pulze_user_prefs');
@@ -133,8 +214,32 @@ export default function SettingsScreen() {
                     console.log('[Settings] Account deleted and logged out');
                   },
                 },
-              ]
+              ],
+              'plain-text',
+              ''
             );
+            if (!Alert.prompt) {
+              Alert.alert(
+                'This cannot be undone',
+                'Tap "Delete forever" to permanently delete your account.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete forever',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await SecureStore.deleteItemAsync('pulze_user_prefs');
+                        await SecureStore.deleteItemAsync('pulze_biometric_enabled');
+                      } catch (e) {
+                        console.log('[Settings] Error clearing data:', e);
+                      }
+                      await logout();
+                    },
+                  },
+                ]
+              );
+            }
           },
         },
       ]
@@ -146,6 +251,7 @@ export default function SettingsScreen() {
   const themeOptions: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
     { id: 'light', label: 'Light', icon: Sun },
     { id: 'dark', label: 'Dark', icon: Moon },
+    { id: 'system', label: 'System', icon: Monitor },
   ];
 
   return (
@@ -187,12 +293,67 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Privacy & Sharing</Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>Tap to cycle options</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
           <View style={styles.preferenceList}>
-            <Pressable onPress={cyclePrivacy} testID="pref-privacy">
-              <SettingRow icon={Lock} label="Post privacy" value={privacyLabels[preferences.defaultPrivacy]} />
-            </Pressable>
+            <NotifToggleRow
+              icon={MapPin}
+              label="Friends check in nearby"
+              value={notifPrefs.friendsCheckIn}
+              onToggle={() => updateNotif('friendsCheckIn')}
+              testID="notif-friends-checkin"
+            />
+            <NotifToggleRow
+              icon={Flame}
+              label="Venues getting busy"
+              value={notifPrefs.venuesBusy}
+              onToggle={() => updateNotif('venuesBusy')}
+              testID="notif-venues-busy"
+            />
+            <NotifToggleRow
+              icon={Calendar}
+              label="Event reminders"
+              value={notifPrefs.eventReminders}
+              onToggle={() => updateNotif('eventReminders')}
+              testID="notif-event-reminders"
+            />
+            <NotifToggleRow
+              icon={UserPlus}
+              label="Friend requests"
+              value={notifPrefs.friendRequests}
+              onToggle={() => updateNotif('friendRequests')}
+              testID="notif-friend-requests"
+            />
+          </View>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Privacy & Sharing</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>Default visibility for new vibes</Text>
+          <View style={styles.preferenceList}>
+            {privacyOptions.map((opt) => {
+              const active = preferences.defaultPrivacy === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => selectPrivacy(opt.id)}
+                  style={[styles.radioRow, { backgroundColor: colors.card, borderColor: active ? colors.aqua : 'transparent' }]}
+                  testID={`privacy-${opt.id}`}
+                >
+                  <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                    <Lock color={colors.aqua} size={18} />
+                  </View>
+                  <View style={styles.settingBody}>
+                    <Text style={[styles.settingValue, { color: colors.text }]}>{opt.label}</Text>
+                    <Text style={[styles.settingLabel, { color: colors.textMuted }]}>{opt.sub}</Text>
+                  </View>
+                  <View style={[styles.radio, { borderColor: active ? colors.aqua : colors.border }]}>
+                    {active ? <View style={[styles.radioDot, { backgroundColor: colors.aqua }]} /> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.preferenceList}>
             <Pressable onPress={cycleLocation} testID="pref-location">
               <SettingRow icon={MapPin} label="Location visibility" value={locationLabels[preferences.locationVisibility]} />
             </Pressable>
@@ -273,6 +434,78 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Support</Text>
+          <Pressable
+            onPress={() => openMail('Pulze Feedback')}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="send-feedback-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <MessageSquare color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Send Feedback</Text>
+              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>hello@pulze.app</Text>
+            </View>
+            <Mail color={colors.textSoft} size={16} />
+          </Pressable>
+          <Pressable
+            onPress={() => openMail('Bug Report')}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="report-bug-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <Bug color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Report a Bug</Text>
+              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>Help us improve Pulze</Text>
+            </View>
+            <Mail color={colors.textSoft} size={16} />
+          </Pressable>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
+          <View style={[styles.legalRow, { backgroundColor: colors.card }]}>
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <Info color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Version</Text>
+            </View>
+            <Text style={[styles.settingLabel, { color: colors.textMuted }]}>1.0.0 (beta)</Text>
+          </View>
+          <Pressable
+            onPress={handleRate}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="rate-pulze-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <Star color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Rate Pulze</Text>
+            </View>
+            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
+          </Pressable>
+          <Pressable
+            onPress={handleSharePulze}
+            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+            testID="share-pulze-btn"
+          >
+            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+              <Share2 color={colors.aqua} size={18} />
+            </View>
+            <View style={styles.settingBody}>
+              <Text style={[styles.settingValue, { color: colors.text }]}>Share Pulze</Text>
+              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>Tell a friend</Text>
+            </View>
+            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
+          </Pressable>
+        </View>
+
         <View style={[styles.dangerSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Pressable
             onPress={handleDeleteAccount}
@@ -316,6 +549,43 @@ function SettingRow({
   );
 }
 
+function NotifToggleRow({
+  icon: Icon,
+  label,
+  value,
+  onToggle,
+  testID,
+}: {
+  icon: typeof BellRing;
+  label: string;
+  value: boolean;
+  onToggle: () => void;
+  testID?: string;
+}) {
+  const { colors, isDark } = useTheme();
+  return (
+    <Pressable
+      onPress={onToggle}
+      style={[styles.settingRow, { backgroundColor: colors.card }]}
+      testID={testID}
+    >
+      <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+        <Icon color={value ? colors.aqua : colors.textMuted} size={18} />
+      </View>
+      <View style={styles.settingBody}>
+        <Text style={[styles.settingValue, { color: colors.text }]}>{label}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.card, true: isDark ? 'rgba(53, 212, 207, 0.35)' : 'rgba(26, 168, 163, 0.3)' }}
+        thumbColor={value ? colors.aqua : colors.textMuted}
+        ios_backgroundColor={colors.card}
+      />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: {
@@ -350,14 +620,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 14,
+    paddingHorizontal: 6,
     borderRadius: 14,
     borderWidth: 1.5,
     overflow: 'hidden' as const,
   },
   themeOptionText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700' as const,
   },
   preferenceList: {
@@ -369,6 +640,27 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: 18,
     padding: 14,
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.5,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   settingIcon: {
     width: 38,
@@ -383,7 +675,7 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 13,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
   },
   settingValue: {
     fontSize: 15,
