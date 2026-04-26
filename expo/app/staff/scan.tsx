@@ -71,7 +71,7 @@ export default function StaffScanScreen() {
       if (validation.status === 'valid') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+        Haptics.notificationAsync(result.status === 'already_scanned' ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Error).catch(() => {});
       }
     }
   }, []);
