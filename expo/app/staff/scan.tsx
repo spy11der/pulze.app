@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, ActivityIndicator, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -48,6 +48,21 @@ export default function StaffScanScreen() {
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [admittedCount, setAdmittedCount] = useState<number>(0);
   const lastScanAtRef = useRef<number>(0);
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (result) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineAnim, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(scanLineAnim, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [result, scanLineAnim]);
 
   useEffect(() => {
     setAdmittedCount(0);
@@ -195,6 +210,24 @@ export default function StaffScanScreen() {
             <View style={[styles.corner, styles.cornerTR, { borderColor: colors.aquaBright }]} />
             <View style={[styles.corner, styles.cornerBL, { borderColor: colors.aquaBright }]} />
             <View style={[styles.corner, styles.cornerBR, { borderColor: colors.aquaBright }]} />
+            <Animated.View
+              style={[
+                styles.scanLine,
+                {
+                  backgroundColor: colors.aquaBright,
+                  shadowColor: colors.aquaBright,
+                  transform: [
+                    {
+                      translateY: scanLineAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, FRAME_SIZE - 2],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+              testID="scan-line"
+            />
           </View>
           <Text style={styles.frameHint}>Align QR within the frame</Text>
         </View>
@@ -233,6 +266,7 @@ const styles = StyleSheet.create({
   cornerTR: { top: 0, right: 0, borderTopWidth: CORNER_W, borderRightWidth: CORNER_W, borderTopRightRadius: 6 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: CORNER_W, borderLeftWidth: CORNER_W, borderBottomLeftRadius: 6 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: CORNER_W, borderRightWidth: CORNER_W, borderBottomRightRadius: 6 },
+  scanLine: { position: 'absolute', left: 6, right: 6, top: 0, height: 2, borderRadius: 2, opacity: 0.9, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6, elevation: 4 },
   frameHint: { color: 'rgba(255,255,255,0.78)', marginTop: Spacing.lg, fontSize: FontSize.small, fontWeight: FontWeight.medium },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.lg },
   overlayTitle: { color: '#FFFFFF', fontSize: FontSize.display, fontWeight: FontWeight.heavy, marginTop: Spacing.md },
