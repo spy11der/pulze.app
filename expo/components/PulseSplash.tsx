@@ -1,69 +1,138 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View, Image } from 'react-native';
+import { Animated, StyleSheet, View, Image, Text, Dimensions, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 interface PulseSplashProps {
   onComplete: () => void;
 }
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const TOTAL_DURATION = 2800;
+
 export function PulseSplash({ onComplete }: PulseSplashProps) {
   const [visible, setVisible] = useState<boolean>(true);
-  const pulseScale = useRef(new Animated.Value(0.8)).current;
-  const pulseOpacity = useRef(new Animated.Value(0)).current;
-  const ring1Scale = useRef(new Animated.Value(1)).current;
+
+  const ring1Scale = useRef(new Animated.Value(0.8)).current;
   const ring1Opacity = useRef(new Animated.Value(0)).current;
-  const ring2Scale = useRef(new Animated.Value(1)).current;
+  const ring2Scale = useRef(new Animated.Value(0.8)).current;
   const ring2Opacity = useRef(new Animated.Value(0)).current;
+  const ring3Scale = useRef(new Animated.Value(0.8)).current;
+  const ring3Opacity = useRef(new Animated.Value(0)).current;
+
+  const logoScale = useRef(new Animated.Value(1)).current;
   const containerOpacity = useRef(new Animated.Value(1)).current;
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const wordmarkOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const singlePulse = Animated.sequence([
-      Animated.parallel([
-        Animated.timing(pulseScale, { toValue: 1.15, duration: 280, useNativeDriver: true }),
-        Animated.timing(pulseOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(ring1Scale, { toValue: 1.6, duration: 400, useNativeDriver: true }),
-        Animated.timing(ring1Opacity, { toValue: 0.5, duration: 200, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(pulseScale, { toValue: 0.95, duration: 220, useNativeDriver: true }),
-        Animated.timing(ring1Scale, { toValue: 2.2, duration: 300, useNativeDriver: true }),
-        Animated.timing(ring1Opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(ring2Scale, { toValue: 1.8, duration: 300, useNativeDriver: true }),
-        Animated.timing(ring2Opacity, { toValue: 0.3, duration: 150, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(pulseScale, { toValue: 0.8, duration: 180, useNativeDriver: true }),
-        Animated.timing(ring2Scale, { toValue: 2.4, duration: 250, useNativeDriver: true }),
-        Animated.timing(ring2Opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-      ]),
-    ]);
+    const buildRingAnim = (scale: Animated.Value, opacity: Animated.Value) =>
+      Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(scale, {
+              toValue: 2.0,
+              duration: 1200,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, { toValue: 0.8, duration: 0, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 1,
+              duration: 100,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 1100,
+              easing: Easing.out(Easing.ease),
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      );
 
-    const triggerHaptic = () => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    };
+    const ring1Anim = buildRingAnim(ring1Scale, ring1Opacity);
+    const ring2Anim = buildRingAnim(ring2Scale, ring2Opacity);
+    const ring3Anim = buildRingAnim(ring3Scale, ring3Opacity);
 
-    Animated.timing(pulseOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start(() => {
-      triggerHaptic();
-      singlePulse.start(() => {
-        setTimeout(() => {
-          triggerHaptic();
-          singlePulse.start(() => {
-            setTimeout(() => {
-              triggerHaptic();
-              singlePulse.start(() => {
-                setTimeout(() => {
-                  Animated.timing(containerOpacity, { toValue: 0, duration: 350, useNativeDriver: true }).start(() => {
-                    setVisible(false);
-                    onComplete();
-                  });
-                }, 200);
-              });
-            }, 120);
-          });
-        }, 120);
+    ring1Anim.start();
+    const t2 = setTimeout(() => ring2Anim.start(), 200);
+    const t3 = setTimeout(() => ring3Anim.start(), 400);
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoScale, {
+          toValue: 1.04,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1.0,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+
+    Animated.timing(wordmarkOpacity, {
+      toValue: 1,
+      duration: 600,
+      delay: 200,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.timing(progressWidth, {
+      toValue: SCREEN_WIDTH,
+      duration: TOTAL_DURATION,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const hapticTimer = setTimeout(() => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }, 1400);
+
+    const completeTimer = setTimeout(() => {
+      Animated.timing(containerOpacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }).start(() => {
+        ring1Anim.stop();
+        ring2Anim.stop();
+        ring3Anim.stop();
+        setVisible(false);
+        onComplete();
       });
-    });
-  }, [pulseScale, pulseOpacity, ring1Scale, ring1Opacity, ring2Scale, ring2Opacity, containerOpacity, onComplete]);
+    }, TOTAL_DURATION);
+
+    return () => {
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(hapticTimer);
+      clearTimeout(completeTimer);
+      ring1Anim.stop();
+      ring2Anim.stop();
+      ring3Anim.stop();
+    };
+  }, [
+    ring1Scale,
+    ring1Opacity,
+    ring2Scale,
+    ring2Opacity,
+    ring3Scale,
+    ring3Opacity,
+    logoScale,
+    containerOpacity,
+    progressWidth,
+    wordmarkOpacity,
+    onComplete,
+  ]);
 
   if (!visible) return null;
 
@@ -71,38 +140,27 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
     <Animated.View style={[styles.container, { opacity: containerOpacity }]} testID="pulse-splash">
       <View style={styles.center}>
         <Animated.View
-          style={[
-            styles.ring,
-            {
-              transform: [{ scale: ring2Scale }],
-              opacity: ring2Opacity,
-            },
-          ]}
+          style={[styles.ring, { transform: [{ scale: ring3Scale }], opacity: ring3Opacity }]}
         />
         <Animated.View
-          style={[
-            styles.ring,
-            {
-              transform: [{ scale: ring1Scale }],
-              opacity: ring1Opacity,
-            },
-          ]}
+          style={[styles.ring, { transform: [{ scale: ring2Scale }], opacity: ring2Opacity }]}
         />
         <Animated.View
-          style={[
-            styles.logoImageWrap,
-            {
-              transform: [{ scale: pulseScale }],
-              opacity: pulseOpacity,
-            },
-          ]}
-        >
+          style={[styles.ring, { transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]}
+        />
+        <Animated.View style={[styles.logoImageWrap, { transform: [{ scale: logoScale }] }]}>
           <Image
             source={require('@/assets/images/pulze-splash.png')}
             style={styles.splashImage}
             resizeMode="contain"
           />
         </Animated.View>
+      </View>
+      <Animated.Text style={[styles.wordmark, { opacity: wordmarkOpacity }]} testID="pulse-splash-wordmark">
+        PULZE
+      </Animated.Text>
+      <View style={styles.progressTrack}>
+        <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
       </View>
     </Animated.View>
   );
@@ -128,7 +186,7 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 45,
     borderWidth: 2,
-    borderColor: 'rgba(53, 212, 207, 0.6)',
+    borderColor: 'rgba(43, 191, 186, 0.7)',
   },
   logoImageWrap: {
     width: 120,
@@ -139,5 +197,24 @@ const styles = StyleSheet.create({
   splashImage: {
     width: 120,
     height: 120,
+  },
+  wordmark: {
+    marginTop: 24,
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '300',
+    letterSpacing: 8,
+  },
+  progressTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2,
+    backgroundColor: 'transparent',
+  },
+  progressBar: {
+    height: 2,
+    backgroundColor: '#2BBFBA',
   },
 });
