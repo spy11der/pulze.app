@@ -61,28 +61,6 @@ export default function VenueDetailScreen() {
   ], []);
   const [activeHero, setActiveHero] = useState<string | null>(null);
 
-  const busyHours = useMemo(() => [
-    { label: '6p', value: 20 },
-    { label: '7p', value: 35 },
-    { label: '8p', value: 55 },
-    { label: '9p', value: 80 },
-    { label: '10p', value: 95 },
-    { label: '11p', value: 85 },
-    { label: '12a', value: 60 },
-  ], []);
-  const currentHourIndex = useMemo(() => {
-    const h = new Date().getHours();
-    if (h >= 18 && h <= 23) return h - 18;
-    if (h === 0) return 6;
-    return 4;
-  }, []);
-
-  const recentVibes = useMemo(() => [
-    { handle: '@maya.k', timeAgo: '2 min ago', caption: "It's packed in here \uD83D\uDD25" },
-    { handle: '@deon', timeAgo: '14 min ago', caption: 'Good vibes, not too busy' },
-    { handle: '@sam.r', timeAgo: '1 hr ago', caption: 'DJ just started, lines forming' },
-  ], []);
-
   const handleCheckIn = useCallback(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (Platform.OS === 'android') {
@@ -266,62 +244,6 @@ export default function VenueDetailScreen() {
                 );
               })}
             </ScrollView>
-          </View>
-
-          <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>TYPICALLY BUSY</Text>
-            <View style={styles.chartArea}>
-              {busyHours.map((bar, idx) => {
-                const isCurrent = idx === currentHourIndex;
-                const isShort = bar.value < 50;
-                return (
-                  <View key={bar.label} style={styles.chartCol}>
-                    {isCurrent ? (
-                      <Text style={[styles.nowLabel, { color: colors.text }]}>Now</Text>
-                    ) : (
-                      <View style={styles.nowLabelSpacer} />
-                    )}
-                    <View style={styles.chartBarTrack}>
-                      <View
-                        style={[
-                          styles.chartBar,
-                          {
-                            height: `${bar.value}%`,
-                            backgroundColor: isShort ? 'rgba(43,191,186,0.3)' : '#2BBFBA',
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={[styles.chartLabel, { color: colors.textMuted }]}>{bar.label}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          <View>
-            <Text style={[styles.sectionHeading, { color: colors.text }]}>Recent Vibes</Text>
-            <View style={{ gap: 10, marginTop: 10 }}>
-              {recentVibes.map((v) => (
-                <View
-                  key={v.handle}
-                  style={[
-                    styles.vibeCard,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                  ]}
-                >
-                  <View style={styles.vibeAccent} />
-                  <View style={styles.vibeAvatar} />
-                  <View style={styles.vibeBody}>
-                    <View style={styles.vibeHeaderRow}>
-                      <Text style={[styles.vibeHandle, { color: colors.text }]}>{v.handle}</Text>
-                      <Text style={[styles.vibeTime, { color: colors.textMuted }]}>{v.timeAgo}</Text>
-                    </View>
-                    <Text style={[styles.vibeCaption, { color: colors.text }]}>{v.caption}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </View>
 
           <Pressable
