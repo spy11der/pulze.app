@@ -64,11 +64,11 @@ function AppContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { isDark } = useTheme();
   const [splashDone, setSplashDone] = useState<boolean>(false);
-  const [hasOnboarded, setHasOnboarded] = useState<boolean | null>(null);
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('pulze_onboarded').then((value) => {
-      setHasOnboarded(value === 'true');
+    AsyncStorage.getItem('pulze_onboarded').then((val) => {
+      setOnboarded(val === 'true');
     });
   }, []);
 
@@ -76,11 +76,11 @@ function AppContent() {
     setSplashDone(true);
   }, []);
 
-  if (hasOnboarded === null) {
+  if (onboarded === null) {
     return null;
   }
 
-  if (hasOnboarded === false) {
+  if (onboarded === false) {
     return <Redirect href="/onboarding" />;
   }
 

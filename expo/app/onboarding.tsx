@@ -1,196 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
   View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, Stack } from 'expo-router';
 import { MapPin, Users, Ticket } from 'lucide-react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
 
 const TEAL = '#2BBFBA';
 const BG = '#041318';
-const ONBOARDED_KEY = 'pulze_onboarded';
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-function PulseRing() {
-  const scale1 = useRef(new Animated.Value(0.8)).current;
-  const opacity1 = useRef(new Animated.Value(0.6)).current;
-  const scale2 = useRef(new Animated.Value(0.8)).current;
-  const opacity2 = useRef(new Animated.Value(0.6)).current;
-
-  useEffect(() => {
-    const animate = (scale: Animated.Value, opacity: Animated.Value, delay: number) => {
-      return Animated.loop(
-        Animated.parallel([
-          Animated.sequence([
-            Animated.delay(delay),
-            Animated.timing(scale, {
-              toValue: 2.2,
-              duration: 2400,
-              useNativeDriver: Platform.OS !== 'web',
-            }),
-          ]),
-          Animated.sequence([
-            Animated.delay(delay),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 2400,
-              useNativeDriver: Platform.OS !== 'web',
-            }),
-          ]),
-        ]),
-      );
-    };
-    const a1 = animate(scale1, opacity1, 0);
-    const a2 = animate(scale2, opacity2, 1200);
-    a1.start();
-    a2.start();
-    return () => {
-      a1.stop();
-      a2.stop();
-    };
-  }, [scale1, opacity1, scale2, opacity2]);
-
-  return (
-    <View style={styles.pulseContainer} pointerEvents="none">
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          { transform: [{ scale: scale1 }], opacity: opacity1 },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          { transform: [{ scale: scale2 }], opacity: opacity2 },
-        ]}
-      />
-    </View>
-  );
-}
-
-function PulzeLogo() {
-  return (
-    <View style={styles.logoWrap} testID="pulze-logo">
-      <View style={styles.logoCircle}>
-        <Svg width={64} height={64} viewBox="0 0 64 64">
-          <Circle cx={32} cy={32} r={10} fill={TEAL} />
-          <Circle cx={32} cy={32} r={20} stroke={TEAL} strokeWidth={2.5} fill="none" opacity={0.6} />
-          <Circle cx={32} cy={32} r={28} stroke={TEAL} strokeWidth={1.5} fill="none" opacity={0.3} />
-        </Svg>
-      </View>
-      <Text style={styles.logoText}>Pulze</Text>
-    </View>
-  );
-}
-
-function AnimatedCheckmark() {
-  const circleProgress = useRef(new Animated.Value(0)).current;
-  const checkProgress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(circleProgress, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: false,
-      }),
-      Animated.timing(checkProgress, {
-        toValue: 1,
-        duration: 450,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [circleProgress, checkProgress]);
-
-  const CIRCLE_LEN = 2 * Math.PI * 56;
-  const CHECK_LEN = 60;
-
-  const circleDashOffset = circleProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CIRCLE_LEN, 0],
-  });
-  const checkDashOffset = checkProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CHECK_LEN, 0],
-  });
-
-  const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-  const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.checkWrap}>
-        <Svg width={140} height={140} viewBox="0 0 140 140">
-          <Circle cx={70} cy={70} r={56} stroke={TEAL} strokeWidth={5} fill="none" />
-          <Path
-            d="M44 72 L62 90 L96 54"
-            stroke={TEAL}
-            strokeWidth={6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </Svg>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.checkWrap}>
-      <Svg width={140} height={140} viewBox="0 0 140 140">
-        <AnimatedCircle
-          cx={70}
-          cy={70}
-          r={56}
-          stroke={TEAL}
-          strokeWidth={5}
-          fill="none"
-          strokeDasharray={`${CIRCLE_LEN}`}
-          strokeDashoffset={circleDashOffset as unknown as number}
-          strokeLinecap="round"
-        />
-        <AnimatedPath
-          d="M44 72 L62 90 L96 54"
-          stroke={TEAL}
-          strokeWidth={6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-          strokeDasharray={`${CHECK_LEN}`}
-          strokeDashoffset={checkDashOffset as unknown as number}
-        />
-      </Svg>
-    </View>
-  );
-}
-
-function LocationPinIllustration() {
-  return (
-    <View style={styles.pinWrap}>
-      <Svg width={160} height={200} viewBox="0 0 160 200">
-        <Circle cx={80} cy={170} rx={40} ry={8} fill={TEAL} opacity={0.15} />
-        <Path
-          d="M80 20 C50 20 30 42 30 72 C30 110 80 170 80 170 C80 170 130 110 130 72 C130 42 110 20 80 20 Z"
-          fill={TEAL}
-          opacity={0.95}
-        />
-        <Circle cx={80} cy={70} r={18} fill={BG} />
-        <Circle cx={80} cy={70} r={9} fill={TEAL} />
-      </Svg>
-    </View>
-  );
-}
 
 interface FeatureRowProps {
   icon: React.ReactNode;
@@ -210,85 +30,44 @@ function FeatureRow({ icon, title, subtitle }: FeatureRowProps) {
   );
 }
 
-export default function OnboardingScreen() {
-  const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
+export default function Onboarding() {
   const [page, setPage] = useState<number>(0);
-  const [requestingLocation, setRequestingLocation] = useState<boolean>(false);
 
-  const goTo = useCallback((index: number) => {
-    scrollRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
-  }, []);
-
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (idx !== page) setPage(idx);
-  }, [page]);
-
-  const handleAllowLocation = useCallback(async () => {
-    setRequestingLocation(true);
-    try {
-      if (Platform.OS !== 'web') {
-        await Location.requestForegroundPermissionsAsync();
-      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
-        await new Promise<void>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            () => resolve(),
-            () => resolve(),
-            { timeout: 5000 },
-          );
-        });
-      }
-    } catch (err) {
-      console.log('[Onboarding] location request failed', err);
-    } finally {
-      setRequestingLocation(false);
-      goTo(3);
-    }
-  }, [goTo]);
-
-  const handleSkipLocation = useCallback(() => {
-    goTo(3);
-  }, [goTo]);
-
-  const handleComplete = useCallback(async () => {
-    await AsyncStorage.setItem(ONBOARDED_KEY, 'true');
+  const handleComplete = async () => {
+    await AsyncStorage.setItem('pulze_onboarded', 'true');
     router.replace('/(tabs)/');
-  }, [router]);
+  };
+
+  const handleNext = () => {
+    setPage((p) => p + 1);
+  };
 
   return (
     <View style={styles.root} testID="onboarding-screen">
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        bounces={false}
-      >
-        {/* Slide 1 */}
-        <View style={styles.slide}>
-          <View style={styles.heroBlock}>
-            <PulseRing />
-            <PulzeLogo />
-          </View>
+
+      {page === 0 && (
+        <View style={styles.slide} testID="onboarding-slide-1">
+          <View style={styles.heroSpacer} />
+          <Text style={styles.brand}>Pulze</Text>
           <Text style={styles.headline}>Know before you go.</Text>
           <Text style={styles.subtext}>
-            Real-time crowd levels, vibes, and events for bars, venues, and parks near you.
+            Real-time crowd levels, vibes, and events near you.
           </Text>
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => goTo(1)}
-            testID="onboarding-next-1"
-          >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
-          </Pressable>
+          <View style={styles.bottomBlock}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleNext}
+              testID="onboarding-next-1"
+            >
+              <Text style={styles.primaryButtonText}>Get Started</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
 
-        {/* Slide 2 */}
-        <View style={styles.slide}>
+      {page === 1 && (
+        <View style={styles.slide} testID="onboarding-slide-2">
           <Text style={styles.headlineTop}>How it works</Text>
           <View style={styles.featureList}>
             <FeatureRow
@@ -307,51 +86,63 @@ export default function OnboardingScreen() {
               subtitle="Discover what's happening tonight"
             />
           </View>
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => goTo(2)}
-            testID="onboarding-next-2"
-          >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </Pressable>
+          <View style={styles.bottomBlock}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleNext}
+              testID="onboarding-next-2"
+            >
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
 
-        {/* Slide 3 */}
-        <View style={styles.slide}>
-          <LocationPinIllustration />
+      {page === 2 && (
+        <View style={styles.slide} testID="onboarding-slide-3">
+          <View style={styles.iconHero}>
+            <View style={styles.iconHeroCircle}>
+              <MapPin color={TEAL} size={64} />
+            </View>
+          </View>
           <Text style={styles.headline}>Find what&apos;s near you</Text>
           <Text style={styles.subtext}>
-            We use your location to show crowd levels and events nearby. We never share your location.
+            We use your location to show crowd levels nearby.
           </Text>
-          <Pressable
-            style={[styles.primaryButton, requestingLocation && styles.buttonDisabled]}
-            onPress={handleAllowLocation}
-            disabled={requestingLocation}
-            testID="onboarding-allow-location"
-          >
-            <Text style={styles.primaryButtonText}>
-              {requestingLocation ? 'Requesting…' : 'Allow Location'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={handleSkipLocation} style={styles.skipLink} testID="onboarding-skip-location">
-            <Text style={styles.skipText}>Not now</Text>
-          </Pressable>
+          <View style={styles.bottomBlock}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleNext}
+              testID="onboarding-next-3"
+            >
+              <Text style={styles.primaryButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
 
-        {/* Slide 4 */}
-        <View style={styles.slide}>
-          <AnimatedCheckmark />
+      {page === 3 && (
+        <View style={styles.slide} testID="onboarding-slide-4">
+          <View style={styles.iconHero}>
+            <View style={styles.iconHeroCircle}>
+              <Text style={styles.checkEmoji}>✓</Text>
+            </View>
+          </View>
           <Text style={styles.headline}>You&apos;re all set.</Text>
-          <Text style={styles.subtext}>Let&apos;s find somewhere worth going tonight.</Text>
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleComplete}
-            testID="onboarding-finish"
-          >
-            <Text style={styles.primaryButtonText}>Open Pulze</Text>
-          </Pressable>
+          <Text style={styles.subtext}>
+            Let&apos;s find somewhere worth going tonight.
+          </Text>
+          <View style={styles.bottomBlock}>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleComplete}
+              testID="onboarding-finish"
+            >
+              <Text style={styles.primaryButtonText}>Open Pulze</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </ScrollView>
+      )}
 
       <View style={styles.dots} pointerEvents="none">
         {[0, 1, 2, 3].map((i) => (
@@ -371,55 +162,21 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
   slide: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    flex: 1,
     paddingHorizontal: 28,
     paddingTop: 100,
     paddingBottom: 120,
     alignItems: 'center',
-    justifyContent: 'flex-start',
   },
-  heroBlock: {
-    width: 240,
-    height: 240,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+  heroSpacer: {
+    height: 60,
   },
-  pulseContainer: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    borderWidth: 2,
-    borderColor: TEAL,
-  },
-  logoWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(43, 191, 186, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
+  brand: {
     color: '#FFFFFF',
-    fontSize: 40,
+    fontSize: 44,
     fontWeight: '800',
     letterSpacing: -1,
+    marginBottom: 60,
   },
   headline: {
     color: '#FFFFFF',
@@ -446,6 +203,11 @@ const styles = StyleSheet.create({
     marginBottom: 36,
     paddingHorizontal: 8,
   },
+  bottomBlock: {
+    marginTop: 'auto',
+    width: '100%',
+    alignItems: 'center',
+  },
   primaryButton: {
     backgroundColor: TEAL,
     paddingVertical: 16,
@@ -453,24 +215,11 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     minWidth: 240,
     alignItems: 'center',
-    marginTop: 'auto',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
   },
   primaryButtonText: {
     color: '#041318',
     fontSize: 17,
     fontWeight: '700',
-  },
-  skipLink: {
-    marginTop: 16,
-    padding: 8,
-  },
-  skipText: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 15,
-    fontWeight: '500',
   },
   featureList: {
     width: '100%',
@@ -504,15 +253,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  pinWrap: {
-    marginTop: 30,
-    marginBottom: 30,
+  iconHero: {
+    marginTop: 40,
+    marginBottom: 40,
     alignItems: 'center',
   },
-  checkWrap: {
-    marginTop: 30,
-    marginBottom: 30,
+  iconHeroCircle: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(43, 191, 186, 0.12)',
+    borderWidth: 2,
+    borderColor: TEAL,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkEmoji: {
+    color: TEAL,
+    fontSize: 72,
+    fontWeight: '800',
   },
   dots: {
     position: 'absolute',
