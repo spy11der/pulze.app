@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import {
   Camera,
   Check,
@@ -104,11 +105,17 @@ function getVibeGradientColor(score: number, isDark: boolean): string {
   return isDark ? '#3A1A1A' : '#EDD4D4';
 }
 
+function getBusynessDotColor(score: number): string {
+  if (score <= 30) return '#FF4444';
+  if (score <= 60) return '#FFB800';
+  return '#2BBFBA';
+}
+
+const PULZE_TEAL = '#2BBFBA';
+
 function TagChip({
   tag,
   selected,
-  accentColor,
-  glowColor,
   onPress,
   colors,
   isDark,
@@ -124,64 +131,59 @@ function TagChip({
   dimmed: boolean;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(glowAnim, {
-      toValue: selected ? 1 : 0,
-      duration: 250,
-      useNativeDriver: false,
+    Animated.spring(scaleAnim, {
+      toValue: selected ? 1.05 : 1,
+      friction: 5,
+      tension: 220,
+      useNativeDriver: true,
     }).start();
-  }, [selected, glowAnim]);
+  }, [selected, scaleAnim]);
 
   const handlePress = useCallback(() => {
     Animated.sequence([
       Animated.timing(scaleAnim, {
-        toValue: 1.12,
-        duration: 80,
+        toValue: selected ? 0.96 : 1.14,
+        duration: 90,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
-        toValue: 1,
+        toValue: selected ? 1 : 1.05,
         friction: 4,
-        tension: 300,
+        tension: 280,
         useNativeDriver: true,
       }),
     ]).start();
     onPress();
-  }, [onPress, scaleAnim]);
-
-  const bgColor = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [
-      isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-      isDark ? `${glowColor}0.18)` : `${glowColor}0.12)`,
-    ],
-  });
-
-  const borderColor = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [
-      isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-      accentColor,
-    ],
-  });
+  }, [onPress, scaleAnim, selected]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.35 : 1 }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: dimmed ? 0.45 : 1 }}>
       <Pressable onPress={handlePress} testID={`tag-${tag}`}>
-        <Animated.View
+        <View
           style={[
             styles.tagChip,
-            {
-              backgroundColor: bgColor,
-              borderColor: borderColor,
-              borderWidth: selected ? 1.5 : 1,
-            },
+            selected
+              ? {
+                  backgroundColor: PULZE_TEAL,
+                  borderColor: PULZE_TEAL,
+                  borderWidth: 1.5,
+                  shadowColor: PULZE_TEAL,
+                  shadowOpacity: 0.45,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 0 },
+                  elevation: 4,
+                }
+              : {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  borderColor: PULZE_TEAL,
+                  borderWidth: 1,
+                },
           ]}
         >
           {selected && (
-            <View style={[styles.tagCheckIcon, { backgroundColor: accentColor }]}>
+            <View style={[styles.tagCheckIcon, { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
               <Check color="#fff" size={10} />
             </View>
           )}
@@ -189,16 +191,86 @@ function TagChip({
             style={[
               styles.tagText,
               {
-                color: selected ? accentColor : colors.textMuted,
-                fontWeight: selected ? '700' as const : '500' as const,
+                color: selected ? '#FFFFFF' : PULZE_TEAL,
+                fontWeight: selected ? '800' as const : '600' as const,
               },
             ]}
           >
             {tag}
           </Text>
-        </Animated.View>
+        </View>
       </Pressable>
     </Animated.View>
+  );
+}
+
+function PulsingPrompt({
+  onPress,
+  colors,
+}: {
+  onPress: () => void;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const bg = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(43,191,186,0.06)', 'rgba(43,191,186,0.16)'],
+  });
+  return (
+    <Pressable onPress={onPress} testID="pulsing-venue-prompt">
+      <Animated.View
+        style={{
+          flexDirection: 'row' as const,
+          alignItems: 'center' as const,
+          justifyContent: 'center' as const,
+          gap: 6,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderStyle: 'dashed' as const,
+          borderColor: PULZE_TEAL,
+          backgroundColor: bg,
+          opacity,
+          marginTop: 6,
+        }}
+      >
+        <MapPin color={PULZE_TEAL} size={14} />
+        <Text style={{ color: PULZE_TEAL, fontWeight: '700' as const, fontSize: 13 }}>
+          Tap to tag where you are →
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function PlaceholderTagPill({ colors, isDark }: { colors: ReturnType<typeof useTheme>['colors']; isDark: boolean }) {
+  return (
+    <View
+      style={[
+        styles.tagChip,
+        {
+          backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+          borderWidth: 1,
+          borderStyle: 'dashed' as const,
+        },
+      ]}
+    >
+      <Text style={[styles.tagText, { color: colors.textSoft, fontWeight: '600' as const }]}>+</Text>
+      <View style={{ width: 24, height: 8, borderRadius: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
+    </View>
   );
 }
 
@@ -220,6 +292,7 @@ function VibeMeter({
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   const fillTarget = totalSelected > 0 ? score / 100 : 0;
+  const [displayProgress, setDisplayProgress] = useState<number>(0);
   useEffect(() => {
     Animated.spring(fillAnim, {
       toValue: fillTarget,
@@ -227,7 +300,22 @@ function VibeMeter({
       tension: 40,
       useNativeDriver: false,
     }).start();
+    const id = fillAnim.addListener(({ value }) => setDisplayProgress(value));
+    return () => fillAnim.removeListener(id);
   }, [fillTarget, fillAnim]);
+
+  const lastBucketRef = useRef<number>(-1);
+  useEffect(() => {
+    if (totalSelected === 0) {
+      lastBucketRef.current = -1;
+      return;
+    }
+    const bucket = Math.floor(score / 10);
+    if (lastBucketRef.current !== -1 && bucket !== lastBucketRef.current) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    lastBucketRef.current = bucket;
+  }, [score, totalSelected]);
 
   const shouldPulse = score > 70;
   useEffect(() => {
@@ -272,20 +360,19 @@ function VibeMeter({
     return undefined;
   }, [totalSelected, shimmerAnim]);
 
-  const fillWidth = fillAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const meterColor = score <= 30
-    ? '#5BE89E'
-    : score <= 60
-      ? '#E8D544'
-      : score <= 80
-        ? '#FFAA2E'
-        : '#FF4D3A';
+  const meterColor = PULZE_TEAL;
+  const fillOpacity = totalSelected === 0 ? 0.18 : 0.3 + 0.7 * (score / 100);
+  const isHot = score >= 70 && totalSelected > 0;
 
   const intensityLabel = getVibeIntensityLabel(score);
+
+  const arcRadius = 90;
+  const arcStroke = 14;
+  const arcWidth = (arcRadius + arcStroke) * 2;
+  const arcHeight = arcRadius + arcStroke * 2;
+  const arcLength = Math.PI * arcRadius;
+  const arcPath = `M ${arcStroke} ${arcRadius + arcStroke} A ${arcRadius} ${arcRadius} 0 0 1 ${arcStroke + arcRadius * 2} ${arcRadius + arcStroke}`;
+  const dashOffset = arcLength * (1 - displayProgress);
 
   return (
     <Animated.View
@@ -300,53 +387,61 @@ function VibeMeter({
     >
       <View style={styles.vibeMeterHeader}>
         <View style={styles.vibeMeterLeft}>
-          <View style={[styles.vibeMeterIconWrap, { backgroundColor: `${meterColor}18` }]}>
+          <View style={[styles.vibeMeterIconWrap, { backgroundColor: `${meterColor}22` }]}>
             <Radio color={meterColor} size={14} />
           </View>
           <Text style={[styles.vibeMeterLabel, { color: colors.textMuted }]}>
             VIBE METER
           </Text>
         </View>
-        <View style={styles.vibeMeterRight}>
-          <Text style={[styles.vibeMeterScore, { color: meterColor }]}>
-            {totalSelected > 0 ? score : '—'}
+        {totalSelected > 0 && (
+          <Text style={[styles.vibeMeterIntensityBadge, { color: meterColor, backgroundColor: `${meterColor}14` }]}>
+            {intensityLabel}
           </Text>
-          {totalSelected > 0 && (
-            <Text style={[styles.vibeMeterIntensityBadge, { color: meterColor, backgroundColor: `${meterColor}14` }]}>
-              {intensityLabel}
-            </Text>
-          )}
-        </View>
+        )}
       </View>
 
-      <View style={[styles.vibeMeterTrack, { backgroundColor: isDark ? '#060F13' : '#DCE4E8' }]}>
-        <Animated.View
-          style={[
-            styles.vibeMeterFill,
-            {
-              width: fillWidth,
-              backgroundColor: meterColor,
-            },
-          ]}
-        />
-        {[25, 50, 75].map((tick) => (
-          <View
-            key={tick}
-            style={[
-              styles.vibeMeterTick,
-              {
-                left: `${tick}%`,
-                backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-              },
-            ]}
+      <View
+        style={[
+          styles.vibeArcWrap,
+          isHot && {
+            shadowColor: PULZE_TEAL,
+            shadowOpacity: 0.8,
+            shadowRadius: 16,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 10,
+          },
+        ]}
+      >
+        <Svg width={arcWidth} height={arcHeight}>
+          <Path
+            d={arcPath}
+            stroke={isDark ? '#0A2228' : '#DCE4E8'}
+            strokeWidth={arcStroke}
+            strokeLinecap="round"
+            fill="none"
           />
-        ))}
+          <Path
+            d={arcPath}
+            stroke={meterColor}
+            strokeWidth={arcStroke}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={`${arcLength} ${arcLength}`}
+            strokeDashoffset={dashOffset}
+            opacity={fillOpacity}
+          />
+        </Svg>
+        <View style={styles.vibeArcCenter} pointerEvents="none">
+          <Text style={[styles.vibeArcScore, { color: meterColor }]}>
+            {totalSelected > 0 ? score : '—'}
+          </Text>
+          <Text style={[styles.vibeArcLabel, { color: colors.textSoft }]}>VIBE</Text>
+        </View>
       </View>
 
       <View style={styles.vibeMeterLabelsRow}>
         <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Calm</Text>
-        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Building</Text>
-        <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Active</Text>
         <Text style={[styles.vibeMeterRangeLabel, { color: colors.textSoft }]}>Fired up</Text>
       </View>
 
@@ -1031,6 +1126,10 @@ export default function PostScreen() {
               Not your location? Tap to fix
             </Text>
           </Pressable>
+
+          {!selectedLocation && (
+            <PulsingPrompt onPress={handleOpenLocationSelector} colors={colors} />
+          )}
         </View>
 
         {TAG_CATEGORIES.map((cat) => {
@@ -1075,19 +1174,27 @@ export default function PostScreen() {
               </View>
 
               <View style={styles.tagRow}>
-                {cat.tags.map((tag) => (
-                  <MemoTagChip
-                    key={tag}
-                    tag={tag}
-                    selected={selectedTags[cat.key].includes(tag)}
-                    accentColor={cat.color}
-                    glowColor={cat.glowColor}
-                    onPress={() => handleTagToggle(cat.key, tag)}
-                    colors={colors}
-                    isDark={isDark}
-                    dimmed={!isActive}
-                  />
-                ))}
+                {!isActive && !hasSelections ? (
+                  <>
+                    {cat.tags.slice(0, 3).map((_, i) => (
+                      <PlaceholderTagPill key={i} colors={colors} isDark={isDark} />
+                    ))}
+                  </>
+                ) : (
+                  cat.tags.map((tag) => (
+                    <MemoTagChip
+                      key={tag}
+                      tag={tag}
+                      selected={selectedTags[cat.key].includes(tag)}
+                      accentColor={cat.color}
+                      glowColor={cat.glowColor}
+                      onPress={() => handleTagToggle(cat.key, tag)}
+                      colors={colors}
+                      isDark={isDark}
+                      dimmed={!isActive}
+                    />
+                  ))
+                )}
               </View>
             </View>
           );
@@ -1127,6 +1234,23 @@ export default function PostScreen() {
             Optional — tag an event you're going to
           </Text>
         </View>
+
+        <VibeMeter
+          score={energyScore}
+          totalSelected={totalSelected}
+          colors={colors}
+          isDark={isDark}
+        />
+
+        <LivePreviewCard
+          tags={selectedTags}
+          score={energyScore}
+          caption={caption}
+          locationName={locationName}
+          mediaUri={mediaUri}
+          colors={colors}
+          isDark={isDark}
+        />
 
         <View style={[styles.realTimeNote, { backgroundColor: isDark ? 'rgba(43,191,186,0.06)' : 'rgba(26,158,153,0.05)' }]}>
           <Zap color={colors.aqua} size={13} />
@@ -1621,6 +1745,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden' as const,
     position: 'relative' as const,
+  },
+  vibeArcWrap: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginTop: 4,
+  },
+  vibeArcCenter: {
+    position: 'absolute' as const,
+    top: 30,
+    alignItems: 'center' as const,
+    gap: 2,
+  },
+  vibeArcScore: {
+    fontSize: 44,
+    fontWeight: '900' as const,
+    letterSpacing: -1.5,
+  },
+  vibeArcLabel: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 1.6,
   },
   vibeMeterFill: {
     height: '100%',
