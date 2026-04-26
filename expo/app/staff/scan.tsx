@@ -97,7 +97,11 @@ export default function StaffScanScreen() {
   }, []);
 
   const handleClose = useCallback(() => {
-    if (router.canGoBack()) router.back();
+    try {
+      router.back();
+    } catch {
+      router.replace('/');
+    }
   }, []);
 
   useEffect(() => {
