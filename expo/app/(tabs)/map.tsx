@@ -49,6 +49,8 @@ import { MAP_FILTERS } from '@/types/venue';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
+import { LiveEventMarkers, LiveEventsSheet } from '@/components/LiveEventMarkers';
+import type { MapEventItem } from '@/hooks/useEvents';
 import { useRouter } from 'expo-router';
 import { MapPin, TrendingUp } from 'lucide-react-native';
 import { getUrgencyLabel } from '@/utils/urgency';
@@ -584,6 +586,13 @@ export default function MapScreen() {
   const { isFavorited, toggleFavorite } = useFavorites();
   const router = useRouter();
   const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
+  const [eventVenueGroup, setEventVenueGroup] = useState<{
+    key: string;
+    latitude: number;
+    longitude: number;
+    venueName: string;
+    events: MapEventItem[];
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
   const searchInputRef = useRef<TextInput | null>(null);
@@ -691,6 +700,7 @@ export default function MapScreen() {
 
   const handleMapPress = useCallback(() => {
     setSelectedId(null);
+    setEventVenueGroup(null);
     setIsSearchFocused(false);
     setSearchQuery('');
     Keyboard.dismiss();
@@ -789,6 +799,22 @@ export default function MapScreen() {
               isDark={isDark}
             />
           ))}
+          <LiveEventMarkers
+            visible={!selectedVenue}
+            onSelectVenue={(g) => {
+              console.log('[MapScreen] live event venue selected:', g.venueName, g.events.length);
+              Haptics.selectionAsync().catch(() => {});
+              setSelectedId(null);
+              setEventVenueGroup(g);
+              const focusRegion: Region = {
+                latitude: g.latitude - 0.003,
+                longitude: g.longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+              };
+              mapRef.current?.animateToRegion(focusRegion, 400);
+            }}
+          />
           {userCoordinate ? (
             <Marker
               coordinate={userCoordinate}
@@ -949,6 +975,15 @@ export default function MapScreen() {
           bottomInset={insets.bottom + 80}
           isDark={isDark}
           colors={colors}
+        />
+      ) : null}
+
+      {eventVenueGroup && !selectedVenue ? (
+        <LiveEventsSheet
+          group={eventVenueGroup}
+          onClose={() => setEventVenueGroup(null)}
+          bottomInset={insets.bottom + 80}
+          isDark={isDark}
         />
       ) : null}
 

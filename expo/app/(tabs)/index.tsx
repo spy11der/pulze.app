@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bookmark, Calendar, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, RadioTower, Send, Star, Ticket, Trash2, Users, X } from 'lucide-react-native';
+import { Bookmark, Calendar, CalendarDays, ChevronRight, Compass, Database, Eye, Flame, Heart, MapPin, MessageCircle, RadioTower, Send, Star, Ticket, Trash2, Users, X } from 'lucide-react-native';
 import { RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -285,6 +285,32 @@ export default function FeedScreen() {
           </View>
         ) : (
           <>
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/events');
+              }}
+              style={({ pressed }) => [
+                styles.liveEventsCta,
+                {
+                  backgroundColor: isDark ? 'rgba(43,191,186,0.10)' : 'rgba(26,158,153,0.06)',
+                  borderColor: isDark ? 'rgba(43,191,186,0.25)' : 'rgba(26,158,153,0.18)',
+                },
+                pressed && { opacity: 0.85 },
+              ]}
+              testID="live-events-cta"
+            >
+              <View style={[styles.liveEventsIcon, { backgroundColor: colors.aqua }]}>
+                <CalendarDays color={isDark ? '#060F13' : '#fff'} size={16} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.liveEventsTitle, { color: colors.text }]}>Live events near you</Text>
+                <Text style={[styles.liveEventsSub, { color: colors.textMuted }]}>
+                  Real-time from Ticketmaster &amp; SeatData
+                </Text>
+              </View>
+              <ChevronRight color={colors.aqua} size={18} />
+            </Pressable>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Nearby</Text>
             </View>
@@ -1290,6 +1316,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 8,
+  },
+  liveEventsCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  liveEventsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveEventsTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    letterSpacing: -0.1,
+  },
+  liveEventsSub: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 2,
   },
   featuredCta: {
     flexDirection: 'row',
