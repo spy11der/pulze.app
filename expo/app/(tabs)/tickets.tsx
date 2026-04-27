@@ -326,11 +326,19 @@ const CompactEventCard = React.memo(function CompactEventCard({
           <Text style={[styles.compactArtistDate, { color: colors.textSoft }]} numberOfLines={1}>{dateStr}</Text>
         </View>
         <View style={styles.compactArtistBottom}>
+          {live.label && live.label !== 'UNKNOWN' ? (
           <View style={[styles.genrePill, { backgroundColor: live.color + '20' }]}>
             <Text style={[styles.genreText, { color: live.color }]}>
               {live.emoji} {live.label}
             </Text>
           </View>
+          ) : (
+          <View style={[styles.genrePill, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+            <Text style={[styles.genreText, { color: colors.textMuted }]}>
+              Tickets
+            </Text>
+          </View>
+          )}
           <Text style={[styles.compactArtistPrice, { color: colors.text }]}>
             {event.minPrice !== null ? `$${Math.round(event.minPrice)}` : '—'}
           </Text>
