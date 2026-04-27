@@ -24,8 +24,14 @@ import {
   Sparkles,
   Ticket,
   TrendingUp,
+  Users,
   Zap,
 } from 'lucide-react-native';
+import {
+  Alert,
+  Platform,
+  ToastAndroid,
+} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -93,6 +99,8 @@ function LiveEventDetail({
   colors: ReturnType<typeof useTheme>['colors'];
   isDark: boolean;
 }) {
+  const [checkedIn, setCheckedIn] = useState(false);
+
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onBack();
@@ -361,6 +369,76 @@ function LiveEventDetail({
               </MapView>
             </View>
           ) : null}
+
+          {/* I'm Here check-in button */}
+          <Pressable
+            onPress={() => {
+              if (checkedIn) return;
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setCheckedIn(true);
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Check-in recorded!', ToastAndroid.SHORT);
+              } else {
+                Alert.alert('Check-in recorded!');
+              }
+            }}
+            style={({ pressed }) => [
+              styles.checkInBtn,
+              checkedIn && styles.checkInBtnDone,
+              pressed && styles.pressed,
+            ]}
+            testID="event-detail-checkin"
+          >
+            <MapPin color="#041318" size={18} />
+            <Text style={styles.checkInText}>
+              {checkedIn ? "You're Here ✓" : "I'm Here"}
+            </Text>
+          </Pressable>
+
+          {/* Directions + Save row */}
+          <View style={styles.actionsRow}>
+            {event.venueLat && event.venueLng ? (
+              <Pressable
+                onPress={handleDirections}
+                style={({ pressed }) => [
+                  styles.directionsBtn,
+                  { backgroundColor: colors.aqua },
+                  pressed && styles.pressed,
+                ]}
+                testID="event-detail-directions-btn"
+              >
+                <Navigation color="#fff" size={16} />
+                <Text style={styles.directionsBtnText}>Get there now</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                toggleFavorite(event.id, 'event', event.name);
+              }}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                {
+                  borderColor: heart ? colors.aqua : colors.border,
+                  backgroundColor: heart
+                    ? isDark ? 'rgba(43,191,186,0.1)' : 'rgba(43,191,186,0.08)'
+                    : 'transparent',
+                },
+                pressed && styles.pressed,
+              ]}
+              testID="event-detail-save-btn"
+            >
+              <Heart
+                color={heart ? colors.aqua : colors.textMuted}
+                size={16}
+                fill={heart ? colors.aqua : 'transparent'}
+              />
+              <Text style={[styles.saveBtnText, { color: heart ? colors.aqua : colors.textMuted }]}>
+                {heart ? 'Saved' : 'Save'}
+              </Text>
+            </Pressable>
+          </View>
+
         </View>
       </ScrollView>
 
@@ -742,5 +820,59 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+  },
+  checkInBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    backgroundColor: '#1E9E9A',
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: '#1E9E9A',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  checkInBtnDone: {
+    backgroundColor: '#0a6e6a',
+    shadowOpacity: 0,
+  },
+  checkInText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  actionsRow: {
+    flexDirection: 'row' as const,
+    gap: 10,
+  },
+  directionsBtn: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  directionsBtnText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  saveBtn: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });
