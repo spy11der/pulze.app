@@ -255,7 +255,7 @@ function LiveEventDetail({
             ) : null}
           </View>
 
-          {/* Liveliness */}
+          {/* Liveliness — only show if we have real data */}
           {livelinessPct !== null ? (
             <View style={[styles.livelinessCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.livelinessHeader}>
@@ -283,16 +283,10 @@ function LiveEventDetail({
                 ) : null}
               </View>
             </View>
-          ) : (
-            <View style={[styles.livelinessCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.livelinessTitle, { color: colors.text }]}>Demand</Text>
-              <Text style={[styles.livelinessStatSub, { color: colors.textMuted }]}>
-                Capacity data unavailable for this venue.
-              </Text>
-            </View>
-          )}
-
+          ) : null}
+          {(event.activeListings > 0 || event.minPrice !== null || event.recentSales > 0) ? (
           <View style={styles.statsRow}>
+            {event.activeListings > 0 ? (
             <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <Zap color={colors.aqua} size={15} />
               <Text style={[styles.statValue, { color: colors.text }]}>
@@ -300,6 +294,7 @@ function LiveEventDetail({
               </Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Listings</Text>
             </View>
+            ) : null}
             {event.minPrice !== null ? (
               <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
                 <Ticket color={colors.aqua} size={15} />
@@ -317,6 +312,7 @@ function LiveEventDetail({
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>Price</Text>
               </View>
             )}
+            {event.recentSales > 0 ? (
             <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
               <TrendingUp color={colors.aqua} size={15} />
               <Text style={[styles.statValue, { color: colors.text }]}>
@@ -324,7 +320,9 @@ function LiveEventDetail({
               </Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Sold (7d)</Text>
             </View>
+            ) : null}
           </View>
+          ) : null}
 
           {description ? (
             <View style={styles.sectionBlock}>
