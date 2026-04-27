@@ -640,16 +640,16 @@ export default function MapScreen() {
   }, []);
 
   const handlePressCluster = useCallback((cluster: MapCluster) => {
-    console.log('[MapScreen] Expanding cluster with', cluster.count, 'venues');
-    const zoomRegion: Region = {
-      latitude: cluster.latitude,
-      longitude: cluster.longitude,
-      latitudeDelta: mapRegion.latitudeDelta / 2.5,
-      longitudeDelta: mapRegion.longitudeDelta / 2.5,
-    };
-    mapRef.current?.animateToRegion(zoomRegion, 400);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  }, [mapRegion]);
+  console.log('[MapScreen] Expanding cluster with', cluster.count, 'venues');
+  const zoomRegion: Region = {
+    latitude: cluster.latitude,
+    longitude: cluster.longitude,
+    latitudeDelta: mapRegion.latitudeDelta / 3,
+    longitudeDelta: mapRegion.longitudeDelta / 3,
+  };
+  mapRef.current?.animateToRegion(zoomRegion, 400);
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+}, [mapRegion]);
 
   const handleRecenter = useCallback(async () => {
     console.log('[MapScreen] Recenter pressed, userLocation:', userLocation);
@@ -804,6 +804,10 @@ export default function MapScreen() {
             onSelectVenue={(g) => {
               console.log('[MapScreen] live event venue selected:', g.venueName, g.events.length);
               Haptics.selectionAsync().catch(() => {});
+              if (g.events.length === 1) {
+                router.push({ pathname: '/event-detail', params: { eventId: g.events[0].id } });
+                return;
+              }
               setSelectedId(null);
               setEventVenueGroup(g);
               const focusRegion: Region = {
