@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Platform,
@@ -8,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  ToastAndroid,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,11 +29,6 @@ import {
   Users,
   Zap,
 } from 'lucide-react-native';
-import {
-  Alert,
-  Platform,
-  ToastAndroid,
-} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { useTheme } from '@/providers/ThemeProvider';
