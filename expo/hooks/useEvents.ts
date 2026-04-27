@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/services/supabase';
 import type { EventSource, Tables } from '@/types/supabase';
 import { calcLiveliness, sumActiveListings } from '@/utils/liveliness';
+import { pickBestImage, type EventImageLike } from '@/utils/eventImage';
 
 export interface MapEventItem {
   id: string;
@@ -24,16 +25,22 @@ export interface FeedEventItem {
   source: EventSource;
   date: Date;
   imageUrl: string | null;
+  heroImageUrl: string | null;
   capacity: number | null;
   activeListings: number;
   liveliness: number | null;
   minPrice: number | null;
   maxPrice: number | null;
+  recentSales: number;
+  isHot: boolean;
+  isSellingFast: boolean;
+  isTrending: boolean;
 }
 
 export interface EventDetail extends Tables<'events'> {
   details: Tables<'event_details'> | null;
   images: Tables<'event_images'>[];
+  heroImageUrl: string | null;
   capacity: number | null;
   venueLat: number | null;
   venueLng: number | null;
@@ -42,11 +49,17 @@ export interface EventDetail extends Tables<'events'> {
   minPrice: number | null;
   maxPrice: number | null;
   recentSales: number;
+  salesVelocity: number;
+  isHot: boolean;
+  isSellingFast: boolean;
+  isTrending: boolean;
 }
 
 const STALE_MAP = 10 * 60 * 1000;
 const STALE_FEED = 5 * 60 * 1000;
 const STALE_DETAIL = 2 * 60 * 1000;
+
+const IMG_SELECT = 'url, ratio, width, height';
 
 export function useMapEvents(limit: number = 200) {
   return useQuery<MapEventItem[]>({
@@ -63,7 +76,7 @@ export function useMapEvents(limit: number = 200) {
           venue_city,
           source,
           event_details!inner ( venue_latitude, venue_longitude ),
-          event_images ( url )
+          event_images ( ${IMG_SELECT} )
         `)
         .gte('start_date_time', new Date().toISOString())
         .not('event_details.venue_latitude', 'is', null)
@@ -84,7 +97,7 @@ export function useMapEvents(limit: number = 200) {
         venue_city: string | null;
         source: EventSource;
         event_details: { venue_latitude: number | null; venue_longitude: number | null } | { venue_latitude: number | null; venue_longitude: number | null }[] | null;
-        event_images: { url: string }[] | { url: string } | null;
+        event_images: EventImageLike[] | EventImageLike | null;
       }>;
 
       return rows
@@ -101,7 +114,7 @@ export function useMapEvents(limit: number = 200) {
             latitude: ed.venue_latitude,
             longitude: ed.venue_longitude,
             date: new Date(row.start_date_time),
-            imageUrl: imgs[0]?.url ?? null,
+            imageUrl: pickBestImage(imgs, 'card'),
           };
         })
         .filter((x): x is MapEventItem => x !== null);
@@ -111,12 +124,103 @@ export function useMapEvents(limit: number = 200) {
   });
 }
 
+interface FeedRow {
+  id: string;
+  name: string;
+  venue_name: string | null;
+  venue_city: string | null;
+  source: EventSource;
+  start_date_time: string;
+  event_images: EventImageLike[] | EventImageLike | null;
+}
+
+interface VenueCapMap { capacity: number | null }
+
+async function enrichEvents(rows: FeedRow[]): Promise<FeedEventItem[]> {
+  const venueNames = Array.from(
+    new Set(rows.map((r) => r.venue_name).filter((n): n is string => !!n)),
+  );
+
+  const venuesByName = new Map<string, VenueCapMap>();
+  if (venueNames.length > 0) {
+    const { data: venues } = await supabase
+      .from('venues')
+      .select('name, capacity')
+      .in('name', venueNames);
+    for (const v of venues ?? []) {
+      venuesByName.set(v.name, { capacity: v.capacity });
+    }
+  }
+
+  const eventIds = rows.map((r) => r.id);
+  const listingsByEvent = new Map<string, { quantity: number | null; price: number | null }[]>();
+  const salesByEvent = new Map<string, number>();
+
+  if (eventIds.length > 0) {
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('event_id, quantity, price')
+      .in('event_id', eventIds)
+      .eq('active', true);
+    for (const l of listings ?? []) {
+      const arr = listingsByEvent.get(l.event_id) ?? [];
+      arr.push({ quantity: l.quantity, price: l.price });
+      listingsByEvent.set(l.event_id, arr);
+    }
+
+    const sevenDaysAgo = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('event_id, quantity, timestamp')
+      .in('event_id', eventIds)
+      .gte('timestamp', sevenDaysAgo);
+    for (const s of sales ?? []) {
+      salesByEvent.set(s.event_id, (salesByEvent.get(s.event_id) ?? 0) + (s.quantity ?? 0));
+    }
+  }
+
+  return rows.map((row): FeedEventItem => {
+    const imgs = Array.isArray(row.event_images) ? row.event_images : row.event_images ? [row.event_images] : [];
+    const capacity = row.venue_name ? venuesByName.get(row.venue_name)?.capacity ?? null : null;
+    const ls = listingsByEvent.get(row.id) ?? [];
+    const activeListings = sumActiveListings(ls.map((l) => ({ active: true, quantity: l.quantity })));
+    const prices = ls.map((l) => l.price).filter((p): p is number => typeof p === 'number' && p > 0);
+    const liveliness = calcLiveliness(capacity, activeListings);
+    const recentSales = salesByEvent.get(row.id) ?? 0;
+    const salesVelocity = recentSales / 7;
+
+    const isHot = liveliness !== null ? liveliness >= 95 : false;
+    const isSellingFast = liveliness !== null ? liveliness >= 80 : false;
+    const isTrending = recentSales >= 25 || salesVelocity >= 5;
+
+    return {
+      id: row.id,
+      name: row.name,
+      venueName: row.venue_name,
+      city: row.venue_city,
+      source: row.source,
+      date: new Date(row.start_date_time),
+      imageUrl: pickBestImage(imgs, 'card'),
+      heroImageUrl: pickBestImage(imgs, 'hero'),
+      capacity,
+      activeListings,
+      liveliness,
+      minPrice: prices.length ? Math.min(...prices) : null,
+      maxPrice: prices.length ? Math.max(...prices) : null,
+      recentSales,
+      isHot,
+      isSellingFast,
+      isTrending,
+    };
+  });
+}
+
 export function useEventFeed(limit: number = 50) {
   return useQuery<FeedEventItem[]>({
     queryKey: ['event-feed', limit],
     queryFn: async () => {
       console.log('[useEventFeed] fetching');
-      const { data: events, error } = await supabase
+      const { data, error } = await supabase
         .from('events')
         .select(`
           id,
@@ -125,7 +229,7 @@ export function useEventFeed(limit: number = 50) {
           venue_city,
           source,
           start_date_time,
-          event_images ( url )
+          event_images ( ${IMG_SELECT} )
         `)
         .gte('start_date_time', new Date().toISOString())
         .order('start_date_time', { ascending: true })
@@ -136,67 +240,45 @@ export function useEventFeed(limit: number = 50) {
         throw error;
       }
 
-      const rows = (events ?? []) as unknown as Array<{
-        id: string;
-        name: string;
-        venue_name: string | null;
-        venue_city: string | null;
-        source: EventSource;
-        start_date_time: string;
-        event_images: { url: string }[] | { url: string } | null;
-      }>;
+      return enrichEvents((data ?? []) as unknown as FeedRow[]);
+    },
+    staleTime: STALE_FEED,
+  });
+}
 
-      const venueNames = Array.from(
-        new Set(rows.map((r) => r.venue_name).filter((n): n is string => !!n)),
-      );
+/**
+ * Returns up to `count` randomly-selected upcoming events (used for "Hot Right Now" carousel).
+ * Pulls a wider pool then samples client-side to avoid PostgREST random ordering.
+ */
+export function useHotEvents(count: number = 10, pool: number = 80) {
+  return useQuery<FeedEventItem[]>({
+    queryKey: ['hot-events', count, pool],
+    queryFn: async () => {
+      console.log('[useHotEvents] fetching');
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          id,
+          name,
+          venue_name,
+          venue_city,
+          source,
+          start_date_time,
+          event_images ( ${IMG_SELECT} )
+        `)
+        .gte('start_date_time', new Date().toISOString())
+        .order('start_date_time', { ascending: true })
+        .limit(pool);
 
-      const venuesByName = new Map<string, number | null>();
-      if (venueNames.length > 0) {
-        const { data: venues } = await supabase
-          .from('venues')
-          .select('name, capacity')
-          .in('name', venueNames);
-        for (const v of venues ?? []) {
-          venuesByName.set(v.name, v.capacity);
-        }
+      if (error) {
+        console.log('[useHotEvents] error:', error.message);
+        throw error;
       }
 
-      const eventIds = rows.map((r) => r.id);
-      const listingsByEvent = new Map<string, { active: boolean | null; quantity: number | null; price: number | null }[]>();
-      if (eventIds.length > 0) {
-        const { data: listings } = await supabase
-          .from('listings')
-          .select('event_id, active, quantity, price')
-          .in('event_id', eventIds)
-          .eq('active', true);
-        for (const l of listings ?? []) {
-          const arr = listingsByEvent.get(l.event_id) ?? [];
-          arr.push({ active: l.active, quantity: l.quantity, price: l.price });
-          listingsByEvent.set(l.event_id, arr);
-        }
-      }
-
-      return rows.map((row): FeedEventItem => {
-        const imgs = Array.isArray(row.event_images) ? row.event_images : row.event_images ? [row.event_images] : [];
-        const capacity = row.venue_name ? venuesByName.get(row.venue_name) ?? null : null;
-        const ls = listingsByEvent.get(row.id) ?? [];
-        const activeListings = sumActiveListings(ls);
-        const prices = ls.map((l) => l.price).filter((p): p is number => typeof p === 'number');
-        return {
-          id: row.id,
-          name: row.name,
-          venueName: row.venue_name,
-          city: row.venue_city,
-          source: row.source,
-          date: new Date(row.start_date_time),
-          imageUrl: imgs[0]?.url ?? null,
-          capacity,
-          activeListings,
-          liveliness: calcLiveliness(capacity, activeListings),
-          minPrice: prices.length ? Math.min(...prices) : null,
-          maxPrice: prices.length ? Math.max(...prices) : null,
-        };
-      });
+      const rows = (data ?? []) as unknown as FeedRow[];
+      const enriched = await enrichEvents(rows);
+      const shuffled = [...enriched].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, count);
     },
     staleTime: STALE_FEED,
   });
@@ -257,7 +339,7 @@ export function useEventDetail(eventId: string | null | undefined) {
       const activeListings = sumActiveListings(listings ?? []);
       const prices = (listings ?? [])
         .map((l) => l.price)
-        .filter((p): p is number => typeof p === 'number');
+        .filter((p): p is number => typeof p === 'number' && p > 0);
 
       const sevenDaysAgo = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
       const { data: sales } = await supabase
@@ -266,19 +348,30 @@ export function useEventDetail(eventId: string | null | undefined) {
         .eq('event_id', eventId)
         .gte('timestamp', sevenDaysAgo);
       const recentSales = (sales ?? []).reduce((s, x) => s + (x.quantity ?? 0), 0);
+      const salesVelocity = recentSales / 7;
+
+      const liveliness = calcLiveliness(capacity, activeListings);
+      const isHot = liveliness !== null ? liveliness >= 95 : false;
+      const isSellingFast = liveliness !== null ? liveliness >= 80 : false;
+      const isTrending = recentSales >= 25 || salesVelocity >= 5;
 
       return {
         ...row,
         details,
         images,
+        heroImageUrl: pickBestImage(images, 'hero'),
         capacity,
         venueLat: details?.venue_latitude ?? null,
         venueLng: details?.venue_longitude ?? null,
         activeListings,
-        liveliness: calcLiveliness(capacity, activeListings),
+        liveliness,
         minPrice: prices.length ? Math.min(...prices) : null,
         maxPrice: prices.length ? Math.max(...prices) : null,
         recentSales,
+        salesVelocity,
+        isHot,
+        isSellingFast,
+        isTrending,
       };
     },
     staleTime: STALE_DETAIL,
@@ -316,7 +409,7 @@ export function useSearchEvents(filters: SearchFilters) {
     queryFn: async () => {
       let q = supabase
         .from('events')
-        .select(`id, name, venue_name, venue_city, source, start_date_time, event_images(url)`)
+        .select(`id, name, venue_name, venue_city, source, start_date_time, event_images(${IMG_SELECT})`)
         .gte('start_date_time', filters.startDate ?? new Date().toISOString())
         .limit(60);
 
@@ -340,7 +433,7 @@ export function useSearchEvents(filters: SearchFilters) {
         venue_city: string | null;
         source: EventSource;
         start_date_time: string;
-        event_images: { url: string }[] | { url: string } | null;
+        event_images: EventImageLike[] | EventImageLike | null;
       }>;
 
       return rows.map((row) => {
@@ -352,7 +445,7 @@ export function useSearchEvents(filters: SearchFilters) {
           city: row.venue_city,
           source: row.source,
           date: new Date(row.start_date_time),
-          imageUrl: imgs[0]?.url ?? null,
+          imageUrl: pickBestImage(imgs, 'card'),
         };
       });
     },
@@ -367,4 +460,21 @@ export function useDebouncedValue<T>(value: T, delay: number = 300): T {
     return () => clearTimeout(t);
   }, [value, delay]);
   return v;
+}
+
+/**
+ * Lightweight summary helpers for surfacing events in the legacy "Featured" card on the home tab.
+ */
+export function useFeaturedEvent() {
+  const feed = useEventFeed(20);
+  const featured = useMemo(() => {
+    const items = feed.data ?? [];
+    if (items.length === 0) return null;
+    const withImages = items.filter((i) => i.heroImageUrl || i.imageUrl);
+    const list = withImages.length > 0 ? withImages : items;
+    const hot = list.find((i) => i.isHot) ?? list.find((i) => i.isSellingFast) ?? list[0];
+    return hot ?? null;
+  }, [feed.data]);
+
+  return { featured, isLoading: feed.isLoading, error: feed.error as Error | null };
 }

@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   Calendar,
+  Flame,
   MapPin,
   Ticket,
   TrendingUp,
@@ -21,25 +24,36 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { artistListings } from '@/mocks/events';
-import type { ArtistListing } from '@/mocks/events';
+import { useEventFeed, useHotEvents, type FeedEventItem } from '@/hooks/useEvents';
+import { getLivelinessInfo } from '@/utils/liveliness';
 
 export default function TicketsTab() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
 
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const contentSlide = useRef(new Animated.Value(30)).current;
 
-  const trendingArtists = useMemo(() => artistListings.filter(a => a.trending), []);
-  const allArtists = useMemo(() => artistListings, []);
+  const hotQuery = useHotEvents(10, 80);
+  const feedQuery = useEventFeed(60);
 
-  const handleArtistTap = useCallback((artist: ArtistListing) => {
+  const hotEvents = hotQuery.data ?? [];
+  const allEvents = feedQuery.data ?? [];
+
+  const isLoading = hotQuery.isLoading || feedQuery.isLoading;
+  const isRefreshing = hotQuery.isRefetching || feedQuery.isRefetching;
+  const error = (hotQuery.error ?? feedQuery.error) as Error | null;
+
+  const handleEventTap = useCallback((event: FeedEventItem) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push({ pathname: '/ticketing', params: { venueId: artist.venueId } });
+    router.push({ pathname: '/event-detail', params: { eventId: event.id } });
   }, [router]);
+
+  const onRefresh = useCallback(() => {
+    void hotQuery.refetch();
+    void feedQuery.refetch();
+  }, [hotQuery, feedQuery]);
 
   useEffect(() => {
     Animated.parallel([
@@ -51,19 +65,51 @@ export default function TicketsTab() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="tickets-tab-screen">
       <ScrollView
-        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 260, paddingTop: insets.top + 12 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.aqua}
+            colors={[colors.aqua]}
+          />
+        }
       >
         <Animated.View style={{ transform: [{ translateY: contentSlide }], opacity: heroOpacity }}>
           <View style={styles.mainContent}>
 
-            {allArtists.length === 0 ? (
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={[styles.pageTitle, { color: colors.text }]}>Tickets</Text>
+                <Text style={[styles.pageSub, { color: colors.textMuted }]}>Live from Ticketmaster &amp; SeatData</Text>
+              </View>
+            </View>
+
+            {isLoading && allEvents.length === 0 ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator color={colors.aqua} />
+                <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading events…</Text>
+              </View>
+            ) : error && allEvents.length === 0 ? (
+              <View style={styles.emptyStateCentered}>
+                <Calendar color={colors.aqua} size={48} />
+                <Text style={[styles.emptyHeading, { color: colors.text }]}>Couldn&apos;t load events</Text>
+                <Text style={[styles.emptySub, { color: colors.textSoft }]}>{error.message}</Text>
+                <Pressable
+                  onPress={onRefresh}
+                  style={({ pressed }) => [styles.emptyCtaBtn, { backgroundColor: colors.aqua }, pressed && { opacity: 0.85 }]}
+                  testID="tickets-retry"
+                >
+                  <Text style={styles.emptyCtaText}>Try Again</Text>
+                </Pressable>
+              </View>
+            ) : allEvents.length === 0 ? (
               <View style={styles.emptyStateCentered}>
                 <Calendar color={colors.aqua} size={48} />
                 <Text style={[styles.emptyHeading, { color: colors.text }]}>Nothing on tonight</Text>
                 <Text style={[styles.emptySub, { color: colors.textSoft }]}>
-                  Check back later or expand your city
+                  Check back later — events sync every 4 hours
                 </Text>
                 <Pressable
                   onPress={() => {
@@ -77,41 +123,41 @@ export default function TicketsTab() {
                   <Text style={styles.emptyCtaText}>Explore Map</Text>
                 </Pressable>
               </View>
-            ) : null}
+            ) : (
+              <>
+                {hotEvents.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <View style={styles.artistSectionHeader}>
+                      <View style={styles.artistSectionTitleRow}>
+                        <Flame color={colors.coral} size={18} />
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Hot Right Now</Text>
+                      </View>
+                      <Text style={[styles.artistSectionSub, { color: colors.textMuted }]}>10 picks pulled from upcoming shows</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistScrollContent}>
+                      {hotEvents.map(event => (
+                        <FeaturedEventCard key={event.id} event={event} onPress={handleEventTap} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                ) : null}
 
-            {allArtists.length > 0 ? (
-            <>
-            <View style={styles.sectionBlock}>
-              <View style={styles.artistSectionHeader}>
-                <View style={styles.artistSectionTitleRow}>
-                  <Zap color={colors.coral} size={18} />
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Hot Right Now</Text>
+                <View style={styles.sectionBlock}>
+                  <View style={styles.artistSectionHeader}>
+                    <View style={styles.artistSectionTitleRow}>
+                      <Ticket color={colors.aqua} size={18} />
+                      <Text style={[styles.sectionTitle, { color: colors.text }]}>All Events</Text>
+                    </View>
+                    <Text style={[styles.artistSectionSub, { color: colors.textMuted }]}>{allEvents.length} upcoming shows</Text>
+                  </View>
+                  <View style={styles.artistGrid}>
+                    {allEvents.map(event => (
+                      <CompactEventCard key={event.id} event={event} onPress={handleEventTap} />
+                    ))}
+                  </View>
                 </View>
-                <Text style={[styles.artistSectionSub, { color: colors.textMuted }]}>Trending artists selling fast</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistScrollContent}>
-                {trendingArtists.map(artist => (
-                  <ArtistCard key={artist.id} artist={artist} onPress={handleArtistTap} variant="featured" />
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.sectionBlock}>
-              <View style={styles.artistSectionHeader}>
-                <View style={styles.artistSectionTitleRow}>
-                  <Ticket color={colors.aqua} size={18} />
-                  <Text style={[styles.sectionTitle, { color: colors.text }]}>All Events</Text>
-                </View>
-                <Text style={[styles.artistSectionSub, { color: colors.textMuted }]}>{allArtists.length} shows in your city</Text>
-              </View>
-              <View style={styles.artistGrid}>
-                {allArtists.map(artist => (
-                  <ArtistCard key={artist.id} artist={artist} onPress={handleArtistTap} variant="compact" />
-                ))}
-              </View>
-            </View>
-            </>
-            ) : null}
+              </>
+            )}
 
           </View>
         </Animated.View>
@@ -120,66 +166,114 @@ export default function TicketsTab() {
   );
 }
 
+function formatEventDate(date: Date): string {
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+  if (sameDay) {
+    return `Tonight, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  if (isTomorrow) {
+    return `Tomorrow, ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  }
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
-const ArtistCard = React.memo(function ArtistCard({
-  artist,
+const FeaturedEventCard = React.memo(function FeaturedEventCard({
+  event,
   onPress,
-  variant,
 }: {
-  artist: ArtistListing;
-  onPress: (artist: ArtistListing) => void;
-  variant: 'featured' | 'compact';
+  event: FeedEventItem;
+  onPress: (event: FeedEventItem) => void;
 }) {
   const { colors, isDark } = useTheme();
-
-  if (variant === 'featured') {
-    return (
-      <Pressable
-        onPress={() => onPress(artist)}
-        style={({ pressed }) => [
-          styles.featuredArtistCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            opacity: pressed ? 0.92 : 1,
-            transform: [{ scale: pressed ? 0.97 : 1 }],
-          },
-        ]}
-        testID={`artist-featured-${artist.id}`}
-      >
-        <Image source={{ uri: artist.image }} style={styles.featuredArtistImage} />
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.85)']}
-          style={styles.featuredArtistGradient}
-        />
-        {artist.sellingFast && (
-          <View style={[styles.sellingFastBadge, { backgroundColor: colors.coral }]}>
-            <Zap color="#fff" size={10} />
-            <Text style={styles.sellingFastText}>Selling Fast</Text>
-          </View>
-        )}
-        <View style={styles.featuredArtistInfo}>
-          <Text style={styles.featuredArtistName} numberOfLines={1}>{artist.artistName}</Text>
-          <Text style={styles.featuredArtistEvent} numberOfLines={1}>{artist.eventName}</Text>
-          <View style={styles.featuredArtistMeta}>
-            <Text style={styles.featuredArtistVenue}>{artist.venue}</Text>
-            <View style={styles.featuredArtistDot} />
-            <Text style={styles.featuredArtistDate}>{artist.date}</Text>
-          </View>
-          <View style={styles.featuredArtistBottom}>
-            <Text style={styles.featuredArtistPrice}>From ${artist.startingPrice}</Text>
-            <View style={styles.soldOutBar}>
-              <View style={[styles.soldOutBarFill, { width: `${artist.soldOutPercent}%`, backgroundColor: artist.soldOutPercent > 75 ? colors.coral : colors.aqua }]} />
-            </View>
-          </View>
-        </View>
-      </Pressable>
-    );
-  }
+  const heroUrl = event.heroImageUrl ?? event.imageUrl;
+  const live = getLivelinessInfo(event.liveliness);
+  const dateStr = formatEventDate(event.date);
 
   return (
     <Pressable
-      onPress={() => onPress(artist)}
+      onPress={() => onPress(event)}
+      style={({ pressed }) => [
+        styles.featuredArtistCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          opacity: pressed ? 0.92 : 1,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+        },
+      ]}
+      testID={`event-featured-${event.id}`}
+    >
+      {heroUrl ? (
+        <Image source={{ uri: heroUrl }} style={styles.featuredArtistImage} />
+      ) : (
+        <View style={[styles.featuredArtistImage, styles.placeholderImage, { backgroundColor: isDark ? '#0F2A34' : '#DCE9EF' }]}>
+          <Ticket color={colors.aqua} size={28} />
+        </View>
+      )}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        style={styles.featuredArtistGradient}
+      />
+      {event.isHot ? (
+        <View style={[styles.sellingFastBadge, { backgroundColor: colors.coral }]}>
+          <Flame color="#fff" size={10} />
+          <Text style={styles.sellingFastText}>Almost Gone</Text>
+        </View>
+      ) : event.isSellingFast ? (
+        <View style={[styles.sellingFastBadge, { backgroundColor: colors.amber }]}>
+          <Zap color="#fff" size={10} />
+          <Text style={styles.sellingFastText}>Selling Fast</Text>
+        </View>
+      ) : event.isTrending ? (
+        <View style={[styles.sellingFastBadge, { backgroundColor: colors.aqua }]}>
+          <TrendingUp color="#fff" size={10} />
+          <Text style={styles.sellingFastText}>Trending</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.featuredArtistInfo}>
+        <Text style={styles.featuredArtistName} numberOfLines={1}>{event.name}</Text>
+        <Text style={styles.featuredArtistEvent} numberOfLines={1}>
+          {event.source === 'ticketmaster' ? 'Ticketmaster' : 'SeatData'}
+        </Text>
+        <View style={styles.featuredArtistMeta}>
+          <Text style={styles.featuredArtistVenue} numberOfLines={1}>{event.venueName ?? 'TBA'}</Text>
+          <View style={styles.featuredArtistDot} />
+          <Text style={styles.featuredArtistDate} numberOfLines={1}>{dateStr}</Text>
+        </View>
+        <View style={styles.featuredArtistBottom}>
+          <Text style={styles.featuredArtistPrice}>
+            {event.minPrice !== null ? `From $${Math.round(event.minPrice)}` : 'Tickets'}
+          </Text>
+          {live.score !== null ? (
+            <View style={styles.soldOutBar}>
+              <View style={[styles.soldOutBarFill, { width: `${Math.min(100, Math.max(4, live.score))}%`, backgroundColor: live.color }]} />
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
+const CompactEventCard = React.memo(function CompactEventCard({
+  event,
+  onPress,
+}: {
+  event: FeedEventItem;
+  onPress: (event: FeedEventItem) => void;
+}) {
+  const { colors, isDark } = useTheme();
+  const dateStr = formatEventDate(event.date);
+  const live = getLivelinessInfo(event.liveliness);
+
+  return (
+    <Pressable
+      onPress={() => onPress(event)}
       style={({ pressed }) => [
         styles.compactArtistCard,
         {
@@ -189,35 +283,57 @@ const ArtistCard = React.memo(function ArtistCard({
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
       ]}
-      testID={`artist-compact-${artist.id}`}
+      testID={`event-compact-${event.id}`}
     >
-      <Image source={{ uri: artist.image }} style={styles.compactArtistImage} />
+      {event.imageUrl ? (
+        <Image source={{ uri: event.imageUrl }} style={styles.compactArtistImage} />
+      ) : (
+        <View style={[styles.compactArtistImage, styles.placeholderImage, { backgroundColor: isDark ? '#0F2A34' : '#DCE9EF' }]}>
+          <Ticket color={colors.aqua} size={20} />
+        </View>
+      )}
       <View style={styles.compactArtistInfo}>
         <View style={styles.compactArtistTop}>
-          <Text style={[styles.compactArtistName, { color: colors.text }]} numberOfLines={1}>{artist.artistName}</Text>
-          {artist.sellingFast && (
+          <Text style={[styles.compactArtistName, { color: colors.text }]} numberOfLines={1}>{event.name}</Text>
+          {event.isHot ? (
             <View style={[styles.compactSellingFast, { backgroundColor: isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)' }]}>
-              <Text style={[styles.compactSellingFastText, { color: colors.coral }]}>{artist.soldOutPercent}% sold</Text>
+              <Text style={[styles.compactSellingFastText, { color: colors.coral }]}>
+                {Math.round(event.liveliness ?? 0)}% sold
+              </Text>
             </View>
-          )}
-          {!artist.sellingFast && artist.trending && (
-            <View style={[styles.trendingBadge, { backgroundColor: isDark ? 'rgba(255,109,94,0.12)' : 'rgba(224,85,69,0.08)' }]}>
-              <TrendingUp color={colors.coral} size={10} />
+          ) : event.isSellingFast ? (
+            <View style={[styles.compactSellingFast, { backgroundColor: isDark ? 'rgba(232,168,48,0.14)' : 'rgba(232,168,48,0.10)' }]}>
+              <Text style={[styles.compactSellingFastText, { color: colors.amber }]}>
+                Selling fast
+              </Text>
             </View>
-          )}
+          ) : event.isTrending ? (
+            <View style={[styles.trendingBadge, { backgroundColor: isDark ? 'rgba(43,191,186,0.12)' : 'rgba(26,158,153,0.08)' }]}>
+              <TrendingUp color={colors.aqua} size={10} />
+            </View>
+          ) : null}
         </View>
-        <Text style={[styles.compactArtistEvent, { color: colors.textMuted }]} numberOfLines={1}>{artist.eventName}</Text>
+        <Text style={[styles.compactArtistEvent, { color: colors.textMuted }]} numberOfLines={1}>
+          {event.source === 'ticketmaster' ? 'Ticketmaster' : 'SeatData'}
+          {event.recentSales > 0 ? ` · ${event.recentSales} sold this week` : ''}
+        </Text>
         <View style={styles.compactArtistMeta}>
           <MapPin color={colors.textSoft} size={11} />
-          <Text style={[styles.compactArtistVenue, { color: colors.textSoft }]}>{artist.venue}</Text>
+          <Text style={[styles.compactArtistVenue, { color: colors.textSoft }]} numberOfLines={1}>
+            {event.venueName ?? 'Venue TBA'}
+          </Text>
           <View style={[styles.compactDot, { backgroundColor: colors.textSoft }]} />
-          <Text style={[styles.compactArtistDate, { color: colors.textSoft }]}>{artist.date}</Text>
+          <Text style={[styles.compactArtistDate, { color: colors.textSoft }]} numberOfLines={1}>{dateStr}</Text>
         </View>
         <View style={styles.compactArtistBottom}>
-          <View style={[styles.genrePill, { backgroundColor: isDark ? 'rgba(53,212,207,0.1)' : 'rgba(26,168,163,0.08)' }]}>
-            <Text style={[styles.genreText, { color: colors.aqua }]}>{artist.genre}</Text>
+          <View style={[styles.genrePill, { backgroundColor: live.color + '20' }]}>
+            <Text style={[styles.genreText, { color: live.color }]}>
+              {live.emoji} {live.label}
+            </Text>
           </View>
-          <Text style={[styles.compactArtistPrice, { color: colors.text }]}>${artist.startingPrice}</Text>
+          <Text style={[styles.compactArtistPrice, { color: colors.text }]}>
+            {event.minPrice !== null ? `$${Math.round(event.minPrice)}` : '—'}
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -236,6 +352,22 @@ const styles = StyleSheet.create({
   mainContent: {
     paddingHorizontal: 16,
     gap: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800' as const,
+    letterSpacing: -0.5,
+  },
+  pageSub: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
   sectionBlock: {
     gap: 10,
@@ -273,6 +405,10 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
+  placeholderImage: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
   featuredArtistGradient: {
     position: 'absolute',
     bottom: 0,
@@ -306,12 +442,13 @@ const styles = StyleSheet.create({
   },
   featuredArtistName: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800' as const,
+    letterSpacing: -0.2,
   },
   featuredArtistEvent: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600' as const,
   },
   featuredArtistMeta: {
@@ -324,6 +461,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     fontSize: 11,
     fontWeight: '600' as const,
+    flexShrink: 1,
   },
   featuredArtistDot: {
     width: 3,
@@ -344,11 +482,11 @@ const styles = StyleSheet.create({
   },
   featuredArtistPrice: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800' as const,
   },
   soldOutBar: {
-    width: 50,
+    width: 60,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -385,9 +523,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   compactArtistName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800' as const,
     flex: 1,
+    letterSpacing: -0.1,
   },
   trendingBadge: {
     width: 22,
@@ -397,7 +536,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   compactArtistEvent: {
-    fontSize: 12,
+    fontSize: 11,
   },
   compactArtistMeta: {
     flexDirection: 'row',
@@ -407,6 +546,7 @@ const styles = StyleSheet.create({
   },
   compactArtistVenue: {
     fontSize: 11,
+    flexShrink: 1,
   },
   compactDot: {
     width: 3,
@@ -429,7 +569,8 @@ const styles = StyleSheet.create({
   },
   genreText: {
     fontSize: 10,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
+    letterSpacing: 0.3,
   },
   compactArtistPrice: {
     fontSize: 14,
@@ -443,6 +584,16 @@ const styles = StyleSheet.create({
   compactSellingFastText: {
     fontSize: 10,
     fontWeight: '700' as const,
+  },
+  loadingState: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 80,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
   },
   emptyStateCentered: {
     alignItems: 'center' as const,

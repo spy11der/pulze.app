@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Linking,
   Pressable,
@@ -20,6 +21,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  ExternalLink,
   MapPin,
   Minus,
   Plus,
@@ -28,16 +30,82 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { getEventForVenue } from '@/mocks/events';
+import { useEventDetail } from '@/hooks/useEvents';
+import { supabase } from '@/services/supabase';
+import { useQuery } from '@tanstack/react-query';
+
+interface ZoneTier {
+  id: string;
+  name: string;
+  price: number;
+  perks: string[];
+  available: number;
+  total: number;
+  soldOut: boolean;
+  tag?: string;
+}
+
+function useEventListings(eventId: string | null | undefined) {
+  return useQuery<ZoneTier[]>({
+    queryKey: ['event-listings', eventId],
+    enabled: !!eventId,
+    queryFn: async () => {
+      if (!eventId) return [];
+      const { data, error } = await supabase
+        .from('listings')
+        .select('zone, section, quantity, quantity_start, price, active')
+        .eq('event_id', eventId);
+      if (error) throw error;
+
+      const groups = new Map<string, { prices: number[]; available: number; total: number }>();
+      for (const l of data ?? []) {
+        const zone = (l.zone ?? l.section ?? 'General').toString();
+        const key = zone;
+        const g = groups.get(key) ?? { prices: [], available: 0, total: 0 };
+        if (typeof l.price === 'number' && l.price > 0) g.prices.push(l.price);
+        if (l.active) g.available += l.quantity ?? 0;
+        g.total += l.quantity_start ?? l.quantity ?? 0;
+        groups.set(key, g);
+      }
+
+      const tiers: ZoneTier[] = Array.from(groups.entries())
+        .filter(([, g]) => g.prices.length > 0)
+        .map(([zone, g]) => {
+          const minPrice = Math.min(...g.prices);
+          const maxPrice = Math.max(...g.prices);
+          const total = Math.max(g.total, g.available);
+          const soldOut = g.available === 0;
+          return {
+            id: zone.toLowerCase().replace(/\s+/g, '-'),
+            name: zone,
+            price: Math.round(minPrice),
+            perks: [
+              minPrice === maxPrice ? `Flat $${Math.round(minPrice)}` : `Range $${Math.round(minPrice)}–$${Math.round(maxPrice)}`,
+              `${g.available.toLocaleString()} available`,
+            ],
+            available: g.available,
+            total,
+            soldOut,
+            tag: !soldOut && g.available <= 10 ? 'Almost Gone' : undefined,
+          };
+        })
+        .sort((a, b) => a.price - b.price);
+
+      return tiers;
+    },
+    staleTime: 60 * 1000,
+  });
+}
 
 export default function TicketingScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ venueId: string }>();
+  const params = useLocalSearchParams<{ eventId?: string }>();
 
-  const venueId = params.venueId ?? 'v-001';
-  const event = useMemo(() => getEventForVenue(venueId), [venueId]);
+  const eventId = params.eventId ?? null;
+  const { data: event, isLoading: eventLoading, error: eventError } = useEventDetail(eventId);
+  const { data: listingTiers, isLoading: listingsLoading } = useEventListings(eventId);
 
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [expandedTier, setExpandedTier] = useState<string | null>(null);
@@ -46,15 +114,52 @@ export default function TicketingScreen() {
   const fadeIn = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(30)).current;
 
-  const sortedTiers = useMemo(() => {
-    return [...event.ticketTiers]
-      .filter(t => !t.soldOut)
-      .sort((a, b) => a.price - b.price);
-  }, [event.ticketTiers]);
+  const fallbackTiers = useMemo<ZoneTier[]>(() => {
+    if (!event) return [];
+    const minPrice = event.minPrice ?? null;
+    const maxPrice = event.maxPrice ?? null;
+    if (minPrice === null) {
+      return [{
+        id: 'external',
+        name: 'See available tickets',
+        price: 0,
+        perks: ['Continue to source for live pricing'],
+        available: 1,
+        total: 1,
+        soldOut: false,
+      }];
+    }
+    const tiers: ZoneTier[] = [{
+      id: 'starting',
+      name: 'Starting price',
+      price: Math.round(minPrice),
+      perks: ['Lowest available ticket', 'Continue to source for full options'],
+      available: event.activeListings || 1,
+      total: event.activeListings || 1,
+      soldOut: false,
+      tag: event.isHot ? 'Almost Gone' : undefined,
+    }];
+    if (maxPrice !== null && Math.round(maxPrice) > Math.round(minPrice)) {
+      tiers.push({
+        id: 'top',
+        name: 'Premium',
+        price: Math.round(maxPrice),
+        perks: ['Top price tier from current listings'],
+        available: 1,
+        total: 1,
+        soldOut: false,
+      });
+    }
+    return tiers;
+  }, [event]);
 
-  const soldOutTiers = useMemo(() => {
-    return [...event.ticketTiers].filter(t => t.soldOut);
-  }, [event.ticketTiers]);
+  const tiers = useMemo<ZoneTier[]>(() => {
+    if (listingTiers && listingTiers.length > 0) return listingTiers;
+    return fallbackTiers;
+  }, [listingTiers, fallbackTiers]);
+
+  const sortedTiers = useMemo(() => tiers.filter(t => !t.soldOut).sort((a, b) => a.price - b.price), [tiers]);
+  const soldOutTiers = useMemo(() => tiers.filter(t => t.soldOut), [tiers]);
 
   useEffect(() => {
     Animated.parallel([
@@ -86,14 +191,12 @@ export default function TicketingScreen() {
   }, []);
 
   const handleContinue = useCallback(async () => {
+    if (!event) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    const tier = selectedTier ?? sortedTiers[0]?.id;
-    if (!tier) return;
-    const qty = quantities[tier] || 1;
-    const tierData = event.ticketTiers.find(t => t.id === tier);
-    const tierName = tierData?.name ?? 'General';
-    const tierPrice = tierData?.price ?? 0;
-    const url = `https://www.ticketmaster.com/search?q=${encodeURIComponent(event.title)}`;
+    const tierId = selectedTier ?? sortedTiers[0]?.id;
+    const tier = tiers.find(t => t.id === tierId);
+    const qty = tierId ? quantities[tierId] || 1 : 1;
+    const url = event.url ?? `https://www.ticketmaster.com/search?q=${encodeURIComponent(event.name)}`;
 
     try {
       const PURCHASES_KEY = 'pulze_purchases_v1';
@@ -102,15 +205,15 @@ export default function TicketingScreen() {
       const record = {
         id: Date.now().toString(),
         eventId: event.id,
-        eventTitle: event.title,
-        venueName: event.venueName,
-        date: event.date,
-        tierName,
+        eventTitle: event.name,
+        venueName: event.venue_name,
+        date: event.start_date_time,
+        tierName: tier?.name ?? 'General',
         quantity: qty,
-        total: tierPrice * qty,
-        paymentMethod: 'Ticketmaster',
+        total: (tier?.price ?? 0) * qty,
+        paymentMethod: event.source,
         purchasedAt: new Date().toISOString(),
-        source: 'ticketmaster',
+        source: event.source,
       };
       const updated = [...list, record];
       await AsyncStorage.setItem(PURCHASES_KEY, JSON.stringify(updated));
@@ -119,16 +222,13 @@ export default function TicketingScreen() {
       console.error('[ticketing] failed to persist purchase', err);
     }
 
-    console.log('[ticketing] get tickets on ticketmaster', { eventId: event.id, tier, qty, url });
-    Linking.openURL(url).catch((err) => {
-      console.error('[ticketing] failed to open ticketmaster url', err);
-    });
-  }, [selectedTier, quantities, event, sortedTiers]);
+    Linking.openURL(url).catch((err) => console.error('[ticketing] failed to open url', err));
+  }, [selectedTier, quantities, event, sortedTiers, tiers]);
 
   const selectedTierData = useMemo(() => {
     if (!selectedTier) return null;
-    return event.ticketTiers.find(t => t.id === selectedTier) ?? null;
-  }, [selectedTier, event]);
+    return tiers.find(t => t.id === selectedTier) ?? null;
+  }, [selectedTier, tiers]);
 
   const stickyTotal = useMemo(() => {
     if (!selectedTierData) return 0;
@@ -136,6 +236,37 @@ export default function TicketingScreen() {
   }, [selectedTierData, quantities]);
 
   const bestValueId = sortedTiers.length > 0 ? sortedTiers[0].id : null;
+  const isLoading = eventLoading || listingsLoading;
+
+  const sourceLabel = event?.source === 'ticketmaster' ? 'Ticketmaster' : event?.source === 'seatdata' ? 'SeatData' : 'partner';
+
+  if (eventLoading) {
+    return (
+      <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]} testID="ticketing-loading">
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator color={colors.aqua} size="large" />
+      </View>
+    );
+  }
+
+  if (eventError || !event) {
+    return (
+      <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]} testID="ticketing-error">
+        <Stack.Screen options={{ headerShown: false }} />
+        <Text style={[styles.errorTitle, { color: colors.text }]}>Event not available</Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.errorBtn, { backgroundColor: colors.aqua }]}
+        >
+          <Text style={[styles.errorBtnText, { color: isDark ? colors.background : '#fff' }]}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const dateObj = new Date(event.start_date_time);
+  const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeStr = dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]} testID="ticketing-screen">
@@ -170,25 +301,31 @@ export default function TicketingScreen() {
                 <Ticket color={colors.aqua} size={18} />
               </View>
               <View style={styles.flightCardInfo}>
-                <Text style={[styles.flightCardTitle, { color: colors.text }]} numberOfLines={1}>{event.title}</Text>
-                <Text style={[styles.flightCardVenue, { color: colors.textMuted }]}>{event.venueName}</Text>
+                <Text style={[styles.flightCardTitle, { color: colors.text }]} numberOfLines={1}>{event.name}</Text>
+                <Text style={[styles.flightCardVenue, { color: colors.textMuted }]} numberOfLines={1}>
+                  {event.venue_name ?? 'Venue TBA'}{event.venue_city ? ` · ${event.venue_city}` : ''}
+                </Text>
               </View>
             </View>
             <View style={[styles.flightMetaRow, { borderTopColor: colors.border }]}>
               <View style={styles.flightMetaItem}>
                 <Calendar color={colors.textSoft} size={13} />
-                <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{event.date}</Text>
+                <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{dateStr}</Text>
               </View>
               <View style={[styles.flightMetaDot, { backgroundColor: colors.textSoft }]} />
               <View style={styles.flightMetaItem}>
                 <Clock color={colors.textSoft} size={13} />
-                <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{event.time}</Text>
+                <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{timeStr}</Text>
               </View>
-              <View style={[styles.flightMetaDot, { backgroundColor: colors.textSoft }]} />
-              <View style={styles.flightMetaItem}>
-                <MapPin color={colors.textSoft} size={13} />
-                <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{event.distanceFromUser}</Text>
-              </View>
+              {event.capacity ? (
+                <>
+                  <View style={[styles.flightMetaDot, { backgroundColor: colors.textSoft }]} />
+                  <View style={styles.flightMetaItem}>
+                    <Users color={colors.textSoft} size={13} />
+                    <Text style={[styles.flightMetaText, { color: colors.textMuted }]}>{event.capacity.toLocaleString()} cap</Text>
+                  </View>
+                </>
+              ) : null}
             </View>
           </View>
 
@@ -199,8 +336,14 @@ export default function TicketingScreen() {
             </Text>
           </View>
 
+          {isLoading && sortedTiers.length === 0 ? (
+            <View style={styles.loadingTiers}>
+              <ActivityIndicator color={colors.aqua} />
+            </View>
+          ) : null}
+
           <View style={styles.tiersList}>
-            {sortedTiers.map((tier, idx) => {
+            {sortedTiers.map((tier) => {
               const isSelected = selectedTier === tier.id;
               const isExpanded = expandedTier === tier.id;
               const isBestValue = tier.id === bestValueId;
@@ -218,7 +361,7 @@ export default function TicketingScreen() {
                     },
                   ]}
                 >
-                  {isBestValue && (
+                  {isBestValue && tier.price > 0 && (
                     <View style={[styles.bestValueStrip, { backgroundColor: colors.aqua }]}>
                       <Text style={[styles.bestValueText, { color: isDark ? colors.background : '#fff' }]}>Lowest price</Text>
                     </View>
@@ -228,7 +371,7 @@ export default function TicketingScreen() {
                     onPress={() => handleSelectTier(tier.id)}
                     style={({ pressed }) => [
                       styles.tierMainRow,
-                      isBestValue && styles.tierMainRowWithStrip,
+                      isBestValue && tier.price > 0 && styles.tierMainRowWithStrip,
                       pressed && { opacity: 0.8 },
                     ]}
                     testID={`ticket-option-${tier.id}`}
@@ -246,7 +389,7 @@ export default function TicketingScreen() {
                       <View style={styles.tierNameRow}>
                         <Text style={[styles.tierName, { color: colors.text }]} numberOfLines={1}>{tier.name}</Text>
                         <View style={[styles.tmBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-                          <Text style={[styles.tmBadgeText, { color: colors.textSoft }]}>Ticketmaster</Text>
+                          <Text style={[styles.tmBadgeText, { color: colors.textSoft }]}>{sourceLabel}</Text>
                         </View>
                       </View>
                       {tier.perks.length > 0 && (
@@ -254,7 +397,7 @@ export default function TicketingScreen() {
                           {tier.perks[0]}
                         </Text>
                       )}
-                      {tier.available <= 20 && tier.available > 0 && (
+                      {tier.available <= 20 && tier.available > 0 && tier.available !== tier.total && (
                         <View style={styles.lowStockRow}>
                           <Users color={colors.amber} size={11} />
                           <Text style={[styles.lowStockText, { color: colors.amber }]}>
@@ -266,18 +409,15 @@ export default function TicketingScreen() {
 
                     <View style={styles.tierPriceCol}>
                       <Text style={[styles.tierPrice, { color: isSelected ? colors.aqua : colors.text }]}>
-                        ${tier.price}
+                        {tier.price > 0 ? `$${tier.price}` : 'See on site'}
                       </Text>
-                      {tier.originalPrice && tier.originalPrice > tier.price && (
-                        <Text style={[styles.tierOriginalPrice, { color: colors.textSoft }]}>
-                          ${tier.originalPrice}
-                        </Text>
-                      )}
-                      <Text style={[styles.tierPricePer, { color: colors.textSoft }]}>per ticket</Text>
+                      {tier.price > 0 ? (
+                        <Text style={[styles.tierPricePer, { color: colors.textSoft }]}>per ticket</Text>
+                      ) : null}
                     </View>
                   </Pressable>
 
-                  {isSelected && (
+                  {isSelected && tier.price > 0 && (
                     <View style={[styles.tierSelectedSection, { borderTopColor: colors.border }]}>
                       <View style={styles.qtyRow}>
                         <Text style={[styles.qtyLabel, { color: colors.textMuted }]}>Tickets</Text>
@@ -362,7 +502,7 @@ export default function TicketingScreen() {
           )}
 
           <Text style={[styles.sourceDisclaimer, { color: colors.textSoft }]}>
-            Prices and availability sourced from Ticketmaster. Fees set by the seller.
+            Prices and availability sourced from {sourceLabel}. Final pricing and fees set on the seller&apos;s site.
           </Text>
 
         </Animated.View>
@@ -374,7 +514,7 @@ export default function TicketingScreen() {
         borderTopColor: colors.border,
       }]}>
         <View style={styles.stickyLeft}>
-          {selectedTierData ? (
+          {selectedTierData && selectedTierData.price > 0 ? (
             <>
               <Text style={[styles.stickyTotal, { color: colors.text }]}>
                 ${stickyTotal}
@@ -386,32 +526,31 @@ export default function TicketingScreen() {
           ) : (
             <>
               <Text style={[styles.stickyTotal, { color: colors.text }]}>
-                From ${sortedTiers.length > 0 ? sortedTiers[0].price : 0}
+                {sortedTiers[0]?.price ? `From $${sortedTiers[0].price}` : 'Live pricing'}
               </Text>
-              <Text style={[styles.stickyDetail, { color: colors.textMuted }]}>Select a ticket above</Text>
+              <Text style={[styles.stickyDetail, { color: colors.textMuted }]}>
+                {sortedTiers.length > 0 ? 'Select a ticket above' : 'Continue to source'}
+              </Text>
             </>
           )}
         </View>
         <Pressable
           onPress={handleContinue}
-          disabled={!selectedTier}
           style={({ pressed }) => [
             styles.continueBtn,
             {
-              backgroundColor: selectedTier ? colors.aqua : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
-              opacity: pressed && selectedTier ? 0.9 : 1,
-              transform: [{ scale: pressed && selectedTier ? 0.97 : 1 }],
+              backgroundColor: colors.aqua,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.97 : 1 }],
             },
           ]}
           testID="continue-to-checkout"
         >
-          <Text style={[styles.continueBtnText, {
-            color: selectedTier ? (isDark ? colors.background : '#fff') : colors.textSoft,
-          }]} numberOfLines={1}>Get tickets on Ticketmaster</Text>
-          <ChevronRight
-            color={selectedTier ? (isDark ? colors.background : '#fff') : colors.textSoft}
-            size={18}
-          />
+          <ExternalLink color={isDark ? colors.background : '#fff'} size={16} />
+          <Text style={[styles.continueBtnText, { color: isDark ? colors.background : '#fff' }]} numberOfLines={1}>
+            Get tickets
+          </Text>
+          <ChevronRight color={isDark ? colors.background : '#fff'} size={18} />
         </Pressable>
       </View>
     </View>
@@ -419,9 +558,11 @@ export default function TicketingScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
+  screen: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
+  errorTitle: { fontSize: 18, fontWeight: '700' as const },
+  errorBtn: { paddingHorizontal: 22, paddingVertical: 11, borderRadius: 12 },
+  errorBtnText: { fontSize: 14, fontWeight: '700' as const },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -437,50 +578,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
-  },
-  scrollContent: {
-    paddingTop: 16,
-    gap: 0,
-  },
-  flightCard: {
-    marginHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  flightCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  flightIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flightCardInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  flightCardTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
-  },
-  flightCardVenue: {
-    fontSize: 13,
-  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '700' as const, letterSpacing: -0.2 },
+  scrollContent: { paddingTop: 16, gap: 0 },
+  flightCard: { marginHorizontal: 16, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  flightCardRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  flightIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  flightCardInfo: { flex: 1, gap: 2 },
+  flightCardTitle: { fontSize: 15, fontWeight: '700' as const, letterSpacing: -0.2 },
+  flightCardVenue: { fontSize: 13 },
   flightMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -490,19 +596,9 @@ const styles = StyleSheet.create({
     gap: 6,
     flexWrap: 'wrap',
   },
-  flightMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  flightMetaText: {
-    fontSize: 12,
-  },
-  flightMetaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-  },
+  flightMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  flightMetaText: { fontSize: 12 },
+  flightMetaDot: { width: 3, height: 3, borderRadius: 1.5 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -511,19 +607,10 @@ const styles = StyleSheet.create({
     marginTop: 22,
     marginBottom: 10,
   },
-  sectionHeaderText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
-  },
-  sectionHeaderCount: {
-    fontSize: 13,
-    fontWeight: '500' as const,
-  },
-  tiersList: {
-    paddingHorizontal: 16,
-    gap: 10,
-  },
+  sectionHeaderText: { fontSize: 16, fontWeight: '700' as const, letterSpacing: -0.2 },
+  sectionHeaderCount: { fontSize: 13, fontWeight: '500' as const },
+  tiersList: { paddingHorizontal: 16, gap: 10 },
+  loadingTiers: { paddingVertical: 30, alignItems: 'center' },
   sourceDisclaimer: {
     fontSize: 11,
     textAlign: 'center',
@@ -531,15 +618,8 @@ const styles = StyleSheet.create({
     marginTop: 18,
     lineHeight: 15,
   },
-  tierCard: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  bestValueStrip: {
-    paddingVertical: 5,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-  },
+  tierCard: { borderRadius: 14, overflow: 'hidden' },
+  bestValueStrip: { paddingVertical: 5, paddingHorizontal: 14, alignItems: 'center' },
   bestValueText: {
     fontSize: 11,
     fontWeight: '700' as const,
@@ -553,14 +633,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
   },
-  tierMainRowWithStrip: {
-    paddingTop: 12,
-  },
-  tierRadioCol: {
-    width: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  tierMainRowWithStrip: { paddingTop: 12 },
+  tierRadioCol: { width: 24, alignItems: 'center', justifyContent: 'center' },
   radioOuter: {
     width: 20,
     height: 20,
@@ -569,133 +643,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  tierInfoCol: {
-    flex: 1,
-    gap: 3,
-  },
-  tierName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    flexShrink: 1,
-  },
-  tierNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  tmBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  tmBadgeText: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-    letterSpacing: 0.2,
-  },
-  tierSubtext: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  lowStockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  lowStockText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-  },
-  tierPriceCol: {
-    alignItems: 'flex-end',
-    gap: 1,
-  },
-  tierPrice: {
-    fontSize: 18,
-    fontWeight: '800' as const,
-    letterSpacing: -0.3,
-  },
-  tierOriginalPrice: {
-    fontSize: 12,
-    textDecorationLine: 'line-through' as const,
-  },
-  tierPricePer: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-  },
+  radioInner: { width: 10, height: 10, borderRadius: 5 },
+  tierInfoCol: { flex: 1, gap: 3 },
+  tierName: { fontSize: 15, fontWeight: '700' as const, flexShrink: 1 },
+  tierNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tmBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  tmBadgeText: { fontSize: 10, fontWeight: '600' as const, letterSpacing: 0.2 },
+  tierSubtext: { fontSize: 13, lineHeight: 18 },
+  lowStockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  lowStockText: { fontSize: 11, fontWeight: '600' as const },
+  tierPriceCol: { alignItems: 'flex-end', gap: 1 },
+  tierPrice: { fontSize: 18, fontWeight: '800' as const, letterSpacing: -0.3 },
+  tierPricePer: { fontSize: 10, fontWeight: '500' as const },
   tierSelectedSection: {
     borderTopWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
   },
-  qtyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  qtyLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  qtyControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  qtyBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  qtyLabel: { fontSize: 14, fontWeight: '600' as const },
+  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  qtyBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   qtyValue: {
     fontSize: 17,
     fontWeight: '700' as const,
     minWidth: 22,
     textAlign: 'center' as const,
   },
-  detailsToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-  },
-  detailsToggleText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  perksSection: {
-    gap: 8,
-    paddingTop: 4,
-  },
-  perkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  perkText: {
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 18,
-  },
-  soldOutSection: {
-    paddingHorizontal: 16,
-    marginTop: 20,
-    gap: 8,
-  },
-  soldOutHeader: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginBottom: 2,
-  },
+  detailsToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 2 },
+  detailsToggleText: { fontSize: 13, fontWeight: '600' as const },
+  perksSection: { gap: 8, paddingTop: 4 },
+  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  perkText: { fontSize: 13, flex: 1, lineHeight: 18 },
+  soldOutSection: { paddingHorizontal: 16, marginTop: 20, gap: 8 },
+  soldOutHeader: { fontSize: 13, fontWeight: '600' as const, marginBottom: 2 },
   soldOutRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -705,31 +687,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  soldOutName: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  soldOutPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  soldOutPillText: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-  },
-  feeNotice: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-  },
-  feeNoticeText: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-  },
+  soldOutName: { fontSize: 14, fontWeight: '600' as const },
+  soldOutPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  soldOutPillText: { fontSize: 11, fontWeight: '600' as const },
   stickyBottom: {
     position: 'absolute',
     bottom: 0,
@@ -742,29 +702,16 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
   },
-  stickyLeft: {
-    flex: 1,
-    gap: 2,
-    marginRight: 12,
-  },
-  stickyTotal: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    letterSpacing: -0.5,
-  },
-  stickyDetail: {
-    fontSize: 13,
-  },
+  stickyLeft: { flex: 1, gap: 2, marginRight: 12 },
+  stickyTotal: { fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.5 },
+  stickyDetail: { fontSize: 13 },
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     borderRadius: 14,
-    paddingHorizontal: 26,
+    paddingHorizontal: 18,
     paddingVertical: 16,
   },
-  continueBtnText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
+  continueBtnText: { fontSize: 15, fontWeight: '700' as const },
 });

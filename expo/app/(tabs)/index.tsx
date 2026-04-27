@@ -21,7 +21,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { feedFilters, vibeStories } from '@/mocks/city';
-import { sampleEvent } from '@/mocks/events';
+import { useFeaturedEvent, type FeedEventItem } from '@/hooks/useEvents';
+import { getLivelinessInfo } from '@/utils/liveliness';
 import { getUrgencyLabel } from '@/utils/urgency';
 import { UrgencyTag } from '@/components/UrgencyTag';
 import { useData } from '@/providers/DataProvider';
@@ -315,9 +316,9 @@ export default function FeedScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Nearby</Text>
             </View>
             <FeaturedEventCard
-              onPress={() => {
+              onPress={(eventId: string) => {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push({ pathname: '/ticketing', params: { venueId: sampleEvent.venueId } });
+                router.push({ pathname: '/event-detail', params: { eventId } });
               }}
             />
             {filteredStories.map((story, idx) => (
@@ -350,12 +351,38 @@ export default function FeedScreen() {
 const FeaturedEventCard = React.memo(function FeaturedEventCard({
   onPress,
 }: {
-  onPress: () => void;
+  onPress: (eventId: string) => void;
 }) {
   const { colors, isDark } = useTheme();
+  const { featured } = useFeaturedEvent();
+
+  if (!featured) {
+    return null;
+  }
+
+  return <FeaturedEventCardInner event={featured} onPress={onPress} colors={colors} isDark={isDark} />;
+});
+
+function FeaturedEventCardInner({
+  event,
+  onPress,
+  colors,
+  isDark,
+}: {
+  event: FeedEventItem;
+  onPress: (eventId: string) => void;
+  colors: ReturnType<typeof useTheme>['colors'];
+  isDark: boolean;
+}) {
+  const heroUrl = event.heroImageUrl ?? event.imageUrl;
+  const live = getLivelinessInfo(event.liveliness);
+  const dateStr = event.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeStr = event.date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const venueLine = [event.venueName, event.city].filter(Boolean).join(' · ');
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(event.id)}
       style={({ pressed }) => [
         styles.featuredCard,
         { borderColor: colors.border },
@@ -363,47 +390,62 @@ const FeaturedEventCard = React.memo(function FeaturedEventCard({
       ]}
       testID="featured-event-card"
     >
-      <Image source={{ uri: sampleEvent.heroImage }} style={styles.featuredImage} />
+      {heroUrl ? (
+        <Image source={{ uri: heroUrl }} style={styles.featuredImage} />
+      ) : (
+        <View style={[styles.featuredImage, { backgroundColor: isDark ? '#0F2A34' : '#DCE9EF', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ticket color={colors.aqua} size={32} />
+        </View>
+      )}
       <LinearGradient
         colors={isDark ? ['rgba(6,15,19,0)', 'rgba(6,15,19,0.85)', 'rgba(6,15,19,0.98)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.85)']}
         style={StyleSheet.absoluteFillObject}
       />
       <View style={styles.featuredTopRow}>
-        <View style={[styles.featuredBadge, { backgroundColor: colors.aqua }]}>
+        <View style={[styles.featuredBadge, { backgroundColor: event.isHot ? colors.coral : colors.aqua }]}>
           <Flame color={isDark ? '#060F13' : '#fff'} size={12} />
-          <Text style={[styles.featuredBadgeText, { color: isDark ? '#060F13' : '#fff' }]}>Featured</Text>
+          <Text style={[styles.featuredBadgeText, { color: isDark ? '#060F13' : '#fff' }]}>
+            {event.isHot ? 'Almost Gone' : 'Featured'}
+          </Text>
         </View>
-        <View style={[styles.featuredVibePill, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
-          <Star color="#FFD66B" size={11} fill="#FFD66B" />
-          <Text style={styles.featuredVibeText}>{sampleEvent.vibeScore}</Text>
-        </View>
+        {live.score !== null ? (
+          <View style={[styles.featuredVibePill, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+            <Star color="#FFD66B" size={11} fill="#FFD66B" />
+            <Text style={styles.featuredVibeText}>{Math.round(live.score)}</Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.featuredBottom}>
-        <Text style={styles.featuredTitle} numberOfLines={2}>{sampleEvent.title}</Text>
-        <Text style={styles.featuredTagline} numberOfLines={1}>{sampleEvent.tagline}</Text>
+        <Text style={styles.featuredTitle} numberOfLines={2}>{event.name}</Text>
+        <Text style={styles.featuredTagline} numberOfLines={1}>
+          {event.minPrice !== null ? `From ${Math.round(event.minPrice)}` : 'Tickets available'}
+          {event.recentSales > 0 ? ` · ${event.recentSales} sold this week` : ''}
+        </Text>
         <View style={styles.featuredMetaRow}>
           <View style={styles.featuredMetaItem}>
             <Calendar color="rgba(255,255,255,0.85)" size={12} />
-            <Text style={styles.featuredMetaText}>{sampleEvent.date} · {sampleEvent.time}</Text>
+            <Text style={styles.featuredMetaText}>{dateStr} · {timeStr}</Text>
           </View>
         </View>
-        <View style={styles.featuredMetaRow}>
-          <View style={styles.featuredMetaItem}>
-            <MapPin color="rgba(255,255,255,0.85)" size={12} />
-            <Text style={styles.featuredMetaText}>{sampleEvent.venueName} · {sampleEvent.distanceFromUser}</Text>
+        {venueLine ? (
+          <View style={styles.featuredMetaRow}>
+            <View style={styles.featuredMetaItem}>
+              <MapPin color="rgba(255,255,255,0.85)" size={12} />
+              <Text style={styles.featuredMetaText} numberOfLines={1}>{venueLine}</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
         <View style={styles.featuredCtaRow}>
           <View style={[styles.featuredCta, { backgroundColor: colors.aqua }]}>
             <Ticket color={isDark ? '#060F13' : '#fff'} size={14} />
-            <Text style={[styles.featuredCtaText, { color: isDark ? '#060F13' : '#fff' }]}>Get tickets</Text>
+            <Text style={[styles.featuredCtaText, { color: isDark ? '#060F13' : '#fff' }]}>View event</Text>
           </View>
-          <Text style={styles.featuredAttending}>{sampleEvent.attendingCount} going</Text>
+          <Text style={styles.featuredAttending}>{live.label}</Text>
         </View>
       </View>
     </Pressable>
   );
-});
+}
 
 const SkeletonCard = React.memo(function SkeletonCard() {
   const { colors, isDark } = useTheme();

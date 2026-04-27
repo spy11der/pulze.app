@@ -253,27 +253,26 @@ export interface Database {
       };
       event_images: {
         Row: {
-          id: string;
-          name: string | null;
+          id: number;
+          event_id: string;
           url: string;
-          raw_json: Record<string, unknown> | null;
+          ratio: string | null;
+          width: number | null;
+          height: number | null;
+          fallback: boolean | null;
           inserted_at: string;
-          updated_at: string;
         };
         Insert: {
-          id: string;
-          name?: string | null;
+          id?: number;
+          event_id: string;
           url: string;
-          raw_json?: Record<string, unknown> | null;
+          ratio?: string | null;
+          width?: number | null;
+          height?: number | null;
+          fallback?: boolean | null;
           inserted_at?: string;
-          updated_at?: string;
         };
-        Update: {
-          name?: string | null;
-          url?: string;
-          raw_json?: Record<string, unknown> | null;
-          updated_at?: string;
-        };
+        Update: Partial<Database['public']['Tables']['event_images']['Insert']>;
       };
       listings: {
         Row: {

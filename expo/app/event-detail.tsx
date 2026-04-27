@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,27 +16,21 @@ import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
   Calendar,
-  CheckCircle2,
-  Clock,
   ExternalLink,
+  Flame,
   Heart,
   MapPin,
   Navigation,
   Sparkles,
   Ticket,
   TrendingUp,
-  Users,
   Zap,
 } from 'lucide-react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
-import { getEventForVenue } from '@/mocks/events';
 import { DirectionsSheet } from '@/components/DirectionsSheet';
-import { LiveActivityBadge } from '@/components/LiveActivityBadge';
-import { UrgencyTag } from '@/components/UrgencyTag';
-import { getUrgencyLabel } from '@/utils/urgency';
 import { useEventDetail } from '@/hooks/useEvents';
 import { getLivelinessInfo } from '@/utils/liveliness';
 
@@ -49,36 +43,19 @@ export default function EventDetailScreen() {
   const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
 
   const liveEventId = params.eventId ?? null;
-  const isLive = !!liveEventId;
   const { data: liveEvent, isLoading: liveLoading, error: liveError } = useEventDetail(liveEventId);
 
-  if (isLive) {
-    return (
-      <LiveEventDetail
-        loading={liveLoading}
-        error={liveError as Error | null}
-        event={liveEvent}
-        directionsVisible={directionsVisible}
-        setDirectionsVisible={setDirectionsVisible}
-        isFavorited={isFavorited}
-        toggleFavorite={toggleFavorite}
-        onBack={() => router.back()}
-        insets={insets}
-        colors={colors}
-        isDark={isDark}
-      />
-    );
-  }
-
   return (
-    <MockEventDetail
-      venueId={params.venueId ?? 'v-001'}
+    <LiveEventDetail
+      loading={liveLoading}
+      error={liveError as Error | null}
+      event={liveEvent}
       directionsVisible={directionsVisible}
       setDirectionsVisible={setDirectionsVisible}
-      onBack={() => router.back()}
-      onTickets={(venueId: string) => router.push({ pathname: '/ticketing', params: { venueId } })}
       isFavorited={isFavorited}
       toggleFavorite={toggleFavorite}
+      onBack={() => router.back()}
+      onBuyTickets={(eventId: string) => router.push({ pathname: '/ticketing', params: { eventId } })}
       insets={insets}
       colors={colors}
       isDark={isDark}
@@ -111,6 +88,7 @@ function LiveEventDetail({
   isFavorited: (id: string) => boolean;
   toggleFavorite: (id: string, kind: 'venue' | 'event', name: string) => void;
   onBack: () => void;
+  onBuyTickets: (eventId: string) => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
   colors: ReturnType<typeof useTheme>['colors'];
   isDark: boolean;
@@ -150,7 +128,7 @@ function LiveEventDetail({
   }
 
   const heart = isFavorited(event.id);
-  const heroImg = event.images[0]?.url ?? null;
+  const heroImg = event.heroImageUrl ?? event.images[0]?.url ?? null;
   const live = getLivelinessInfo(event.liveliness);
   const dateObj = new Date(event.start_date_time);
   const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
@@ -171,9 +149,12 @@ function LiveEventDetail({
   };
 
   const handleBuyTickets = () => {
-    if (!event.url) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Linking.openURL(event.url).catch((e) => console.log('[event-detail] openURL error', e));
+    if (event.url) {
+      Linking.openURL(event.url).catch((e) => console.log('[event-detail] openURL error', e));
+    } else {
+      onBuyTickets(event.id);
+    }
   };
 
   return (
@@ -225,6 +206,22 @@ function LiveEventDetail({
                 {event.source === 'ticketmaster' ? 'Ticketmaster' : 'SeatData'}
               </Text>
             </View>
+            {event.isHot ? (
+              <View style={[styles.tagPill, { backgroundColor: 'rgba(232,68,58,0.14)', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                <Flame color="#E8443A" size={11} />
+                <Text style={[styles.tagText, { color: '#E8443A' }]}>Almost Gone</Text>
+              </View>
+            ) : event.isSellingFast ? (
+              <View style={[styles.tagPill, { backgroundColor: 'rgba(232,168,48,0.16)', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                <Zap color="#E8A830" size={11} />
+                <Text style={[styles.tagText, { color: '#E8A830' }]}>Selling Fast</Text>
+              </View>
+            ) : event.isTrending ? (
+              <View style={[styles.tagPill, { backgroundColor: 'rgba(43,191,186,0.16)', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                <TrendingUp color="#2BBFBA" size={11} />
+                <Text style={[styles.tagText, { color: '#2BBFBA' }]}>Trending</Text>
+              </View>
+            ) : null}
             {event.capacity !== null ? (
               <View style={[styles.tagPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
                 <Text style={[styles.tagText, { color: colors.textMuted }]}>
@@ -369,22 +366,26 @@ function LiveEventDetail({
         </View>
       </ScrollView>
 
-      {event.url ? (
-        <View style={[styles.stickyBottom, {
-          paddingBottom: insets.bottom + 8,
-          backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)',
-          borderTopColor: colors.border,
-        }]}>
-          <Pressable
-            onPress={handleBuyTickets}
-            style={({ pressed }) => [styles.stickyBtnFull, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-            testID="event-detail-buy-tickets"
-          >
+      <View style={[styles.stickyBottom, {
+        paddingBottom: insets.bottom + 8,
+        backgroundColor: isDark ? 'rgba(4,19,24,0.97)' : 'rgba(245,248,250,0.97)',
+        borderTopColor: colors.border,
+      }]}>
+        <Pressable
+          onPress={handleBuyTickets}
+          style={({ pressed }) => [styles.stickyBtnFull, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+          testID="event-detail-buy-tickets"
+        >
+          {event.url ? (
             <ExternalLink color={isDark ? colors.background : '#fff'} size={16} />
-            <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>Buy Tickets</Text>
-          </Pressable>
-        </View>
-      ) : null}
+          ) : (
+            <Ticket color={isDark ? colors.background : '#fff'} size={16} />
+          )}
+          <Text style={[styles.stickyBtnText, { color: isDark ? colors.background : '#fff' }]}>
+            {event.url ? 'Buy Tickets' : 'Get Tickets'}
+          </Text>
+        </Pressable>
+      </View>
 
       {event.venueLat && event.venueLng ? (
         <DirectionsSheet
@@ -403,7 +404,7 @@ function LiveEventDetail({
           onPress={handleDirections}
           style={({ pressed }) => [
             styles.directionsFab,
-            { bottom: insets.bottom + (event.url ? 80 : 16), backgroundColor: colors.surface, borderColor: colors.border },
+            { bottom: insets.bottom + 80, backgroundColor: colors.surface, borderColor: colors.border },
             pressed && styles.pressed,
           ]}
           testID="event-detail-directions-fab"
@@ -415,7 +416,8 @@ function LiveEventDetail({
   );
 }
 
-// =============== Mock Event (legacy venueId path) ===============
+// Removed legacy mock event detail — all events now resolve via Supabase eventId.
+/*
 
 function MockEventDetail({
   venueId,
@@ -602,6 +604,7 @@ function MockEventDetail({
     </View>
   );
 }
+*/
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
