@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
-import { Chrome as Home, CirclePlus, Map, Ticket, UserRound } from 'lucide-react-native';
+import { Chrome as Home, CirclePlus, UserRound } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 
@@ -55,23 +55,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Feed',
+          title: 'Home',
           tabBarIcon: ({ focused }) => (
             <Home
-              color={focused ? activeColor : inactiveColor}
-              fill="none"
-              size={24}
-              strokeWidth={focused ? 2.2 : 1.6}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: 'Map',
-          tabBarIcon: ({ focused }) => (
-            <Map
               color={focused ? activeColor : inactiveColor}
               fill="none"
               size={24}
@@ -86,20 +72,6 @@ export default function TabLayout() {
           title: 'Check In',
           tabBarIcon: ({ focused }) => (
             <CirclePlus
-              color={focused ? activeColor : inactiveColor}
-              fill="none"
-              size={24}
-              strokeWidth={focused ? 2.2 : 1.6}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="tickets"
-        options={{
-          title: 'Tickets',
-          tabBarIcon: ({ focused }) => (
-            <Ticket
               color={focused ? activeColor : inactiveColor}
               fill="none"
               size={24}

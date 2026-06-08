@@ -1,20 +1,27 @@
-// v2
-// profile screen
-import React, { useMemo, useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Bell, ChevronRight, Copy, CreditCard, Edit3, LogOut, Moon, QrCode, ScanLine, Settings, Shield, ShieldCheck, Sun, Ticket, Users, Wallet, MapPin } from 'lucide-react-native';
+import {
+  Bell,
+  ChevronRight,
+  Copy,
+  Edit3,
+  LogOut,
+  MapPin,
+  Moon,
+  Settings,
+  Sun,
+  Users,
+} from 'lucide-react-native';
+
 import { mockFriends, mockFriendRequests, tierDefinitions } from '@/mocks/friends';
 import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import { useSecureWallet } from '@/providers/SecureWalletProvider';
-import { useAgeVerification } from '@/providers/AgeVerificationProvider';
-import { useWalletPass } from '@/providers/WalletPassProvider';
-import { AgeVerificationSheet } from '@/components/AgeVerificationSheet';
+import { useFavorites } from '@/providers/FavoritesProvider';
 import { currentUser } from '@/constants/identity';
 
 interface MenuRowProps {
@@ -64,12 +71,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { user, logout } = useAuth();
-  const { vibeCount, spotCount } = useData();
-  const { documents } = useSecureWallet();
-  const { isVerified, documentType } = useAgeVerification();
-  const { passes } = useWalletPass();
-
-  const [ageSheetVisible, setAgeSheetVisible] = useState<boolean>(false);
+  const { vibeCount } = useData();
+  const { favoriteVenues } = useFavorites();
 
   const displayName = user?.displayName || currentUser.displayName;
   const username = user?.username || currentUser.username;
@@ -85,6 +88,7 @@ export default function ProfileScreen() {
   const friendsCount = mockFriends.length;
   const requestsCount = mockFriendRequests.length;
   const innerCircleTier = tierDefinitions.find((t) => t.id === 'inner_circle');
+  const savedCount = favoriteVenues.length;
 
   const handleCopyId = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -123,7 +127,6 @@ export default function ProfileScreen() {
           { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}
-        testID="profile-scroll"
       >
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
@@ -133,29 +136,21 @@ export default function ProfileScreen() {
               styles.headerBtn,
               { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
             ]}
-            testID="open-settings"
           >
             <Settings color={colors.text} size={18} />
           </Pressable>
         </View>
 
+        {/* Identity card */}
         <View style={[styles.identityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.identityTop}>
             <View style={[styles.avatar, { backgroundColor: colors.aqua + '18', borderColor: colors.aqua + '30' }]}>
               <Text style={[styles.avatarText, { color: colors.aqua }]}>{initials.toUpperCase()}</Text>
             </View>
             <View style={styles.identityInfo}>
-              <View style={styles.nameRow}>
-                <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>
-                  {displayName}
-                </Text>
-                {isVerified && (
-                  <View style={[styles.verifiedBadge, { backgroundColor: colors.aqua + '18' }]} testID="verified-badge">
-                    <ShieldCheck color={colors.aqua} size={12} />
-                    <Text style={[styles.verifiedText, { color: colors.aqua }]}>21+</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>
+                {displayName}
+              </Text>
               <Text style={[styles.username, { color: colors.textMuted }]} numberOfLines={1}>
                 @{username}
               </Text>
@@ -179,23 +174,11 @@ export default function ProfileScreen() {
                 styles.identityBtn,
                 { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1 },
               ]}
-              testID="edit-profile-btn"
             >
               <Edit3 color={isDark ? colors.background : colors.white} size={14} />
               <Text style={[styles.identityBtnText, { color: isDark ? colors.background : colors.white }]}>
                 Edit Profile
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/qr-code')}
-              style={({ pressed }) => [
-                styles.identityBtnAlt,
-                { backgroundColor: colors.surfaceAlt, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-              ]}
-              testID="open-qr-code"
-            >
-              <QrCode color={colors.text} size={14} />
-              <Text style={[styles.identityBtnTextAlt, { color: colors.text }]}>Share</Text>
             </Pressable>
           </View>
 
@@ -205,7 +188,6 @@ export default function ProfileScreen() {
               styles.idChip,
               { backgroundColor: colors.surfaceAlt, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
             ]}
-            testID="copy-pulze-id"
           >
             <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>PULZE ID</Text>
             <Text style={[styles.idChipValue, { color: colors.text }]}>{currentUser.pulzeId}</Text>
@@ -213,13 +195,14 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{vibeCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Vibes</Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Check-ins</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{spotCount}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{savedCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Saved</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -228,74 +211,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={[styles.verifyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={[styles.verifyIconWrap, { backgroundColor: colors.aqua + '18' }]}>
-            {isVerified ? (
-              <ShieldCheck color={colors.aqua} size={22} />
-            ) : (
-              <Shield color={colors.aqua} size={22} />
-            )}
-          </View>
-          <View style={styles.verifyTextWrap}>
-            <Text style={[styles.verifyTitle, { color: colors.text }]}>
-              {isVerified ? 'You are 21+ verified' : 'Verify your age'}
-            </Text>
-            <Text style={[styles.verifySub, { color: colors.textMuted }]} numberOfLines={2}>
-              {isVerified
-                ? `Verified using ${documentType ?? 'your ID'}`
-                : 'Unlock 21+ events and venues with a one-time check.'}
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setAgeSheetVisible(true);
-            }}
-            style={({ pressed }) => [
-              styles.verifyBtn,
-              {
-                backgroundColor: isVerified ? colors.surfaceAlt : colors.aqua,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-            testID="open-age-sheet"
-          >
-            <Text
-              style={[
-                styles.verifyBtnText,
-                { color: isVerified ? colors.text : (isDark ? colors.background : colors.white) },
-              ]}
-            >
-              {isVerified ? 'View' : 'Verify'}
-            </Text>
-          </Pressable>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Tickets & Wallet</Text>
-        <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <MenuRow
-            icon={<Ticket />}
-            label="My Tickets"
-            sublabel={passes.length === 0 ? 'No passes yet' : `${passes.length} ticket pass${passes.length === 1 ? '' : 'es'}`}
-            onPress={() => router.push('/my-tickets')}
-            testID="row-my-tickets"
-          />
-          <MenuRow
-            icon={<CreditCard />}
-            label="Secure Wallet"
-            sublabel={documents.length === 0 ? 'No documents stored' : `${documents.length} document${documents.length === 1 ? '' : 's'}`}
-            onPress={() => router.push('/secure-wallet')}
-            testID="row-secure-wallet"
-          />
-          <MenuRow
-            icon={<Wallet />}
-            label="Wallet Pass"
-            sublabel="Add tickets to Apple or Google Wallet"
-            onPress={() => router.push('/wallet-pass')}
-            testID="row-wallet-pass"
-          />
-        </View>
-
+        {/* Friends section */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Friends</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <MenuRow
@@ -303,7 +219,6 @@ export default function ProfileScreen() {
             label="Friends"
             sublabel={`${friendsCount} friends${requestsCount ? ` · ${requestsCount} request${requestsCount === 1 ? '' : 's'}` : ''}`}
             onPress={() => router.push('/friends')}
-            testID="row-friends"
           />
           <Pressable
             onPress={() => router.push('/friends')}
@@ -323,6 +238,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {/* Preferences */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Preferences</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <MenuRow
@@ -335,59 +251,42 @@ export default function ProfileScreen() {
                 <Text style={[styles.pillBadgeText, { color: colors.text }]}>{themeLabel}</Text>
               </View>
             }
-            testID="row-theme"
           />
           <MenuRow
             icon={<Settings />}
             label="Settings"
             sublabel="Privacy, alerts, location"
             onPress={() => router.push('/settings')}
-            testID="row-settings"
           />
           <MenuRow
             icon={<Bell />}
             label="Activity"
-            sublabel="Notifications and nearby check-ins"
+            sublabel="Your check-in history and notifications"
             onPress={() => router.push('/activity')}
-            testID="row-activity"
           />
         </View>
 
+        {/* Sign out */}
         <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 24 }]}>
-          <MenuRow
-            icon={<ScanLine />}
-            label="Staff Mode"
-            sublabel="Scan tickets at the door"
-            onPress={() => router.push({ pathname: '/staff/scan', params: { eventName: 'Nothing More', venueName: 'Fillmore Auditorium' } })}
-            testID="row-staff-mode"
-          />
           <MenuRow
             icon={<LogOut />}
             label="Sign out"
             onPress={handleLogout}
             isDestructive
             trailing={<ChevronRight color={colors.danger} size={18} />}
-            testID="row-logout"
           />
         </View>
 
         <Text style={[styles.footer, { color: colors.textSoft }]}>
-          Pulze · v1.0.0
+          Pulze · v1.0.0 · Denver
         </Text>
       </ScrollView>
-
-      <AgeVerificationSheet
-        visible={ageSheetVisible}
-        onClose={() => setAgeSheetVisible(false)}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 16,
     gap: 16,
@@ -438,28 +337,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   displayName: {
     fontSize: 20,
     fontWeight: '800' as const,
     letterSpacing: -0.3,
     flexShrink: 1,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  verifiedText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
   },
   username: {
     fontSize: 13,
@@ -493,20 +375,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   identityBtnText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  identityBtnAlt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  identityBtnTextAlt: {
     fontSize: 14,
     fontWeight: '700' as const,
   },
@@ -552,42 +420,6 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     textTransform: 'uppercase',
     letterSpacing: 1,
-  },
-  verifyCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-  },
-  verifyIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifyTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  verifyTitle: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  verifySub: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  verifyBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
-  },
-  verifyBtnText: {
-    fontSize: 13,
-    fontWeight: '700' as const,
   },
   sectionTitle: {
     fontSize: 11,

@@ -11,9 +11,6 @@ import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { BiometricAuthProvider } from '@/providers/BiometricAuthProvider';
 import { DataProvider } from '@/providers/DataProvider';
 import { FavoritesProvider } from '@/providers/FavoritesProvider';
-import { SecureWalletProvider } from '@/providers/SecureWalletProvider';
-import { AgeVerificationProvider } from '@/providers/AgeVerificationProvider';
-import { WalletPassProvider } from '@/providers/WalletPassProvider';
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
@@ -42,20 +39,10 @@ function RootLayoutNav() {
       <Stack.Screen name="friends" options={{ presentation: 'card' }} />
       <Stack.Screen name="settings" options={{ presentation: 'card' }} />
       <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="qr-code" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="ticketing" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="secure-wallet" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="verify-identity/index" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="ticket-pass" options={{ presentation: 'modal', headerShown: false }} />
-      <Stack.Screen name="my-tickets" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="wallet-pass" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ presentation: 'card' }} />
       <Stack.Screen name="terms-of-service" options={{ presentation: 'card' }} />
       <Stack.Screen name="location-selector" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="event-detail" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="events" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="staff/scan" options={{ presentation: 'fullScreenModal', headerShown: false }} />
       <Stack.Screen name="activity" options={{ presentation: 'card', headerShown: false }} />
     </Stack>
   );
@@ -92,25 +79,19 @@ function AppContent() {
   return (
     <DataProvider>
       <FavoritesProvider>
-      <SecureWalletProvider>
-      <AgeVerificationProvider>
-      <WalletPassProvider>
-      <BiometricAuthProvider>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <RootLayoutNav />
-        <LockScreen />
-        {splashDone && (
-          <CityWelcome
-            cityName="Denver"
-            cityTagline="10 live spots tonight — St. Patrick's weekend energy"
-          />
-        )}
-        {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
-        <WelcomeModal />
-      </BiometricAuthProvider>
-      </WalletPassProvider>
-      </AgeVerificationProvider>
-      </SecureWalletProvider>
+        <BiometricAuthProvider>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <RootLayoutNav />
+          <LockScreen />
+          {splashDone && (
+            <CityWelcome
+              cityName="Denver"
+              cityTagline="See what's busy tonight"
+            />
+          )}
+          {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
+          <WelcomeModal />
+        </BiometricAuthProvider>
       </FavoritesProvider>
     </DataProvider>
   );

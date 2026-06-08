@@ -1,57 +1,58 @@
-export type EventGenre = 'music' | 'comedy' | 'sports' | 'arts' | 'festival' | 'nightlife';
-export type EventStatus = 'on_sale' | 'few_left' | 'sold_out';
+export type VenueType = 'bar' | 'club' | 'lounge' | 'brewery' | 'dive' | 'rooftop' | 'speakeasy';
+export type BusynessLevel = 'quiet' | 'getting_busy' | 'packed';
+export type Neighborhood = 'RiNo' | 'LoDo' | 'Cap Hill' | 'South Broadway' | 'LoHi' | 'Five Points' | 'Uptown' | 'Baker' | 'Downtown' | 'Colfax';
 
 export interface PulzeVenue {
   id: string;
   name: string;
   latitude: number;
   longitude: number;
-  category: EventGenre;
-  categoryLabel: string;
-  vibe_score: number;        // derived from soldOutPercent — keep same field name so map code doesn't break
-  open_status: 'open' | 'closed' | 'closing_soon';
+  type: VenueType;
+  typeLabel: string;
+  busyness: BusynessLevel;
+  busynessPercent: number;
+  neighborhood: Neighborhood;
   address: string;
-  neighborhood: string;
-  mood: string;              // becomes event tagline e.g. "Doors at 8 · Show at 9"
-  people: string;            // becomes "82% sold"
-  peopleCount: number;       // raw sold percent 0-100
-  eta: string;               // distance, keep as-is
-  blurb: string;             // short event description
-  avatar: string;            // artist/event image
-  postedAgo: string;         // becomes time until show e.g. "Tonight 9 PM"
+  vibe: string;
   photo?: string;
-  // New event-specific fields
-  eventDate: string;         // "Tonight" | "Tomorrow" | "Sat Mar 15"
-  eventTime: string;         // "9:00 PM"
-  soldOutPercent: number;    // 0-100
-  ticketStatus: EventStatus;
-  startingPrice: number;
-  venueId: string;           // links to ticketing screen
+  photos: string[];
+  eta: string;
+  isOpen: boolean;
+  checkins: number;
+  views: number;
 }
 
-export interface MapCluster {
+export interface CheckIn {
   id: string;
-  latitude: number;
-  longitude: number;
-  count: number;
-  venues: PulzeVenue[];
-  avgVibeScore: number;
+  userId: string;
+  userName: string;
+  venueId: string;
+  venueName: string;
+  photoUri: string;
+  caption: string;
+  createdAt: string;
 }
 
-export type MapFilterId = 'all' | 'tonight' | 'tomorrow' | 'music' | 'comedy' | 'sports' | 'arts';
-
-export interface MapFilter {
-  id: MapFilterId;
-  label: string;
-  icon: string;
+export function getBusynessLabel(level: BusynessLevel): string {
+  switch (level) {
+    case 'quiet': return 'Quiet';
+    case 'getting_busy': return 'Getting Busy';
+    case 'packed': return 'Packed';
+  }
 }
 
-export const MAP_FILTERS: MapFilter[] = [
-  { id: 'all',      label: 'All',      icon: 'Sparkles'    },
-  { id: 'tonight',  label: 'Tonight',  icon: 'Zap'         },
-  { id: 'tomorrow', label: 'Tomorrow', icon: 'CalendarDays' },
-  { id: 'music',    label: 'Music',    icon: 'Music'        },
-  { id: 'comedy',   label: 'Comedy',   icon: 'Laugh'        },
-  { id: 'sports',   label: 'Sports',   icon: 'Trophy'       },
-  { id: 'arts',     label: 'Arts',     icon: 'Sparkles'     },
-];
+export function getBusynessColor(level: BusynessLevel): string {
+  switch (level) {
+    case 'quiet': return '#6B8E7B';
+    case 'getting_busy': return '#E8A840';
+    case 'packed': return '#E8443A';
+  }
+}
+
+export function getBusynessBgColor(level: BusynessLevel): string {
+  switch (level) {
+    case 'quiet': return 'rgba(107, 142, 123, 0.15)';
+    case 'getting_busy': return 'rgba(232, 168, 64, 0.15)';
+    case 'packed': return 'rgba(232, 68, 58, 0.15)';
+  }
+}

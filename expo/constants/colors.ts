@@ -25,28 +25,28 @@ export interface AppColors {
 }
 
 export const DarkColors: AppColors = {
-  background: '#060F13',
-  surface: '#0C1E26',
-  surfaceAlt: '#112A35',
-  card: '#0E2129',
-  cardSoft: '#133640',
-  border: 'rgba(100, 180, 180, 0.10)',
-  borderStrong: 'rgba(100, 180, 180, 0.22)',
+  background: '#060C10',
+  surface: '#0B1A22',
+  surfaceAlt: '#0F2430',
+  card: '#0C1D28',
+  cardSoft: '#122C3A',
+  border: 'rgba(100, 180, 180, 0.08)',
+  borderStrong: 'rgba(100, 180, 180, 0.18)',
   text: '#ECF4F6',
   textMuted: '#7BA3AD',
   textSoft: '#567880',
-  aqua: '#1E9E9A',
-  aquaBright: '#2BBFBA',
-  lime: '#1E9E9A',      // was green — now teal
-  amber: '#1E9E9A',     // was yellow — now teal
-  coral: '#1E9E9A',     // was red-orange — now teal
-  pink: '#2BBFBA',      // was pink — now aquaBright
-  quiet: '#567880',     // was blue-grey — keep as muted
-  overlay: 'rgba(6, 15, 19, 0.80)',
-  shadow: 'rgba(0, 0, 0, 0.32)',
-  tabInactive: '#4A6E78',
+  aqua: '#1A9E99',
+  aquaBright: '#25C4BE',
+  lime: '#1A9E99',
+  amber: '#E8A840',
+  coral: '#E05E54',
+  pink: '#C470A0',
+  quiet: '#6B8E7B',
+  overlay: 'rgba(6, 12, 16, 0.85)',
+  shadow: 'rgba(0, 0, 0, 0.40)',
+  tabInactive: '#3D5C66',
   white: '#FFFFFF',
-  danger: '#E8443A',    // keep red for actual errors only
+  danger: '#E8443A',
   dangerBg: 'rgba(232, 68, 58, 0.08)',
 };
 
@@ -56,23 +56,23 @@ export const LightColors: AppColors = {
   surfaceAlt: '#EEF2F5',
   card: '#E8EEF2',
   cardSoft: '#DEE6EB',
-  border: 'rgba(11, 35, 44, 0.08)',
-  borderStrong: 'rgba(11, 35, 44, 0.16)',
+  border: 'rgba(11, 35, 44, 0.06)',
+  borderStrong: 'rgba(11, 35, 44, 0.12)',
   text: '#0C1A20',
   textMuted: '#4A6872',
   textSoft: '#6A8892',
   aqua: '#1A9E99',
   aquaBright: '#17B5AE',
-  lime: '#1A9E99',      // was green — now teal
-  amber: '#1A9E99',     // was yellow — now teal
-  coral: '#1A9E99',     // was red-orange — now teal
-  pink: '#17B5AE',      // was pink — now aquaBright
-  quiet: '#6A8892',     // keep as muted
+  lime: '#1A9E99',
+  amber: '#D49A30',
+  coral: '#CC463C',
+  pink: '#A85E88',
+  quiet: '#5C8A6E',
   overlay: 'rgba(246, 248, 250, 0.88)',
   shadow: 'rgba(0, 0, 0, 0.06)',
   tabInactive: '#8EAAB4',
   white: '#FFFFFF',
-  danger: '#CC3428',    // keep red for actual errors only
+  danger: '#CC3428',
   dangerBg: 'rgba(204, 52, 40, 0.06)',
 };
 

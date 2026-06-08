@@ -6,42 +6,24 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform,
-  ToastAndroid,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Clock,
-  Eye,
-  Flame,
   Heart,
   MapPin,
   Navigation,
-  Timer,
   Users,
-  Zap,
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
-import { DirectionsSheet } from '@/components/DirectionsSheet';
-import { LiveActivityBadge } from '@/components/LiveActivityBadge';
-import { UrgencyTag } from '@/components/UrgencyTag';
-import { getUrgencyLabel } from '@/utils/urgency';
-
-function getStatusInfo(status: string): { label: string; color: string } {
-  switch (status) {
-    case 'open': return { label: 'Open Now', color: '#4CAF78' };
-    case 'closing_soon': return { label: 'Closing Soon', color: '#D4924A' };
-    case 'closed': return { label: 'Closed', color: '#C05050' };
-    default: return { label: 'Unknown', color: '#8899AA' };
-  }
-}
+import { getBusynessLabel, getBusynessColor, getBusynessBgColor } from '@/types/venue';
+import type { PulzeVenue } from '@/types/venue';
+import { MockCheckIn } from '@/mocks/city';
 
 export default function VenueDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -49,27 +31,8 @@ export default function VenueDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ venueId: string }>();
   const { isFavorited, toggleFavorite } = useFavorites();
-  const [directionsVisible, setDirectionsVisible] = useState<boolean>(false);
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
-
-  const galleryPhotos = useMemo<string[]>(() => [
-    'https://picsum.photos/300/200?random=1',
-    'https://picsum.photos/300/200?random=2',
-    'https://picsum.photos/300/200?random=3',
-    'https://picsum.photos/300/200?random=4',
-  ], []);
-  const [activeHero, setActiveHero] = useState<string | null>(null);
-
-  const handleCheckIn = useCallback(() => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (Platform.OS === 'android') {
-      ToastAndroid.show('Check-in recorded!', ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Check-in recorded!');
-    }
-    console.log('[VenueDetail] check-in tapped for', params.venueId);
-  }, [params.venueId]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -82,70 +45,68 @@ export default function VenueDetailScreen() {
     toggleFavorite(venue.id, 'venue', venue.name);
   }, [venue, toggleFavorite]);
 
-  const handleDirections = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setDirectionsVisible(true);
-  }, []);
-
   if (!venue) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={[styles.errorContainer, { paddingTop: insets.top + 60 }]}>
           <Text style={[styles.errorText, { color: colors.textMuted }]}>Venue not found</Text>
-          <Pressable onPress={handleBack} style={[styles.primaryBtn, { backgroundColor: colors.aqua }]}>
-            <Text style={[styles.primaryBtnText, { color: isDark ? colors.background : '#fff' }]}>Go Back</Text>
+          <Pressable onPress={handleBack} style={[styles.backBtn, { backgroundColor: colors.aqua }]}>
+            <Text style={[styles.backBtnText, { color: isDark ? colors.background : '#fff' }]}>Go Back</Text>
           </Pressable>
         </View>
       </View>
     );
   }
 
-  const statusInfo = getStatusInfo(venue.open_status);
   const hearted = isFavorited(venue.id);
-  const urgency = getUrgencyLabel(venue.vibe_score, venue.peopleCount);
+  const busynessColor = getBusynessColor(venue.busyness);
+  const busynessBg = getBusynessBgColor(venue.busyness);
+  const busynessLabel = getBusynessLabel(venue.busyness);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]} testID="venue-detail-screen">
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
       >
-        <View style={styles.heroContainer}>
+        {/* Hero */}
+        <View style={styles.heroWrap}>
           {venue.photo ? (
-            <Image source={{ uri: activeHero ?? venue.photo }} style={styles.heroImage} />
+            <Image source={{ uri: venue.photo }} style={styles.heroImage} />
           ) : (
             <View style={[styles.heroPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
               <MapPin color={colors.aqua} size={48} />
             </View>
           )}
-          <View style={styles.heroGradient} />
-          <View style={[styles.heroNameOverlay, { paddingBottom: 20 }]}>
-            <View style={styles.heroNameRow}>
-              <Text style={styles.heroVenueName} numberOfLines={2}>{venue.name}</Text>
-              <View style={[styles.statusPill, { backgroundColor: statusInfo.color + '20' }]}>
-                <View style={[styles.statusDot, { backgroundColor: statusInfo.color }]} />
-                <Text style={[styles.statusPillText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+          <View style={styles.heroOverlay} />
+          <View style={styles.heroContent}>
+            <Text style={styles.heroName} numberOfLines={2}>{venue.name}</Text>
+            <View style={styles.heroChips}>
+              <View style={[styles.chip, { backgroundColor: colors.aqua + '20' }]}>
+                <Text style={[styles.chipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
+              </View>
+              <View style={[styles.chip, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                <MapPin color="rgba(255,255,255,0.7)" size={10} />
+                <Text style={[styles.chipText, { color: 'rgba(255,255,255,0.7)' }]}>{venue.neighborhood}</Text>
               </View>
             </View>
-            <Text style={styles.heroCategory}>{venue.categoryLabel} · {venue.neighborhood}</Text>
           </View>
         </View>
 
+        {/* Top bar */}
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable
             onPress={handleBack}
             style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-            testID="venue-detail-back"
           >
             <ArrowLeft color="#fff" size={20} />
           </Pressable>
           <Pressable
             onPress={handleHeart}
             style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
-            testID="venue-detail-heart"
           >
             <Heart
               color={hearted ? '#FF6B6B' : '#fff'}
@@ -155,160 +116,132 @@ export default function VenueDetailScreen() {
           </Pressable>
         </View>
 
+        {/* Body */}
         <View style={styles.body}>
+          {/* Busyness gauge */}
+          <View style={[styles.busynessCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.busynessHeader}>
+              <View style={[styles.busynessBadge, { backgroundColor: busynessBg }]}>
+                <View style={[styles.busynessDot, { backgroundColor: busynessColor }]} />
+                <Text style={[styles.busynessBadgeText, { color: busynessColor }]}>{busynessLabel}</Text>
+              </View>
+              <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}% full</Text>
+            </View>
+            {/* Busyness bar */}
+            <View style={[styles.busynessBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <View
+                style={[
+                  styles.busynessBarFill,
+                  {
+                    backgroundColor: busynessColor,
+                    width: `${venue.busynessPercent}%`,
+                  },
+                ]}
+              />
+            </View>
+            <View style={styles.busynessLabels}>
+              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Quiet</Text>
+              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Getting Busy</Text>
+              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Packed</Text>
+            </View>
+          </View>
+
+          {/* Stats */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-              <Zap color={venue.vibe_score >= 70 ? colors.amber : colors.aqua} size={15} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{venue.vibe_score}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Energy</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Users color={colors.aqua} size={16} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{venue.checkins}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Checked in</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-              <Users color={colors.aqua} size={15} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{venue.people}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Inside</Text>
+            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Users color={colors.textSoft} size={16} />
+              <Text style={[styles.statValue, { color: colors.text }]}>{venue.views}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Views tonight</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
-              <Clock color={colors.aqua} size={15} />
+            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <MapPin color={colors.aqua} size={16} />
               <Text style={[styles.statValue, { color: colors.text }]}>{venue.eta}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Away</Text>
             </View>
           </View>
 
-          <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>CURRENT MOOD</Text>
-            <Text style={[styles.moodText, { color: colors.text }]}>{venue.mood}</Text>
+          {/* Vibe */}
+          <View style={[styles.vibeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.vibeLabel, { color: colors.textMuted }]}>THE VIBE</Text>
+            <Text style={[styles.vibeText, { color: colors.text }]}>{venue.vibe}</Text>
           </View>
 
-          {venue.blurb ? (
-            <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>WHAT'S HAPPENING</Text>
-              <Text style={[styles.blurbText, { color: colors.text }]}>{venue.blurb}</Text>
-              <Text style={[styles.timeAgo, { color: colors.textSoft }]}>{venue.postedAgo}</Text>
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={handleDirections}
-            style={[styles.addressRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            testID="venue-detail-address"
-          >
+          {/* Address */}
+          <View style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color={colors.aqua} size={16} />
             <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>{venue.address}</Text>
-            <Navigation color={colors.textMuted} size={14} />
-          </Pressable>
-
-          <View style={styles.insightsRow}>
-            <UrgencyTag urgency={urgency} size="md" pulse />
-            <LiveActivityBadge vibeScore={venue.vibe_score} peopleCount={venue.peopleCount} isDark={isDark} />
           </View>
 
-          <View style={styles.livePillsRow}>
-            <View style={[styles.livePill, { backgroundColor: isDark ? 'rgba(43,191,186,0.10)' : 'rgba(43,191,186,0.12)' }]}>
-              <Flame color={colors.aqua} size={13} />
-              <Text style={[styles.livePillText, { color: colors.aqua }]}>84 checked in</Text>
+          {/* Photos */}
+          {venue.photos.length > 1 && (
+            <View>
+              <Text style={[styles.photosHeading, { color: colors.text }]}>Photos</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.photosRow}
+              >
+                {venue.photos.map((uri, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri }}
+                    style={[styles.thumb, { borderColor: colors.border }]}
+                  />
+                ))}
+              </ScrollView>
             </View>
-            <View style={[styles.livePill, { backgroundColor: isDark ? 'rgba(43,191,186,0.10)' : 'rgba(43,191,186,0.12)' }]}>
-              <Eye color={colors.aqua} size={13} />
-              <Text style={[styles.livePillText, { color: colors.aqua }]}>312 views tonight</Text>
-            </View>
-            <View style={[styles.livePill, { backgroundColor: isDark ? 'rgba(43,191,186,0.10)' : 'rgba(43,191,186,0.12)' }]}>
-              <Timer color={colors.aqua} size={13} />
-              <Text style={[styles.livePillText, { color: colors.aqua }]}>~20 min wait</Text>
-            </View>
-          </View>
+          )}
 
-          <View>
-            <Text style={[styles.sectionHeading, { color: colors.text }]}>Photos</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.galleryRow}
-            >
-              {galleryPhotos.map((uri) => {
-                const isActive = (activeHero ?? venue.photo) === uri;
-                return (
-                  <Pressable
-                    key={uri}
-                    onPress={() => {
-                      void Haptics.selectionAsync();
-                      setActiveHero(uri);
-                    }}
-                    style={[
-                      styles.thumb,
-                      { borderColor: isActive ? '#2BBFBA' : 'transparent' },
-                    ]}
-                    testID={`venue-detail-thumb-${uri}`}
-                  >
-                    <Image source={{ uri }} style={styles.thumbImage} />
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
+          {/* Check-in button */}
           <Pressable
-            onPress={handleCheckIn}
+            onPress={() => {
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              router.push('/(tabs)/post');
+            }}
             style={({ pressed }) => [styles.checkInBtn, pressed && styles.pressed]}
-            testID="venue-detail-checkin"
           >
             <MapPin color="#041318" size={18} />
-            <Text style={styles.checkInText}>I'm Here</Text>
+            <Text style={styles.checkInText}>I Made It</Text>
           </Pressable>
 
+          {/* Actions */}
           <View style={styles.actionsRow}>
-            <Pressable
-              onPress={handleDirections}
-              style={({ pressed }) => [styles.primaryBtn, { backgroundColor: colors.aqua }, pressed && styles.pressed]}
-              testID="venue-detail-directions"
-            >
-              <Navigation color={isDark ? colors.background : '#fff'} size={16} />
-              <Text style={[styles.primaryBtnText, { color: isDark ? colors.background : '#fff' }]}>Get there now</Text>
-            </Pressable>
             <Pressable
               onPress={handleHeart}
               style={({ pressed }) => [
-                styles.secondaryBtn,
+                styles.actionBtn,
                 {
                   borderColor: hearted ? colors.coral : colors.border,
                   backgroundColor: hearted ? (isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)') : 'transparent',
                 },
                 pressed && styles.pressed,
               ]}
-              testID="venue-detail-save"
             >
               <Heart
                 color={hearted ? colors.coral : colors.textMuted}
                 size={16}
                 fill={hearted ? colors.coral : 'transparent'}
               />
-              <Text style={[styles.secondaryBtnText, { color: hearted ? colors.coral : colors.textMuted }]}>
+              <Text style={[styles.actionBtnText, { color: hearted ? colors.coral : colors.textMuted }]}>
                 {hearted ? 'Saved' : 'Save'}
               </Text>
             </Pressable>
           </View>
         </View>
       </ScrollView>
-
-      <DirectionsSheet
-        visible={directionsVisible}
-        onClose={() => setDirectionsVisible(false)}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-        address={venue.address}
-        name={venue.name}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-  },
-  heroContainer: {
+  screen: { flex: 1 },
+  content: { flexGrow: 1 },
+  heroWrap: {
     width: '100%',
     height: 320,
     position: 'relative',
@@ -324,54 +257,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroGradient: {
+  heroOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     height: 180,
   },
-  heroNameOverlay: {
+  heroContent: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingBottom: 20,
   },
-  heroNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 14,
-  },
-  heroVenueName: {
+  heroName: {
     fontSize: 24,
     fontWeight: '700' as const,
     color: '#FFFFFF',
-    flex: 1,
     letterSpacing: -0.3,
   },
-  heroCategory: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 4,
+  heroChips: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
-  statusPill: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusPillText: {
+  chipText: {
     fontSize: 12,
     fontWeight: '600' as const,
   },
@@ -398,6 +318,55 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 14,
   },
+  busynessCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  busynessHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  busynessBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  busynessDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  busynessBadgeText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  busynessPercent: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  busynessBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  busynessBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  busynessLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  busynessLabelSmall: {
+    fontSize: 10,
+    fontWeight: '500' as const,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 8,
@@ -407,6 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     alignItems: 'center',
+    borderWidth: 1,
     gap: 4,
   },
   statValue: {
@@ -417,29 +387,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500' as const,
   },
-  sectionCard: {
+  vibeCard: {
     borderRadius: 14,
     padding: 14,
-    gap: 6,
     borderWidth: 1,
+    gap: 6,
   },
-  sectionLabel: {
+  vibeLabel: {
     fontSize: 10,
     fontWeight: '700' as const,
     letterSpacing: 1,
   },
-  moodText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  blurbText: {
+  vibeText: {
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 20,
   },
-  timeAgo: {
-    fontSize: 12,
-  },
-  addressRow: {
+  addressCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -451,77 +414,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
-  insightsRow: {
-    gap: 8,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  primaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  primaryBtnText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  secondaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-  },
-  secondaryBtnText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.97 }],
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 20,
-  },
-  errorText: {
-    fontSize: 16,
-  },
-  livePillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  livePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  livePillText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-  sectionHeading: {
+  photosHeading: {
     fontSize: 16,
     fontWeight: '700' as const,
     letterSpacing: -0.2,
     marginBottom: 8,
   },
-  galleryRow: {
+  photosRow: {
     gap: 10,
     paddingRight: 4,
   },
@@ -529,91 +428,8 @@ const styles = StyleSheet.create({
     width: 110,
     height: 78,
     borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 2,
-  },
-  thumbImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  chartArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 140,
-    marginTop: 8,
-  },
-  chartCol: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-  },
-  chartBarTrack: {
-    flex: 1,
-    width: 18,
-    justifyContent: 'flex-end',
-  },
-  chartBar: {
-    width: '100%',
-    borderRadius: 4,
-  },
-  chartLabel: {
-    fontSize: 10,
-    marginTop: 6,
-    fontWeight: '500' as const,
-  },
-  nowLabel: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    marginBottom: 4,
-  },
-  nowLabelSpacer: {
-    height: 14,
-  },
-  vibeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
-    padding: 12,
-    paddingLeft: 14,
     borderWidth: 1,
-    overflow: 'hidden',
-  },
-  vibeAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: '#2BBFBA',
-  },
-  vibeAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  vibeBody: {
-    flex: 1,
-    gap: 2,
-  },
-  vibeHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  vibeHandle: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-  },
-  vibeTime: {
-    fontSize: 11,
-  },
-  vibeCaption: {
-    fontSize: 14,
-    lineHeight: 19,
+    resizeMode: 'cover',
   },
   checkInBtn: {
     flexDirection: 'row',
@@ -623,14 +439,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#2BBFBA',
     borderRadius: 14,
     paddingVertical: 16,
-    shadowColor: '#2BBFBA',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    marginTop: 4,
   },
   checkInText: {
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#041318',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+  actionBtnText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
+  backBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  backBtnText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 20,
+  },
+  errorText: {
+    fontSize: 16,
   },
 });

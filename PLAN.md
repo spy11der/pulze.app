@@ -1,25 +1,36 @@
-# Live Event Data Integration (Ticketmaster + SeatData via Supabase)
+# Pulze v1 Redesign — Nightlife Discovery for Denver
 
-Replaces previous QR ticket plan. Live event data is synced into Supabase every 4 hours
-across `events`, `event_details`, `event_images`, `venues` (with capacity), `listings`, and `sales`.
+## Features
 
-## Tasks
+- **Sign up & log in** with the existing auth flow (kept as-is)
+- **See what venues are busy tonight** — a home feed sorted by how packed each spot is right now
+- **Tap a venue** to see its busyness level, type (bar, club, lounge), neighborhood, and recent check-ins
+- **Quick check-in** — snap a photo, tag a venue, post "I made it" that shows on your profile and the venue page
+- **Your profile** shows your check-in history, saved venues, and friends
+- **Save venues** you want to try later
 
-- [x] **Foundation** — Updated `expo/types/supabase.ts` with new tables. Added `expo/hooks/useEvents.ts` (useMapEvents, useEventFeed, useEventDetail, useSearchEvents, useDebouncedValue, useHotEvents, useFeaturedEvent) and `expo/utils/liveliness.ts` + `expo/utils/eventImage.ts` helpers.
-- [x] **Live Map Markers** — `LiveEventMarkers` + `LiveEventsSheet` overlay on `(tabs)/map.tsx`. Tapping a venue pin shows upcoming events; tap an event row → `/event-detail?eventId=…`.
-- [x] **Event Feed Screen** — `expo/app/events.tsx` lists live events with picked best image, source badge, liveliness pill, price. "Live events near you" CTA on `(tabs)/index.tsx`.
-- [x] **Event Detail** — `event-detail.tsx` resolves only by Supabase `eventId`. Mock branch removed. Adds Hot / Selling Fast / Trending badges, demand meter, capacity, listings, price range, recent sales, venue mini-map, and a Buy Tickets sticky CTA that links to `event.url` or falls through to `/ticketing?eventId=…`.
-- [x] **Search & Filter** — `events.tsx` includes debounced text search across name/venue/city plus source filter (All / Ticketmaster / SeatData).
-- [x] **Tickets Tab** — `(tabs)/tickets.tsx` is fully wired to live data: "Hot Right Now" carousel uses `useHotEvents(10)` (random pull), "All Events" uses `useEventFeed`. Cards show inferred `Almost Gone` / `Selling Fast` / `Trending` flags from liveliness + recent sales.
-- [x] **Ticketing Screen** — `ticketing.tsx` accepts `eventId`, derives ticket "tiers" from grouped `listings.zone` (min/max price + remaining qty), falls back to min/max price summary when no listings exist, opens `event.url` (or Ticketmaster search) externally on continue.
-- [x] **Featured Event Card** — Home tab Featured card now pulls from `useFeaturedEvent()` (real upcoming event with hero image, demand label, price). Navigates to `/event-detail?eventId=…`.
-- [x] **Event Images** — `event_images` schema extended with `event_id`, `ratio`, `width`, `height`, `fallback`. `pickBestImage()` selects 16_9 hero, 4_3 card, 3_2 detail with width fallbacks; used across feed, tickets, map, hero, and detail.
+## What goes away
 
-## Algorithm
+- Full map view tab
+- Tickets tab and all ticketing screens (event tickets, secure wallet, wallet pass, QR code)
+- ID verification / age verification
+- Staff mode
+- Complex post system (energy levels, crowd tags, mood tags)
+- All event-specific screens (event detail, events list)
 
-Liveliness = ((capacity - sum(active listings)) / capacity) * 100. Labels: PACKED (≥99), BUZZING (≥80), LIVELY (≥50), CHILL (≥20), QUIET (<20).
+## Design
 
-Inferred event flags:
-- **Hot / Almost Gone** — liveliness ≥ 95% of capacity.
-- **Selling Fast** — liveliness ≥ 80%.
-- **Trending** — recent (7d) ticket sales ≥ 25 OR sales velocity ≥ 5/day.
+- Dark, moody nightlife aesthetic — deep backgrounds with teal accent glow
+- Clean, visual venue cards with large photos, venue name, busyness badge, type, and neighborhood
+- Busyness shown as a simple label: **Quiet**, **Getting Busy**, **Packed** with a colored indicator
+- Check-in flow: camera opens, pick a photo, tag the venue (auto-detected nearby), post
+- 3-tab layout: Home, Check In, Profile — dead simple navigation
+
+## Screens
+
+- **Home tab** — "Denver, Tonight" header. Scrollable feed of nearby bars and clubs sorted by busyness. Each card shows the venue photo, name, busyness level, type, neighborhood, and distance
+- **Check In tab** — Camera-first screen to snap a pic (or pick from gallery), select a nearby venue, add an optional caption, and post "I made it"
+- **Profile tab** — User avatar, stats (check-ins, saved, friends), check-in history feed, links to friends, settings, and activity
+- **Venue detail** — Hero photo, name, busyness gauge, venue type chip, neighborhood chip, address, recent check-in photos, directions button, and save button
+- **Settings, Friends, Edit Profile** — kept as-is with ticketing/verification references removed
+
