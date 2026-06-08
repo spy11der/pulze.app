@@ -19,7 +19,6 @@ import { currentUser } from '@/constants/identity';
 
 import { TierBadge } from '@/components/TierBadge';
 import { useTheme } from '@/providers/ThemeProvider';
-import { useAgeVerification } from '@/providers/AgeVerificationProvider';
 import {
   type Friend,
   type FriendRequest,
@@ -42,7 +41,6 @@ export default function FriendsScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchFocused, setSearchFocused] = useState<boolean>(false);
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
-  const { isVerified: currentUserVerified } = useAgeVerification();
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -351,11 +349,6 @@ export default function FriendsScreen() {
                     <View style={styles.friendNameRow}>
                       <Text style={[styles.friendName, { color: colors.text }]}>{friend.name}</Text>
                       <TierBadge tier={friend.tier} size="small" />
-                      {currentUserVerified && friend.tier === 'inner_circle' && (
-                        <View style={[styles.friendVerifiedBadge, { backgroundColor: colors.lime + '18' }]}>
-                          <ShieldCheck color={colors.lime} size={10} />
-                        </View>
-                      )}
                     </View>
                     <Text style={[styles.friendHandle, { color: colors.textMuted }]}>@{friend.handle}</Text>
                     <Text style={[styles.mutualText, { color: colors.textSoft }]}>{friend.mutualFriends} mutual · {friend.lastActive}</Text>
