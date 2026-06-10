@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Heart,
   MapPin,
-  Navigation,
   Users,
 } from 'lucide-react-native';
 
@@ -197,30 +196,6 @@ export default function VenueDetailScreen() {
           )}
 
 
-
-          {/* Actions */}
-          <View style={styles.actionsRow}>
-            <Pressable
-              onPress={handleHeart}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                {
-                  borderColor: hearted ? colors.coral : colors.border,
-                  backgroundColor: hearted ? (isDark ? 'rgba(255,109,94,0.1)' : 'rgba(224,85,69,0.06)') : 'transparent',
-                },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Heart
-                color={hearted ? colors.coral : colors.textMuted}
-                size={16}
-                fill={hearted ? colors.coral : 'transparent'}
-              />
-              <Text style={[styles.actionBtnText, { color: hearted ? colors.coral : colors.textMuted }]}>
-                {hearted ? 'Saved' : 'Save'}
-              </Text>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
     </View>
@@ -421,24 +396,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-  },
-  actionBtnText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
+
   pressed: {
     opacity: 0.85,
     transform: [{ scale: 0.97 }],
