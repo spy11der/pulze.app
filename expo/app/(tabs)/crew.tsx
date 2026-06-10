@@ -91,8 +91,8 @@ export default function CrewScreen() {
     (item: FriendCheckInFeedItem) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push({
-        pathname: '/venue-detail',
-        params: { venueId: item.venueId },
+        pathname: '/checkin-detail',
+        params: { checkInId: item.id },
       });
     },
     [router],

@@ -38,6 +38,7 @@ export interface FriendCheckInFeedItem {
   neighborhood: string;
   photoUri: string;
   timeAgo: string;
+  caption?: string;
 }
 
 export interface ProximityHint {
@@ -196,6 +197,7 @@ export const mockFriendCheckIns: FriendCheckInFeedItem[] = [
     neighborhood: 'RiNo',
     photoUri: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400&h=300&fit=crop',
     timeAgo: '12 min ago',
+    caption: 'Best cocktails in the city tonight 🍸',
   },
   {
     id: 'fci-2',
@@ -208,6 +210,7 @@ export const mockFriendCheckIns: FriendCheckInFeedItem[] = [
     neighborhood: 'LoDo',
     photoUri: 'https://images.unsplash.com/photo-1571251708453-078572a9c2c2?w=400&h=300&fit=crop',
     timeAgo: '28 min ago',
+    caption: 'This DJ is insane 🔥',
   },
   {
     id: 'fci-3',
@@ -220,6 +223,7 @@ export const mockFriendCheckIns: FriendCheckInFeedItem[] = [
     neighborhood: 'LoHi',
     photoUri: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=400&h=300&fit=crop',
     timeAgo: '42 min ago',
+    caption: 'Hidden entrance. Worth the wait.',
   },
   {
     id: 'fci-4',
@@ -244,6 +248,7 @@ export const mockFriendCheckIns: FriendCheckInFeedItem[] = [
     neighborhood: 'Cap Hill',
     photoUri: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&h=300&fit=crop',
     timeAgo: '2 hr ago',
+    caption: 'The stained glass lighting is unreal ✨',
   },
   {
     id: 'fci-6',
@@ -268,6 +273,7 @@ export const mockFriendCheckIns: FriendCheckInFeedItem[] = [
     neighborhood: 'Downtown',
     photoUri: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&h=300&fit=crop',
     timeAgo: '5 hr ago',
+    caption: 'Old Denver classic. Never gets old.',
   },
 ];
 
