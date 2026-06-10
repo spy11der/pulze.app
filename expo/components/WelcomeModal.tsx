@@ -1,43 +1,45 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MapPin, Ticket, Users } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Location from 'expo-location';
+import { BarChart3, Camera, MapPin, Users, Zap } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+
+import { useTheme } from '@/providers/ThemeProvider';
 
 const TEAL = '#2BBFBA';
 const STORAGE_KEY = 'pulze_open_count';
+const ONBOARDING_DONE_KEY = 'pulze_onboarding_done';
 const MAX_OPENS = 5;
 
-type Feature = {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const features: Feature[] = [
-  {
-    icon: <MapPin size={22} color={TEAL} />,
-    title: 'Live crowd levels',
-    subtitle: "Know if it's packed before you arrive",
-  },
-  {
-    icon: <Users size={22} color={TEAL} />,
-    title: 'Friend activity',
-    subtitle: 'See where your people are tonight',
-  },
-  {
-    icon: <Ticket size={22} color={TEAL} />,
-    title: 'Events near you',
-    subtitle: "Discover what's happening right now",
-  },
-];
+type Step = 0 | 1 | 2;
 
 export function WelcomeModal() {
+  const { colors } = useTheme();
+  const router = useRouter();
   const [visible, setVisible] = useState<boolean>(false);
+  const [step, setStep] = useState<Step>(0);
+  const [locationRequesting, setLocationRequesting] = useState<boolean>(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
+        const done = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
+        if (done === 'true') return;
+
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const current = raw ? parseInt(raw, 10) : 0;
         const safeCurrent = Number.isFinite(current) ? current : 0;
@@ -45,53 +47,199 @@ export function WelcomeModal() {
         await AsyncStorage.setItem(STORAGE_KEY, String(next));
         if (!cancelled && next <= MAX_OPENS) {
           setVisible(true);
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: true,
+          }).start();
         }
-        console.log('[WelcomeModal] open count:', next);
       } catch (err) {
-        console.log('[WelcomeModal] error reading open count', err);
+        console.log('[WelcomeModal] error:', err);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fadeAnim]);
+
+  const animateToStep = useCallback(
+    (next: Step) => {
+      Animated.timing(slideAnim, {
+        toValue: -next * SCREEN_WIDTH,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setStep(next));
+    },
+    [slideAnim],
+  );
+
+  const finishOnboarding = useCallback(async () => {
+    await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setVisible(false));
+  }, [fadeAnim]);
+
+  const requestLocation = useCallback(async () => {
+    setLocationRequesting(true);
+    try {
+      if (Platform.OS !== 'web') {
+        await Location.requestForegroundPermissionsAsync();
+      }
+    } catch (err) {
+      console.log('[WelcomeModal] location permission error:', err);
+    } finally {
+      setLocationRequesting(false);
+      animateToStep(2);
+    }
+  }, [animateToStep]);
+
+  const handleFindFriends = useCallback(async () => {
+    await finishOnboarding();
+    router.push('/friends');
+  }, [finishOnboarding, router]);
 
   if (!visible) return null;
 
   return (
-    <View style={styles.overlay} testID="welcome-modal">
-      <View style={styles.card}>
-        <View style={styles.pill}>
-          <Text style={styles.pillText}>WELCOME TO PULZE</Text>
-        </View>
-        <Text style={styles.headline}>Know before you go.</Text>
-        <Text style={styles.subtext}>
-          See real-time crowd levels, vibes, and events at bars, venues, and parks near you.
-        </Text>
-
-        <View style={styles.featureList}>
-          {features.map((f) => (
-            <View key={f.title} style={styles.featureRow}>
-              <View style={styles.featureIcon}>{f.icon}</View>
-              <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>{f.title}</Text>
-                <Text style={styles.featureSubtitle}>{f.subtitle}</Text>
-              </View>
-            </View>
+    <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} testID="welcome-modal">
+      <View style={[styles.card, { backgroundColor: colors.surfaceCard ?? '#0a2228' }]}>
+        {/* Page indicator dots */}
+        <View style={styles.dotsRow}>
+          {([0, 1, 2] as Step[]).map((s) => (
+            <View
+              key={s}
+              style={[
+                styles.dot,
+                s === step && styles.dotActive,
+                { backgroundColor: s === step ? TEAL : 'rgba(255,255,255,0.2)' },
+              ]}
+            />
           ))}
         </View>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => setVisible(false)}
-          activeOpacity={0.85}
-          testID="welcome-modal-cta"
+        <Animated.View
+          style={[styles.screensTrack, { transform: [{ translateX: slideAnim }] }]}
         >
-          <Text style={styles.buttonText}>Let&apos;s Go</Text>
-        </TouchableOpacity>
-        <Text style={styles.footnote}>Shows for your first 5 opens</Text>
+          {/* ── Screen 1: Welcome & Value Prop ── */}
+          <View style={styles.screen}>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>WELCOME TO PULZE</Text>
+            </View>
+            <Text style={styles.headline}>Know before you go.</Text>
+            <Text style={styles.subtext}>
+              See what&apos;s busy, discover the vibe, and let your crew know where you landed — all in real time.
+            </Text>
+
+            <View style={styles.featureList}>
+              <View style={styles.featureRow}>
+                <View style={styles.featureIcon}>
+                  <BarChart3 size={20} color={TEAL} />
+                </View>
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Real-time busyness</Text>
+                  <Text style={styles.featureSubtitle}>
+                    Every bar and club in Denver, updated live
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.featureRow}>
+                <View style={styles.featureIcon}>
+                  <Zap size={20} color={TEAL} />
+                </View>
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Discover what&apos;s popping</Text>
+                  <Text style={styles.featureSubtitle}>
+                    Find the best spots near you tonight
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.featureRow}>
+                <View style={styles.featureIcon}>
+                  <Camera size={20} color={TEAL} />
+                </View>
+                <View style={styles.featureText}>
+                  <Text style={styles.featureTitle}>Check in</Text>
+                  <Text style={styles.featureSubtitle}>
+                    Let your crew know where you landed
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => animateToStep(1)}
+              activeOpacity={0.85}
+              testID="onboarding-next-1"
+            >
+              <Text style={styles.buttonText}>Next</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Screen 2: Location Permission ── */}
+          <View style={styles.screen}>
+            <View style={[styles.largeIconWrap, { backgroundColor: 'rgba(43, 191, 186, 0.12)' }]}>
+              <MapPin size={32} color={TEAL} />
+            </View>
+            <Text style={styles.headline}>Enable location</Text>
+            <Text style={styles.subtext}>
+              Pulze uses your location to show busyness in real time and let your crew see where you are.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={requestLocation}
+              activeOpacity={0.85}
+              disabled={locationRequesting}
+              testID="onboarding-allow-location"
+            >
+              <Text style={styles.buttonText}>
+                {locationRequesting ? 'Requesting...' : 'Allow Location'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={() => animateToStep(2)}
+              activeOpacity={0.6}
+              testID="onboarding-skip-location"
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Screen 3: Connect with Friends ── */}
+          <View style={styles.screen}>
+            <View style={[styles.largeIconWrap, { backgroundColor: 'rgba(43, 191, 186, 0.12)' }]}>
+              <Users size={32} color={TEAL} />
+            </View>
+            <Text style={styles.headline}>Connect with friends</Text>
+            <Text style={styles.subtext}>
+              See where your people are tonight and stay in the loop.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleFindFriends}
+              activeOpacity={0.85}
+              testID="onboarding-find-friends"
+            >
+              <Text style={styles.buttonText}>Find Friends</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={finishOnboarding}
+              activeOpacity={0.6}
+              testID="onboarding-skip-friends"
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -110,12 +258,35 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    backgroundColor: '#0a2228',
     borderRadius: 24,
     padding: 32,
+    paddingTop: 28,
+    overflow: 'hidden',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dotActive: {
+    width: 20,
+  },
+  screensTrack: {
+    flexDirection: 'row',
+    width: SCREEN_WIDTH - 48,
+  },
+  screen: {
+    width: SCREEN_WIDTH - 48,
+    alignItems: 'center',
   },
   pill: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -131,17 +302,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 28,
     fontWeight: '700',
-    marginTop: 12,
+    marginTop: 16,
+    textAlign: 'center',
   },
   subtext: {
     color: '#888',
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   featureList: {
     marginTop: 28,
     gap: 18,
+    width: '100%',
   },
   featureRow: {
     flexDirection: 'row',
@@ -169,22 +344,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  largeIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   button: {
-    marginTop: 28,
+    marginTop: 32,
     backgroundColor: TEAL,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
+    width: '100%',
   },
   buttonText: {
     color: '#041318',
     fontSize: 16,
     fontWeight: '700',
   },
-  footnote: {
+  skipButton: {
+    marginTop: 14,
+    paddingVertical: 10,
+  },
+  skipText: {
     color: '#666',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
