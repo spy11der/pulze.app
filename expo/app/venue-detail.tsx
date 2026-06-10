@@ -23,7 +23,6 @@ import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import { getBusynessLabel, getBusynessColor, getBusynessBgColor } from '@/types/venue';
 import type { PulzeVenue } from '@/types/venue';
-import { MockCheckIn } from '@/mocks/city';
 
 export default function VenueDetailScreen() {
   const insets = useSafeAreaInsets();
