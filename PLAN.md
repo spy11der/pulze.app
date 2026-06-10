@@ -22,7 +22,7 @@
 
 ## Design
 
-- Dark, moody nightlife aesthetic — deep backgrounds with purple accent glow
+- Dark, moody nightlife aesthetic — deep backgrounds with teal accent glow
 - Compact venue cards with small square photo thumbnail on left, name, type chip, neighborhood, distance, busyness percentage in plain text (no bar), and vibe tags
 - Sticky horizontal filter pill row for instant feed filtering — no modals, no apply buttons
 - Busyness shown as a simple label: **Quiet**, **Getting Busy**, **Packed** with a colored indicator
