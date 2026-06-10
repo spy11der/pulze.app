@@ -141,7 +141,7 @@ export default function CrewScreen() {
     [colors, handleItemPress],
   );
 
-  const renderFooter = useCallback(() => {
+  const renderHeader = useCallback(() => {
     if (!proximityHint) return null;
 
     return (
@@ -180,7 +180,7 @@ export default function CrewScreen() {
           { paddingBottom: insets.bottom + 40 },
         ]}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        ListFooterComponent={renderFooter}
+        ListHeaderComponent={renderHeader}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginTop: 16,
+    marginBottom: 12,
   },
   proximityDot: {
     width: 8,
