@@ -288,7 +288,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700' as const,
     letterSpacing: 1,
-    textTransform: 'uppercase',
   },
   sectionCount: {
     fontSize: 12,

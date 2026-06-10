@@ -364,8 +364,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1.2,
+    letterSpacing: 0.5,
     marginTop: 14,
     marginBottom: 8,
     marginLeft: 2,

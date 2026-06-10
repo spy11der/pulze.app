@@ -204,7 +204,7 @@ export default function ProfileScreen() {
             { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>PULZE ID</Text>
+          <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>Pulze ID</Text>
           <Text style={[styles.idChipValue, { color: colors.text }]}>{currentUser.pulzeId}</Text>
           <Copy color={colors.aqua} size={14} />
         </Pressable>
@@ -416,14 +416,12 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: '600' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 1.2,
-    textTransform: 'uppercase',
     paddingHorizontal: 4,
     marginTop: 4,
   },

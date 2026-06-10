@@ -235,8 +235,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
     paddingLeft: 4,
   },
   fieldInput: {

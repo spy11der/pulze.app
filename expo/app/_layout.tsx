@@ -3,6 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
@@ -174,6 +175,8 @@ function AppContent() {
     </DataProvider>
   );
 }
+
+LogBox.ignoreAllLogs(true);
 
 export default function RootLayout() {
   useEffect(() => {

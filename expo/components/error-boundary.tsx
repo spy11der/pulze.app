@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1,
-    textTransform: 'uppercase',
   },
   title: {
     color: Colors.text,
