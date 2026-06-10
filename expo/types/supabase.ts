@@ -330,6 +330,36 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['sales']['Insert']>;
       };
+      check_ins: {
+        Row: {
+          id: string;
+          user_id: string;
+          venue_id: string;
+          venue_name: string;
+          neighborhood: string;
+          photo_url: string | null;
+          photo_visibility: boolean;
+          quip: string | null;
+          captured_at: string;
+          inserted_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          venue_id: string;
+          venue_name: string;
+          neighborhood: string;
+          photo_url?: string | null;
+          photo_visibility?: boolean;
+          quip?: string | null;
+          captured_at?: string;
+          inserted_at?: string;
+        };
+        Update: {
+          photo_visibility?: boolean;
+          quip?: string | null;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -197,17 +197,7 @@ export default function VenueDetailScreen() {
             </View>
           )}
 
-          {/* Check-in button */}
-          <Pressable
-            onPress={() => {
-              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              router.push('/(tabs)/post');
-            }}
-            style={({ pressed }) => [styles.checkInBtn, pressed && styles.pressed]}
-          >
-            <MapPin color="#041318" size={18} />
-            <Text style={styles.checkInText}>I Made It</Text>
-          </Pressable>
+
 
           {/* Actions */}
           <View style={styles.actionsRow}>
@@ -431,21 +421,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     resizeMode: 'cover',
   },
-  checkInBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#2BBFBA',
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginTop: 4,
-  },
-  checkInText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#041318',
-  },
+
   actionsRow: {
     flexDirection: 'row',
     gap: 10,

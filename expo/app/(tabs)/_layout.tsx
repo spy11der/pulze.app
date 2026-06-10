@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
-import { Chrome as Home, CirclePlus, UserRound } from 'lucide-react-native';
+import { Chrome as Home, UserRound } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 
@@ -58,20 +58,6 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ focused }) => (
             <Home
-              color={focused ? activeColor : inactiveColor}
-              fill="none"
-              size={24}
-              strokeWidth={focused ? 2.2 : 1.6}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="post"
-        options={{
-          title: 'Check In',
-          tabBarIcon: ({ focused }) => (
-            <CirclePlus
               color={focused ? activeColor : inactiveColor}
               fill="none"
               size={24}
