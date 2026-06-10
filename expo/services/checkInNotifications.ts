@@ -5,6 +5,9 @@ import type { PulzeVenue } from '@/types/venue';
 const CHECK_IN_CATEGORY = 'PULZE_CHECK_IN';
 
 export async function setupNotificationCategories(): Promise<void> {
+  // setNotificationCategoryAsync is native-only — skip on web
+  if (Platform.OS === 'web') return;
+
   await Notifications.setNotificationCategoryAsync(CHECK_IN_CATEGORY, [
     {
       identifier: 'lets_go',
@@ -37,6 +40,12 @@ export async function setupNotificationCategories(): Promise<void> {
 }
 
 export async function scheduleCheckInNotification(venue: PulzeVenue): Promise<void> {
+  // scheduleNotificationAsync is native-only — skip on web
+  if (Platform.OS === 'web') {
+    console.log('[Notifications] Web: would notify for', venue.name);
+    return;
+  }
+
   await Notifications.scheduleNotificationAsync({
     content: {
       title: `You made it to ${venue.name}`,
