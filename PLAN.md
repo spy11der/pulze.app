@@ -35,4 +35,5 @@
 - **Profile tab** — User avatar, stats (check-ins, saved, friends), check-in history feed, links to friends, settings, and activity
 - **Venue detail** — Hero photo, name, busyness gauge, venue type chip, neighborhood chip, address, recent check-in photos, directions button, and save button
 - **Check-in capture** — Full-screen front camera with 5-second countdown circle timer. Auto-captures, stamps photo with venue/neighborhood/time, shows quip, then presents Share/Just-check-in buttons
-- **Settings, Friends, Edit Profile** — kept as-is with ticketing/verification references removed
+- **Friends feed** — Vertical list of crew check-in activity. Each item shows a small square stamped photo thumbnail, friend name, venue, neighborhood, and time ago. A proximity hint at the bottom appears when a friend is nearby: "Sofia is 9 min away · Death & Co is popping right now" — calculated client-side, no backend call
+- **Settings, Edit Profile** — kept as-is with ticketing/verification references removed
