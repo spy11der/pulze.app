@@ -163,10 +163,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <Text style={[styles.bio, { color: colors.textMuted }]}>
-            {currentUser.bio}
-          </Text>
-
           <View style={styles.identityActions}>
             <Pressable
               onPress={() => router.push('/edit-profile')}
@@ -182,17 +178,6 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={handleCopyId}
-            style={({ pressed }) => [
-              styles.idChip,
-              { backgroundColor: colors.surfaceAlt, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-            ]}
-          >
-            <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>PULZE ID</Text>
-            <Text style={[styles.idChipValue, { color: colors.text }]}>{currentUser.pulzeId}</Text>
-            <Copy color={colors.aqua} size={14} />
-          </Pressable>
         </View>
 
         {/* Stats */}
@@ -210,6 +195,19 @@ export default function ProfileScreen() {
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
           </View>
         </View>
+
+        {/* Pulze ID */}
+        <Pressable
+          onPress={handleCopyId}
+          style={({ pressed }) => [
+            styles.idChip,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>PULZE ID</Text>
+          <Text style={[styles.idChipValue, { color: colors.text }]}>{currentUser.pulzeId}</Text>
+          <Copy color={colors.aqua} size={14} />
+        </Pressable>
 
         {/* Friends section */}
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Friends</Text>
