@@ -27,13 +27,14 @@
 - Sticky horizontal filter pill row for instant feed filtering — no modals, no apply buttons
 - Busyness shown as a simple label: **Quiet**, **Getting Busy**, **Packed** with a colored indicator
 - Check-in flow: triggered automatically by geofence proximity to a venue
-- 2-tab layout: Home, Profile — dead simple navigation
+- 4-tab layout: Discover, Nearby, Crew, Profile
 
 ## Screens
 
-- **Home tab** — City name + time-context header ("Denver, tonight" / "Denver, right now" depending on hour). Sticky horizontal filter pill row below header: "Popping now," "Low wait," "RiNo," "Cap Hill," "LoDo," "Baker," "Bars," "Clubs," "Breweries" — single tap instantly filters the feed. Compact venue cards (3+ visible on screen) with short photo banner, name, type chip, neighborhood, distance, busyness bar with percentage, and 1-2 vibe tags
-- **Profile tab** — User avatar, stats (check-ins, saved, friends), check-in history feed, links to friends, settings, and activity
+- **Discover tab** — City name + time-context header ("Denver, tonight" / "Denver, right now" depending on hour). Sticky horizontal filter pill row below header: "Popping now," "Low wait," "RiNo," "Cap Hill," "LoDo," "Baker," "Bars," "Clubs," "Breweries" — single tap instantly filters the feed. Compact venue cards (3+ visible on screen) with short photo banner, name, type chip, neighborhood, distance, busyness bar with percentage, and 1-2 vibe tags
+- **Nearby tab** — Tighter radius real-time view for when someone is already out. Shows venues very close to the user sorted by walking distance. Compact cards with name, type tag, distance in minutes, busyness bar with percentage, and 1-2 vibe tags. Stripped down and fast — no filter pills, just raw proximity
+- **Crew tab** — Friends check-in activity feed. Vertical list with small square stamped photo thumbnails, friend name, venue, neighborhood, and time ago. Proximity hint at the bottom when a friend is nearby: "Sofia is 9 min away · Death & Co is popping right now" — client-side distance calculation
+- **Profile tab** — User avatar, stats (check-ins, saved, friends), Pulze ID, friends list with inner circle, theme toggle, settings, activity, sign out
 - **Venue detail** — Hero photo, name, busyness gauge, venue type chip, neighborhood chip, address, recent check-in photos, directions button, and save button
 - **Check-in capture** — Full-screen front camera with 5-second countdown circle timer. Auto-captures, stamps photo with venue/neighborhood/time, shows quip, then presents Share/Just-check-in buttons
-- **Friends feed** — Vertical list of crew check-in activity. Each item shows a small square stamped photo thumbnail, friend name, venue, neighborhood, and time ago. A proximity hint at the bottom appears when a friend is nearby: "Sofia is 9 min away · Death & Co is popping right now" — calculated client-side, no backend call
 - **Settings, Edit Profile** — kept as-is with ticketing/verification references removed
