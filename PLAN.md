@@ -23,7 +23,7 @@
 ## Design
 
 - Dark, moody nightlife aesthetic — deep backgrounds with purple accent glow
-- Compact venue cards with short 78px photo banner, busyness bar with percentage, and vibe tags
+- Compact venue cards with small square photo thumbnail on left, name, type chip, neighborhood, distance, busyness percentage in plain text (no bar), and vibe tags
 - Sticky horizontal filter pill row for instant feed filtering — no modals, no apply buttons
 - Busyness shown as a simple label: **Quiet**, **Getting Busy**, **Packed** with a colored indicator
 - Check-in flow: triggered automatically by geofence proximity to a venue
@@ -31,7 +31,7 @@
 
 ## Screens
 
-- **Discover tab** — City name + time-context header ("Denver, tonight" / "Denver, right now" depending on hour). Sticky horizontal filter pill row below header: "Popping now," "Low wait," "RiNo," "Cap Hill," "LoDo," "Baker," "Bars," "Clubs," "Breweries" — single tap instantly filters the feed. Compact venue cards (3+ visible on screen) with short photo banner, name, type chip, neighborhood, distance, busyness bar with percentage, and 1-2 vibe tags
+- **Discover tab** — City name + time-context header ("Denver, tonight" / "Denver, right now" depending on hour). Sticky horizontal filter pill row below header: "Popping now," "Low wait," "RiNo," "Cap Hill," "LoDo," "Baker," "Bars," "Clubs," "Breweries" — single tap instantly filters the feed. Compact venue cards (3+ visible on screen) with small square photo thumbnail on left, name, type chip, neighborhood, distance, busyness percentage in plain text (no bar), and 1-2 vibe tags
 - **Nearby tab** — Tighter radius real-time view for when someone is already out. Shows venues very close to the user sorted by walking distance. Compact cards with name, type tag, distance in minutes, busyness bar with percentage, and 1-2 vibe tags. Stripped down and fast — no filter pills, just raw proximity
 - **Crew tab** — Friends check-in activity feed. Vertical list with small square stamped photo thumbnails, friend name, venue, neighborhood, and time ago. Proximity hint at the bottom when a friend is nearby: "Sofia is 9 min away · Death & Co is popping right now" — client-side distance calculation
 - **Profile tab** — User avatar, stats (check-ins, saved, friends), Pulze ID, friends list with inner circle, theme toggle, settings, activity, sign out

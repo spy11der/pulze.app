@@ -10,15 +10,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-  MapPin,
-  Clock,
-} from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { getVenuesSortedByBusyness } from '@/mocks/venues';
 import { useTheme } from '@/providers/ThemeProvider';
-import { getBusynessLabel, getBusynessColor } from '@/types/venue';
+
 import type { PulzeVenue } from '@/types/venue';
 
 const allVenues = getVenuesSortedByBusyness();
@@ -238,8 +235,6 @@ const VenueCard = React.memo(function VenueCard({
   onPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
-  const busynessColor = getBusynessColor(venue.busyness);
-  const busynessLabel = getBusynessLabel(venue.busyness);
   const photoUri = venue.photo ?? venue.photos[0];
   const displayTags = venue.tags.slice(0, 2);
 
@@ -249,35 +244,21 @@ const VenueCard = React.memo(function VenueCard({
       style={({ pressed }) => [
         styles.card,
         { backgroundColor: colors.surface, borderColor: colors.border },
-        pressed && styles.cardPressed,
+        pressed && { opacity: 0.8 },
       ]}
     >
-      {/* Photo banner */}
-      <View style={styles.cardPhotoWrap}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.cardPhoto} />
-        ) : (
-          <View style={[styles.cardPhotoPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
-            <MapPin color={colors.aqua} size={20} />
-          </View>
-        )}
-        {/* Busyness badge on photo */}
-        <View
-          style={[
-            styles.busynessBadge,
-            { backgroundColor: busynessColor + '26' },
-          ]}
-        >
-          <View style={[styles.busynessDot, { backgroundColor: busynessColor }]} />
-          <Text style={[styles.busynessBadgeText, { color: busynessColor }]}>
-            {busynessLabel}
-          </Text>
+      {/* Small square thumbnail on the left */}
+      {photoUri ? (
+        <Image source={{ uri: photoUri }} style={styles.thumbnail} />
+      ) : (
+        <View style={[styles.thumbnailPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
+          <MapPin color={colors.aqua} size={16} />
         </View>
-      </View>
+      )}
 
-      {/* Info */}
-      <View style={styles.cardInfo}>
-        {/* Row 1: name + type chip */}
+      {/* Info on the right */}
+      <View style={styles.cardBody}>
+        {/* Row 1: venue name + type chip */}
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
             {venue.name}
@@ -289,33 +270,18 @@ const VenueCard = React.memo(function VenueCard({
 
         {/* Row 2: neighborhood + distance */}
         <View style={styles.cardRow2}>
-          <View style={styles.metaItem}>
-            <MapPin color={colors.textSoft} size={11} />
-            <Text style={[styles.metaText, { color: colors.textSoft }]}>{venue.neighborhood}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Clock color={colors.textSoft} size={11} />
-            <Text style={[styles.metaText, { color: colors.textSoft }]}>{venue.eta}</Text>
-          </View>
+          <MapPin color={colors.textMuted} size={10} />
+          <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
+            {venue.neighborhood}
+          </Text>
+          <Text style={[styles.metaDot, { color: colors.textMuted }]}>·</Text>
+          <Text style={[styles.metaText, { color: colors.textMuted }]}>{venue.eta}</Text>
         </View>
 
-        {/* Row 3: busyness bar */}
-        <View style={styles.barRow}>
-          <View style={[styles.barTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
-            <View
-              style={[
-                styles.barFill,
-                {
-                  backgroundColor: busynessColor,
-                  width: `${venue.busynessPercent}%` as unknown as undefined,
-                },
-              ]}
-            />
-          </View>
-          <Text style={[styles.barPercent, { color: busynessColor }]}>
-            {venue.busynessPercent}%
-          </Text>
-        </View>
+        {/* Row 3: busyness percentage — plain white, no bar, no color */}
+        <Text style={[styles.busynessPercent, { color: colors.text }]}>
+          {venue.busynessPercent}%
+        </Text>
 
         {/* Row 4: vibe tags */}
         {displayTags.length > 0 && (
@@ -332,7 +298,7 @@ const VenueCard = React.memo(function VenueCard({
   );
 });
 
-const PHOTO_HEIGHT = 78;
+const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -390,63 +356,39 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
 
-  // Cards
+  // Cards — compact row layout (Crew-style)
   cardList: {
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 8,
     paddingTop: 4,
   },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden' as const,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 10,
   },
-  cardPressed: {
-    opacity: 0.94,
-    transform: [{ scale: 0.988 }],
+  thumbnail: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-
-  // Photo
-  cardPhotoWrap: {
-    position: 'relative' as const,
-    height: PHOTO_HEIGHT,
-  },
-  cardPhoto: {
-    width: '100%',
-    height: PHOTO_HEIGHT,
-    resizeMode: 'cover' as const,
-  },
-  cardPhotoPlaceholder: {
-    width: '100%',
-    height: PHOTO_HEIGHT,
+  thumbnailPlaceholder: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 10,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  busynessBadge: {
-    position: 'absolute' as const,
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  busynessDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  busynessBadgeText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-  },
 
-  // Card info
-  cardInfo: {
-    padding: 10,
-    gap: 6,
+  // Card body (right side of thumbnail)
+  cardBody: {
+    flex: 1,
+    gap: 3,
+    justifyContent: 'center' as const,
   },
   cardRow1: {
     flexDirection: 'row',
@@ -455,69 +397,50 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700' as const,
     flex: 1,
   },
   typeChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
   typeChipText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600' as const,
   },
   cardRow2: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 4,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500' as const,
   },
+  metaDot: {
+    fontSize: 11,
+  },
 
-  // Busyness bar
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  barTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden' as const,
-  },
-  barFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  barPercent: {
+  // Busyness percentage — plain text, no bar
+  busynessPercent: {
     fontSize: 12,
-    fontWeight: '700' as const,
-    width: 32,
-    textAlign: 'right' as const,
+    fontWeight: '600' as const,
   },
 
   // Tags
   tagsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
   tagChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   tagText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500' as const,
   },
 
