@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { pulzeVenues } from '@/mocks/venues';
@@ -19,25 +20,32 @@ interface GeofenceTrigger {
   triggeredAt: number;
 }
 
-TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error: taskError }) => {
-  if (taskError) {
-    console.log('[Geofence] Task error:', taskError.message);
-    return;
+// TaskManager.defineTask is native-only — only register on iOS/Android
+if (Platform.OS !== 'web') {
+  try {
+    TaskManager.defineTask(GEOFENCE_TASK, async ({ data, error: taskError }) => {
+      if (taskError) {
+        console.log('[Geofence] Task error:', taskError.message);
+        return;
+      }
+
+      const { locations } = data as { locations: Location.LocationObject[] };
+      if (!locations || locations.length === 0) return;
+
+      const userLoc = locations[locations.length - 1];
+      if (!userLoc) return;
+
+      console.log('[Geofence] Background location update:', userLoc.coords.latitude, userLoc.coords.longitude);
+
+      await checkProximityAndNotify(
+        userLoc.coords.latitude,
+        userLoc.coords.longitude,
+      );
+    });
+  } catch (e) {
+    console.log('[Geofence] defineTask not supported on this platform:', e);
   }
-
-  const { locations } = data as { locations: Location.LocationObject[] };
-  if (!locations || locations.length === 0) return;
-
-  const userLoc = locations[locations.length - 1];
-  if (!userLoc) return;
-
-  console.log('[Geofence] Background location update:', userLoc.coords.latitude, userLoc.coords.longitude);
-
-  await checkProximityAndNotify(
-    userLoc.coords.latitude,
-    userLoc.coords.longitude,
-  );
-});
+}
 
 async function checkProximityAndNotify(lat: number, lng: number): Promise<void> {
   for (const venue of pulzeVenues) {
@@ -102,6 +110,12 @@ function haversineDistance(
 }
 
 export async function startGeofenceMonitoring(): Promise<boolean> {
+  // Geofence monitoring is native-only — no-op on web
+  if (Platform.OS === 'web') {
+    console.log('[Geofence] Web: geofence monitoring not supported, skipping');
+    return false;
+  }
+
   try {
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
     if (fgStatus !== 'granted') {
@@ -139,6 +153,8 @@ export async function startGeofenceMonitoring(): Promise<boolean> {
 }
 
 export async function stopGeofenceMonitoring(): Promise<void> {
+  if (Platform.OS === 'web') return;
+
   try {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCE_TASK);
     if (isRegistered) {
