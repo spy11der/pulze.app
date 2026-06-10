@@ -14,6 +14,7 @@ export interface PulzeVenue {
   neighborhood: Neighborhood;
   address: string;
   vibe: string;
+  tags: string[];
   photo?: string;
   photos: string[];
   eta: string;

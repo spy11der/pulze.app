@@ -11,6 +11,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'RiNo',
     address: '2900 Larimer St, Denver, CO 80205',
     vibe: 'Craft cocktails and dimly lit booths — always a line after 9',
+    tags: ['Craft Cocktails', 'Dark & Moody'],
     latitude: 39.7594,
     longitude: -104.9815,
     photos: [
@@ -34,6 +35,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'Cap Hill',
     address: '1037 Broadway, Denver, CO 80203',
     vibe: 'Neon-lit dance floor, cheap drinks, indie DJs spinning late',
+    tags: ['Indie DJs', 'Cheap Drinks'],
     latitude: 39.7325,
     longitude: -104.9875,
     photos: [
@@ -56,6 +58,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'LoDo',
     address: '1136 Broadway, Denver, CO 80203',
     vibe: 'Three rooms of EDM and hip-hop, massive sound system, dress code enforced',
+    tags: ['EDM', 'Hip-Hop'],
     latitude: 39.7344,
     longitude: -104.9878,
     photos: [
@@ -78,6 +81,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'LoHi',
     address: '3200 Pecos St, Denver, CO 80211',
     vibe: 'Seven restaurant concepts, two bars, killer skyline views from the rooftop',
+    tags: ['Skyline Views', 'Food Hall'],
     latitude: 39.7625,
     longitude: -105.0066,
     photos: [
@@ -100,6 +104,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'Downtown',
     address: '1600 17th St, Denver, CO 80202',
     vibe: 'Art deco martini bar inside the Oxford Hotel — pure old Denver glamour',
+    tags: ['Martinis', 'Old Denver'],
     latitude: 39.7526,
     longitude: -104.9972,
     photos: [
@@ -122,6 +127,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'RiNo',
     address: '2721 Larimer St, Denver, CO 80205',
     vibe: 'Legendary indie rock dive, cheap PBR, and a patio that gets rowdy',
+    tags: ['Indie Rock', 'Patio'],
     latitude: 39.7587,
     longitude: -104.9828,
     photos: [
@@ -144,6 +150,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'Cap Hill',
     address: '1160 Lincoln St, Denver, CO 80203',
     vibe: 'Actual converted church with stained glass and a massive dance floor',
+    tags: ['Dance Floor', 'Unique Venue'],
     latitude: 39.7348,
     longitude: -104.9866,
     photos: [
@@ -166,6 +173,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'LoHi',
     address: '3160 Tejon St, Denver, CO 80211',
     vibe: 'Hidden behind a bookshelf — award-winning cocktails in a cozy den',
+    tags: ['Hidden Gem', 'Award-Winning'],
     latitude: 39.7619,
     longitude: -105.0113,
     photos: [
@@ -188,6 +196,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'RiNo',
     address: '2854 Walnut St, Denver, CO 80205',
     vibe: 'Laid-back neighborhood bar, great patio, solid beer list — early crowd',
+    tags: ['Patio', 'Beer List'],
     latitude: 39.7608,
     longitude: -104.9838,
     photos: [
@@ -209,6 +218,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'South Broadway',
     address: '1037 Broadway, Denver, CO 80203',
     vibe: 'House and techno upstairs, dark and sweaty, real Denver underground',
+    tags: ['House', 'Techno'],
     latitude: 39.7318,
     longitude: -104.9872,
     photos: [
@@ -231,6 +241,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'RiNo',
     address: '1012 Ford St, Golden, CO 80401',
     vibe: 'Pour-your-own beer wall, rooftop views, food hall — great for groups',
+    tags: ['Pour-Your-Own', 'Rooftop'],
     latitude: 39.7570,
     longitude: -105.2220,
     photos: [
@@ -252,6 +263,7 @@ export const pulzeVenues: PulzeVenue[] = [
     neighborhood: 'RiNo',
     address: '2701 Larimer St, Denver, CO 80205',
     vibe: 'No-frills dive with a legendary back patio, DJs, and stiff drinks',
+    tags: ['Back Patio', 'Stiff Drinks'],
     latitude: 39.7585,
     longitude: -104.9832,
     photos: [
