@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1 },
   heroWrap: {
     width: '100%',
-    height: 320,
+    height: 180,
     position: 'relative',
   },
   heroImage: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 180,
+    height: 100,
   },
   heroContent: {
     position: 'absolute',
@@ -234,18 +234,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   heroName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700' as const,
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   heroChips: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 6,
   },
   chip: {
     flexDirection: 'row',
