@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { MapPin } from 'lucide-react-native';
+import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -147,16 +147,21 @@ export default function NearbyScreen() {
       {/* Header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
-            <View style={styles.timeRow}>
-              <View style={[styles.liveDot, { backgroundColor: colors.aquaBright }]} />
-              <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Near you, right now</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={() => router.push('/activity')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Bell color={colors.textMuted} size={20} />
+            </Pressable>
+            <View>
+              <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
+              <View style={styles.timeRow}>
+                <View style={[styles.liveDot, { backgroundColor: colors.aquaBright }]} />
+                <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Near you, right now</Text>
+              </View>
             </View>
           </View>
-          <Text style={[styles.radiusBadge, { color: colors.textMuted, borderColor: colors.border }]}>
-            {nearbyVenues.length} spots
-          </Text>
         </View>
       </View>
 

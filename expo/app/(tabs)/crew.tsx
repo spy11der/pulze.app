@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { MapPin } from 'lucide-react-native';
+import { Bell, MapPin } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
@@ -169,8 +169,18 @@ export default function CrewScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
-        <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable
+            onPress={() => router.push('/activity')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Bell color={colors.textMuted} size={20} />
+          </Pressable>
+          <View>
+            <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
+          </View>
+        </View>
       </View>
 
       <FlatList

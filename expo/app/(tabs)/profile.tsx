@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import {
-  Bell,
   ChevronRight,
   Copy,
   Edit3,
@@ -257,12 +256,6 @@ export default function ProfileScreen() {
             label="Settings"
             sublabel="Privacy, alerts, location"
             onPress={() => router.push('/settings')}
-          />
-          <MenuRow
-            icon={<Bell />}
-            label="Activity"
-            sublabel="Your check-in history and notifications"
-            onPress={() => router.push('/activity')}
           />
         </View>
 
