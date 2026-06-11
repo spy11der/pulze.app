@@ -12,7 +12,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Heart,
+  Bookmark,
   MapPin,
   Users,
 } from 'lucide-react-native';
@@ -36,7 +36,7 @@ export default function VenueDetailScreen() {
     router.back();
   }, [router]);
 
-  const handleHeart = useCallback(() => {
+  const handleBookmark = useCallback(() => {
     if (!venue) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     toggleFavorite(venue.id, 'venue', venue.name);
@@ -44,7 +44,7 @@ export default function VenueDetailScreen() {
 
   if (!venue) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <View style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={[styles.errorContainer, { paddingTop: insets.top + 60 }]}>
           <Text style={[styles.errorText, { color: colors.textMuted }]}>Venue not found</Text>
@@ -56,16 +56,15 @@ export default function VenueDetailScreen() {
     );
   }
 
-  const hearted = isFavorited(venue.id);
+  const bookmarked = isFavorited(venue.id);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: insets.bottom }}
+    >
       <Stack.Screen options={{ headerShown: false }} />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
-      >
         {/* Hero */}
         <View style={styles.heroWrap}>
           {venue.photo ? (
@@ -99,13 +98,13 @@ export default function VenueDetailScreen() {
             <ArrowLeft color="#fff" size={20} />
           </Pressable>
           <Pressable
-            onPress={handleHeart}
+            onPress={handleBookmark}
             style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
           >
-            <Heart
-              color={hearted ? '#FF6B6B' : '#fff'}
+            <Bookmark
+              color={bookmarked ? colors.aqua : '#fff'}
               size={20}
-              fill={hearted ? '#FF6B6B' : 'transparent'}
+              fill={bookmarked ? colors.aqua : 'transparent'}
             />
           </Pressable>
         </View>
@@ -169,14 +168,11 @@ export default function VenueDetailScreen() {
 
 
         </View>
-      </ScrollView>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {},
-  content: {},
   heroWrap: {
     width: '100%',
     height: 180,
