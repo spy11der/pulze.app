@@ -20,7 +20,7 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
-import type { PulzeVenue } from '@/types/venue';
+import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
 
 export default function VenueDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -112,9 +112,8 @@ export default function VenueDetailScreen() {
 
         {/* Body */}
         <View style={styles.body}>
-          {/* Busyness — plain white text only */}
           <Text style={[styles.busynessText, { color: colors.text }]}>
-            {venue.busynessPercent}% full
+            {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
           </Text>
 
           {/* Stats */}
