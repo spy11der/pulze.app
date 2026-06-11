@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
+  Bell,
   Calendar,
   Camera,
   ChevronDown,
@@ -21,6 +22,7 @@ import {
   Heart,
   Inbox,
   MapPin,
+  Navigation,
   UserPlus,
 } from 'lucide-react-native';
 
@@ -29,7 +31,7 @@ import { pulzeVenues } from '@/mocks/venues';
 
 type TabKey = 'notifications' | 'nearby' | 'friendRequests';
 
-type NotifType = 'checkin' | 'busy' | 'request' | 'like' | 'event';
+type NotifType = 'checkin' | 'busy' | 'like' | 'event';
 
 interface NotifItem {
   id: string;
@@ -42,13 +44,11 @@ interface NotifItem {
 const MOCK_NOTIFS: NotifItem[] = [
   { id: 'n1', type: 'checkin', title: 'Maya checked into Mica Rooftop', time: '2 min ago', unread: true },
   { id: 'n2', type: 'busy', title: 'Fillmore Auditorium is getting busy', time: '8 min ago', unread: true },
-  { id: 'n3', type: 'request', title: 'Devon wants to connect', time: '34 min ago', unread: true },
   { id: 'n4', type: 'checkin', title: 'Sasha checked into Cervantes Masterpiece', time: '52 min ago', unread: false },
   { id: 'n5', type: 'like', title: 'Jordan liked your vibe at Bluebird Theater', time: '1 hr ago', unread: false },
   { id: 'n6', type: 'event', title: 'Khruangbin at Red Rocks starts in 2 hours', time: '2 hrs ago', unread: false },
   { id: 'n7', type: 'busy', title: 'Comedy Works Downtown is getting busy', time: '2 hrs ago', unread: false },
   { id: 'n8', type: 'like', title: 'Avery liked your vibe at Gothic Theatre', time: '3 hrs ago', unread: false },
-  { id: 'n9', type: 'request', title: 'Riley wants to connect', time: '4 hrs ago', unread: false },
   { id: 'n10', type: 'checkin', title: 'Theo checked into Meow Wolf Denver', time: '5 hrs ago', unread: false },
 ];
 
@@ -83,7 +83,6 @@ function getNotifIcon(type: NotifType, color: string, warning: string) {
   switch (type) {
     case 'checkin': return <MapPin color={color} size={size} />;
     case 'busy': return <Flame color={warning} size={size} />;
-    case 'request': return <UserPlus color={color} size={size} />;
     case 'like': return <Heart color={color} size={size} />;
     case 'event': return <Calendar color={color} size={size} />;
   }
@@ -97,8 +96,21 @@ export default function ActivityScreen() {
   const [notifs, setNotifs] = useState<NotifItem[]>(MOCK_NOTIFS);
   const [friendReqs, setFriendReqs] = useState<FriendRequestItem[]>(MOCK_FRIEND_REQUESTS);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0 });
+  const [dropdownY, setDropdownY] = useState(0);
   const triggerRef = useRef<View>(null);
+
+  const unreadByTab = useMemo<Record<TabKey, number>>(() => {
+    const notifUnread = notifs.filter((n) => n.unread).length;
+    const friendUnread = friendReqs.length;
+    const nearbyUnread = 0;
+    return { notifications: notifUnread, nearby: nearbyUnread, friendRequests: friendUnread };
+  }, [notifs, friendReqs]);
+
+  const hasAnyUnread = useMemo(() => {
+    return Object.values(unreadByTab).some((v) => v > 0);
+  }, [unreadByTab]);
+
+  const chevronColor = hasAnyUnread ? colors.aqua : colors.textMuted;
 
   const nearby = useMemo(() => {
     return pulzeVenues.slice(0, 6).map((v, i) => ({
@@ -125,8 +137,8 @@ export default function ActivityScreen() {
   }, []);
 
   const handleOpenDropdown = useCallback(() => {
-    triggerRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
-      setDropdownPos({ x: pageX, y: pageY + 4 });
+    triggerRef.current?.measure((_x, _y, _w, h, _pageX, pageY) => {
+      setDropdownY(pageY + h + 8);
       setShowDropdown(true);
     });
   }, []);
@@ -170,34 +182,11 @@ export default function ActivityScreen() {
             {item.title}
           </Text>
           <Text style={[styles.notifTime, { color: colors.textSoft }]}>{item.time}</Text>
-          {item.type === 'request' && (
-            <View style={styles.actionRow}>
-              <Pressable
-                onPress={() => handleAccept(item.id)}
-                style={({ pressed }) => [
-                  styles.acceptBtn,
-                  { backgroundColor: colors.aqua, opacity: pressed ? 0.85 : 1 },
-                ]}
-                testID={`accept-${item.id}`}
-              >
-                <Text style={[styles.acceptText, { color: colors.background }]}>Accept</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleDecline(item.id)}
-                style={({ pressed }) => [
-                  styles.declineBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-                ]}
-                testID={`decline-${item.id}`}
-              >
-                <Text style={[styles.declineText, { color: colors.textMuted }]}>Decline</Text>
-              </Pressable>
-            </View>
-          )}
+    
         </View>
       </View>
     );
-  }, [colors, handleAccept, handleDecline]);
+  }, [colors]);
 
   const renderNearby: ListRenderItem<typeof nearby[number]> = useCallback(({ item }) => {
     const dotColor = getVibeDotColor(item.venue.busynessPercent);
@@ -295,31 +284,39 @@ export default function ActivityScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
-          testID="activity-back"
-        >
-          <ArrowLeft color={colors.text} size={22} />
-        </Pressable>
+        <View style={styles.headerSide}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
+            testID="activity-back"
+          >
+            <ArrowLeft color={colors.text} size={22} />
+          </Pressable>
+        </View>
         <Pressable
           ref={triggerRef}
           onPress={handleOpenDropdown}
-          style={({ pressed }) => [styles.dropdownTrigger, { opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [
+            styles.dropdownTrigger,
+            showDropdown && styles.dropdownTriggerDimmed,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
           testID="activity-dropdown"
         >
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             {TAB_LABELS[tab]}
           </Text>
-          <ChevronDown color={colors.textMuted} size={14} style={styles.chevron} />
+          <ChevronDown color={chevronColor} size={14} style={styles.chevron} />
         </Pressable>
-        <Pressable
-          onPress={handleMarkAll}
-          style={({ pressed }) => [styles.markBtn, { opacity: pressed ? 0.6 : 1 }]}
-          testID="mark-all-read"
-        >
-          <Text style={[styles.markText, { color: colors.aqua }]}>Mark all read</Text>
-        </Pressable>
+        <View style={styles.headerSide}>
+          <Pressable
+            onPress={handleMarkAll}
+            style={({ pressed }) => [styles.markBtn, { opacity: pressed ? 0.6 : 1 }]}
+            testID="mark-all-read"
+          >
+            <Text style={[styles.markText, { color: colors.aqua }]}>Mark all read</Text>
+          </Pressable>
+        </View>
       </View>
 
       {showDropdown && (
@@ -330,42 +327,53 @@ export default function ActivityScreen() {
             testID="dropdown-backdrop"
           >
             <View
-              style={[
-                styles.dropdownMenu,
-                {
-                  top: dropdownPos.y,
-                  left: dropdownPos.x,
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
+              style={[styles.dropdownAnchor, { top: dropdownY }]}
+              pointerEvents="box-none"
             >
-              {(Object.keys(TAB_LABELS) as TabKey[]).map((t) => {
-                const isActive = tab === t;
-                return (
-                  <Pressable
-                    key={t}
-                    onPress={() => handleSelectTab(t)}
-                    style={({ pressed }) => [
-                      styles.dropdownItem,
-                      { backgroundColor: pressed ? colors.aqua + '0F' : 'transparent' },
-                    ]}
-                    testID={`dropdown-${t}`}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownItemText,
-                        {
-                          color: isActive ? colors.aqua : colors.text,
-                          fontWeight: isActive ? ('700' as const) : ('500' as const),
-                        },
+              <View
+                style={[
+                  styles.dropdownMenu,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {(Object.keys(TAB_LABELS) as TabKey[]).map((t) => {
+                  const isActive = tab === t;
+                  const hasUnread = unreadByTab[t] > 0;
+                  const iconColor = hasUnread ? colors.aqua : colors.textMuted;
+                  const tabIcons: Record<TabKey, React.ReactNode> = {
+                    notifications: <Bell color={iconColor} size={16} />,
+                    nearby: <Navigation color={iconColor} size={16} />,
+                    friendRequests: <UserPlus color={iconColor} size={16} />,
+                  };
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => handleSelectTab(t)}
+                      style={({ pressed }) => [
+                        styles.dropdownItem,
+                        { backgroundColor: pressed ? colors.aqua + '0F' : 'transparent' },
                       ]}
+                      testID={`dropdown-${t}`}
                     >
-                      {TAB_LABELS[t]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      {tabIcons[t]}
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          {
+                            color: isActive ? colors.aqua : colors.text,
+                            fontWeight: isActive ? ('700' as const) : ('500' as const),
+                          },
+                        ]}
+                      >
+                        {TAB_LABELS[t]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           </Pressable>
         </Modal>
@@ -437,10 +445,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 8,
+  },
+  headerSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerBtn: {
     width: 36,
@@ -450,11 +462,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dropdownTrigger: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
+  },
+  dropdownTriggerDimmed: {
+    opacity: 0.35,
   },
   headerTitle: {
     fontSize: 17,
@@ -465,21 +479,29 @@ const styles = StyleSheet.create({
   markBtn: { paddingHorizontal: 8, paddingVertical: 8 },
   markText: { fontSize: 13, fontWeight: '700' as const },
   backdrop: { flex: 1 },
-  dropdownMenu: {
+  dropdownAnchor: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  dropdownMenu: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 6,
-    minWidth: 180,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.22,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 14,
   },
   dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     borderRadius: 10,
   },
   dropdownItemText: { fontSize: 15 },
@@ -505,16 +527,7 @@ const styles = StyleSheet.create({
   notifBody: { flex: 1, gap: 4 },
   notifTitle: { fontSize: 14, fontWeight: '600' as const, lineHeight: 19 },
   notifTime: { fontSize: 12, fontWeight: '500' as const },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  acceptBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999 },
-  acceptText: { fontSize: 12, fontWeight: '700' as const },
-  declineBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  declineText: { fontSize: 12, fontWeight: '700' as const },
+
   nearbyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -562,6 +575,16 @@ const styles = StyleSheet.create({
   friendName: { fontSize: 14, fontWeight: '700' as const },
   friendMeta: { fontSize: 12 },
   friendTime: { fontSize: 11, fontWeight: '600' as const },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  acceptBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999 },
+  acceptText: { fontSize: 12, fontWeight: '700' as const },
+  declineBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  declineText: { fontSize: 12, fontWeight: '700' as const },
   manualCheckin: {
     flexDirection: 'row',
     alignItems: 'center',
