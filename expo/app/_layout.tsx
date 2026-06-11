@@ -13,10 +13,12 @@ import { BiometricAuthProvider } from '@/providers/BiometricAuthProvider';
 import { DataProvider } from '@/providers/DataProvider';
 import { FavoritesProvider } from '@/providers/FavoritesProvider';
 import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
+import { TabScrollProvider } from '@/providers/TabScrollProvider';
 import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
 import { CityWelcome } from '@/components/CityWelcome';
 import { AuthScreen } from '@/components/AuthScreen';
+import { PersistentFloatingTabBar } from '@/components/FloatingTabBar';
 import { setupNotificationCategories, registerNotificationResponseHandler } from '@/services/checkInNotifications';
 import { startGeofenceMonitoring, stopGeofenceMonitoring, setCurrentUserId } from '@/services/geofence';
 import { insertCheckIn } from '@/services/checkInDatabase';
@@ -160,17 +162,20 @@ function AppContent() {
     <DataProvider>
       <FavoritesProvider>
         <BiometricAuthProvider>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <RootLayoutNav />
-          <LockScreen />
-          {splashDone && (
-            <CityWelcome
-              cityName="Denver"
-              cityTagline="See what's busy tonight"
-            />
-          )}
-          {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
-          <WelcomeModal />
+          <TabScrollProvider>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+            <RootLayoutNav />
+            <PersistentFloatingTabBar />
+            <LockScreen />
+            {splashDone && (
+              <CityWelcome
+                cityName="Denver"
+                cityTagline="See what's busy tonight"
+              />
+            )}
+            {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
+            <WelcomeModal />
+          </TabScrollProvider>
         </BiometricAuthProvider>
       </FavoritesProvider>
     </DataProvider>

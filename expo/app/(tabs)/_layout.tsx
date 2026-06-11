@@ -3,8 +3,6 @@ import React from 'react';
 import { Compass, Radio, UserRound, Users } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { TabScrollProvider } from '@/providers/TabScrollProvider';
-import { FloatingTabBar } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -20,11 +18,10 @@ export default function TabLayout() {
     );
 
   return (
-    <TabScrollProvider>
-      <Tabs
-        screenOptions={{ headerShown: false }}
-        tabBar={(props) => <FloatingTabBar {...props} />}
-      >
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={() => null}
+    >
         <Tabs.Screen
           name="index"
           options={{
@@ -58,6 +55,5 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </TabScrollProvider>
   );
 }
