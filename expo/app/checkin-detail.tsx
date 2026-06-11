@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { ArrowLeft } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { mockFriendCheckIns } from '@/mocks/friends';
@@ -75,19 +74,6 @@ export default function CheckinDetailScreen() {
           },
         ]}
       >
-        {/* Back button */}
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={handleBack}
-            style={[
-              styles.backCircle,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
-            ]}
-          >
-            <ArrowLeft color={colors.text} size={20} />
-          </Pressable>
-        </View>
-
         {/* Main info area */}
         <View style={styles.panelContent}>
           {/* Row: avatar + name … percentage */}

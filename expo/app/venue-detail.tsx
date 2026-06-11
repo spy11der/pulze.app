@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
-  ArrowLeft,
   Bookmark,
   Compass,
   MapPin,
@@ -99,17 +98,7 @@ export default function VenueDetailScreen() {
             },
           ]}
         >
-          <Pressable
-            onPress={handleBack}
-            style={({ pressed }) => [
-              styles.headerBtn,
-              pressed && styles.headerBtnPressed,
-            ]}
-            hitSlop={8}
-          >
-            <ArrowLeft color={colors.text} size={20} />
-          </Pressable>
-
+          <View style={{ flex: 1 }} />
           <Pressable
             onPress={handleBookmark}
             style={({ pressed }) => [

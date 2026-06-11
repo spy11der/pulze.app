@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -13,7 +12,6 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
-  ArrowLeft,
   Bell,
   Calendar,
   Camera,
@@ -118,12 +116,6 @@ export default function ActivityScreen() {
       checkIns: v.checkins,
       lastSeen: ['just now', '3 min ago', '7 min ago', '12 min ago', '22 min ago', '38 min ago'][i] ?? 'recent',
     }));
-  }, []);
-
-  const handleMarkAll = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNotifs((prev) => prev.map((n) => ({ ...n, unread: false })));
-    Alert.alert('All marked read');
   }, []);
 
   const handleAccept = useCallback((id: string) => {
@@ -284,15 +276,6 @@ export default function ActivityScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
-        <View style={styles.headerSide}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
-            testID="activity-back"
-          >
-            <ArrowLeft color={colors.text} size={22} />
-          </Pressable>
-        </View>
         <Pressable
           ref={triggerRef}
           onPress={handleOpenDropdown}
@@ -308,15 +291,6 @@ export default function ActivityScreen() {
           </Text>
           <ChevronDown color={chevronColor} size={14} style={styles.chevron} />
         </Pressable>
-        <View style={styles.headerSide}>
-          <Pressable
-            onPress={handleMarkAll}
-            style={({ pressed }) => [styles.markBtn, { opacity: pressed ? 0.6 : 1 }]}
-            testID="mark-all-read"
-          >
-            <Text style={[styles.markText, { color: colors.aqua }]}>Mark all read</Text>
-          </Pressable>
-        </View>
       </View>
 
       {showDropdown && (
@@ -410,7 +384,7 @@ export default function ActivityScreen() {
           data={notifs}
           keyExtractor={(it) => it.id}
           renderItem={renderNotif}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
@@ -420,7 +394,7 @@ export default function ActivityScreen() {
           data={nearby}
           keyExtractor={(it) => it.venue.id}
           renderItem={renderNearby}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
@@ -430,7 +404,7 @@ export default function ActivityScreen() {
           data={friendReqs}
           keyExtractor={(it) => it.id}
           renderItem={renderFriendReq}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
@@ -445,21 +419,10 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerSide: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   dropdownTrigger: {
     flexDirection: 'row',
@@ -476,8 +439,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   chevron: { marginTop: 1 },
-  markBtn: { paddingHorizontal: 8, paddingVertical: 8 },
-  markText: { fontSize: 13, fontWeight: '700' as const },
   backdrop: { flex: 1 },
   dropdownAnchor: {
     position: 'absolute',

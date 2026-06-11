@@ -10,10 +10,10 @@ import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 
 const TABS = [
-  { name: 'index', Icon: Compass },
-  { name: 'nearby', Icon: Radio },
-  { name: 'crew', Icon: Users },
-  { name: 'profile', Icon: UserRound },
+  { route: '/(tabs)', Icon: Compass },
+  { route: '/(tabs)/nearby', Icon: Radio },
+  { route: '/(tabs)/crew', Icon: Users },
+  { route: '/(tabs)/profile', Icon: UserRound },
 ] as const;
 
 const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture']);
@@ -100,6 +100,7 @@ export function PersistentFloatingTabBar() {
   if (HIDDEN_SEGMENTS.has(firstSegment)) return null;
 
   const activeTab = segArr[1] ?? '';
+  const tabNames = ['index', 'nearby', 'crew', 'profile'] as const;
 
   return (
     <Animated.View
@@ -114,16 +115,17 @@ export function PersistentFloatingTabBar() {
       pointerEvents="box-none"
     >
       <View style={[styles.pill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
-        {TABS.map(({ name, Icon }) => {
-          const isFocused = activeTab === name;
+        {TABS.map(({ route, Icon }, i) => {
+          const tabName = tabNames[i];
+          const isFocused = activeTab === tabName;
           const color = isFocused ? activeColor : inactiveColor;
 
           return (
             <Pressable
-              key={name}
+              key={route}
               onPress={() => {
                 if (!isFocused) {
-                  router.navigate(`/(tabs)/${name}` as any);
+                  router.navigate(route as any);
                 }
               }}
               style={({ pressed }) => [
