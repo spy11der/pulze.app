@@ -48,6 +48,7 @@ function RootLayoutNav() {
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="check-in-capture" options={{ presentation: 'modal', headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="activity" options={{ presentation: 'card', headerShown: false }} />
+      <Stack.Screen name="checkin-detail" options={{ presentation: 'card', headerShown: false }} />
     </Stack>
   );
 }
