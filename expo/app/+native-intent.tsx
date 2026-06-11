@@ -1,3 +1,3 @@
-export function redirectSystemPath(_params: { path: string; initial: boolean }) {
+export function redirectSystemPath(_params: { path: string; initial: boolean }): string {
   return '/';
 }
