@@ -175,7 +175,7 @@ export default function VenueDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: {},
   content: {},
   heroWrap: {
     width: '100%',
