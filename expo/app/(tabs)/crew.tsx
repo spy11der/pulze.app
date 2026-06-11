@@ -177,7 +177,7 @@ export default function CrewScreen() {
         renderItem={renderItem}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: insets.bottom + 40 },
+          { paddingBottom: insets.bottom },
         ]}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListHeaderComponent={renderHeader}

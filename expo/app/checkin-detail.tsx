@@ -64,7 +64,7 @@ export default function CheckinDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
       >
         {/* Hero photo */}
         <View style={styles.heroWrap}>

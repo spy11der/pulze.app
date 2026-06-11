@@ -64,7 +64,7 @@ export default function VenueDetailScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
       >
         {/* Hero */}
         <View style={styles.heroWrap}>
