@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Image,
   Pressable,
@@ -13,7 +13,10 @@ import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
   Bookmark,
+  Compass,
   MapPin,
+  Radio,
+  UserRound,
   Users,
 } from 'lucide-react-native';
 
@@ -21,6 +24,13 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
+
+const TABS = [
+  { icon: Compass, route: '/(tabs)' },
+  { icon: Radio, route: '/(tabs)/nearby' },
+  { icon: Users, route: '/(tabs)/crew' },
+  { icon: UserRound, route: '/(tabs)/profile' },
+] as const;
 
 export default function VenueDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -42,9 +52,22 @@ export default function VenueDetailScreen() {
     toggleFavorite(venue.id, 'venue', venue.name);
   }, [venue, toggleFavorite]);
 
+  const handleTabPress = useCallback(
+    (route: string) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.dismissAll();
+      setTimeout(() => router.navigate(route), 50);
+    },
+    [router],
+  );
+
+  const pillBg = isDark ? 'rgba(8, 20, 26, 0.94)' : 'rgba(250, 252, 254, 0.94)';
+  const pillBorder = isDark ? 'rgba(100, 180, 180, 0.12)' : 'rgba(0, 0, 0, 0.06)';
+  const tabInactive = isDark ? '#3D5C66' : '#94ACB6';
+
   if (!venue) {
     return (
-      <View style={{ backgroundColor: colors.background }}>
+      <View style={[styles.flex, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={[styles.errorContainer, { paddingTop: insets.top + 60 }]}>
           <Text style={[styles.errorText, { color: colors.textMuted }]}>Venue not found</Text>
@@ -59,58 +82,78 @@ export default function VenueDetailScreen() {
   const bookmarked = isFavorited(venue.id);
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: insets.bottom }}
-    >
+    <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-        {/* Hero */}
-        <View style={styles.heroWrap}>
-          {venue.photo ? (
-            <Image source={{ uri: venue.photo }} style={styles.heroImage} />
-          ) : (
-            <View style={[styles.heroPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
-              <MapPin color={colors.aqua} size={48} />
-            </View>
-          )}
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroContent}>
-            <Text style={styles.heroName} numberOfLines={2}>{venue.name}</Text>
-            <View style={styles.heroChips}>
-              <View style={[styles.chip, { backgroundColor: colors.aqua + '20' }]}>
-                <Text style={[styles.chipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
-              </View>
-              <View style={[styles.chip, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                <MapPin color="rgba(255,255,255,0.7)" size={10} />
-                <Text style={[styles.chipText, { color: 'rgba(255,255,255,0.7)' }]}>{venue.neighborhood}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
 
-        {/* Top bar */}
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* ── Dark header row ── */}
+        <View
+          style={[
+            styles.headerRow,
+            {
+              paddingTop: insets.top + 6,
+              backgroundColor: colors.background,
+            },
+          ]}
+        >
           <Pressable
             onPress={handleBack}
-            style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            style={({ pressed }) => [
+              styles.headerBtn,
+              pressed && styles.headerBtnPressed,
+            ]}
+            hitSlop={8}
           >
-            <ArrowLeft color="#fff" size={20} />
+            <ArrowLeft color={colors.text} size={20} />
           </Pressable>
+
           <Pressable
             onPress={handleBookmark}
-            style={[styles.topBarBtn, { backgroundColor: 'rgba(0,0,0,0.45)' }]}
+            style={({ pressed }) => [
+              styles.headerBtn,
+              pressed && styles.headerBtnPressed,
+            ]}
+            hitSlop={8}
           >
             <Bookmark
-              color={bookmarked ? colors.aqua : '#fff'}
+              color={bookmarked ? colors.aqua : colors.textMuted}
               size={20}
               fill={bookmarked ? colors.aqua : 'transparent'}
             />
           </Pressable>
         </View>
 
-        {/* Body */}
+        {/* ── Venue photo ── */}
+        {venue.photo ? (
+          <Image source={{ uri: venue.photo }} style={styles.photo} />
+        ) : (
+          <View style={[styles.photoPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
+            <MapPin color={colors.aqua} size={48} />
+          </View>
+        )}
+
+        {/* ── Content body ── */}
         <View style={styles.body}>
+          {/* Venue name */}
+          <Text style={[styles.venueName, { color: colors.text }]} numberOfLines={2}>
+            {venue.name}
+          </Text>
+
+          {/* Type + neighborhood tags */}
+          <View style={styles.tagRow}>
+            <View style={[styles.tagChip, { backgroundColor: colors.aqua + '20' }]}>
+              <Text style={[styles.tagText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
+            </View>
+            <View style={[styles.tagChip, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <MapPin color={colors.textMuted} size={10} />
+              <Text style={[styles.tagText, { color: colors.textMuted }]}>{venue.neighborhood}</Text>
+            </View>
+          </View>
+
+          {/* Busyness */}
           <Text style={[styles.busynessText, { color: colors.text }]}>
             {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
           </Text>
@@ -143,7 +186,9 @@ export default function VenueDetailScreen() {
           {/* Address */}
           <View style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color={colors.aqua} size={16} />
-            <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>{venue.address}</Text>
+            <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>
+              {venue.address}
+            </Text>
           </View>
 
           {/* Photos */}
@@ -165,57 +210,95 @@ export default function VenueDetailScreen() {
               </ScrollView>
             </View>
           )}
-
-
         </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* ── Floating tab bar ── */}
+      <View
+        style={[styles.tabOuter, { paddingBottom: insets.bottom + 8 }]}
+        pointerEvents="box-none"
+      >
+        <View
+          style={[
+            styles.tabPill,
+            {
+              backgroundColor: pillBg,
+              borderColor: pillBorder,
+              shadowColor: isDark ? '#000' : 'rgba(0,0,0,0.15)',
+            },
+          ]}
+        >
+          {TABS.map((tab, i) => (
+            <Pressable
+              key={i}
+              onPress={() => handleTabPress(tab.route)}
+              style={({ pressed }) => [
+                styles.tabItem,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <tab.icon color={tabInactive} size={24} strokeWidth={1.6} />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heroWrap: {
-    width: '100%',
-    height: 180,
-    position: 'relative',
+  flex: {
+    flex: 1,
   },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+
+  /* ── Header row ── */
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
-  heroPlaceholder: {
-    width: '100%',
-    height: '100%',
+  headerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
+  headerBtnPressed: {
+    opacity: 0.5,
   },
-  heroContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+
+  /* ── Photo ── */
+  photo: {
+    width: '100%',
+    height: 280,
+    resizeMode: 'cover',
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── Body ── */
+  body: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingTop: 14,
+    gap: 14,
   },
-  heroName: {
-    fontSize: 20,
+  venueName: {
+    fontSize: 22,
     fontWeight: '700' as const,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
-  heroChips: {
+  tagRow: {
     flexDirection: 'row',
     gap: 6,
-    marginTop: 6,
   },
-  chip: {
+  tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -223,32 +306,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
   },
-  chipText: {
+  tagText: {
     fontSize: 12,
     fontWeight: '600' as const,
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  topBarBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 14,
   },
   busynessText: {
     fontSize: 18,
@@ -320,10 +380,42 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
+  /* ── Floating tab bar ── */
+  tabOuter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  tabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 36,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  tabItem: {
+    width: 52,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.97 }],
+  /* ── Error / fallback ── */
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 20,
+  },
+  errorText: {
+    fontSize: 16,
   },
   backBtn: {
     paddingHorizontal: 24,
@@ -333,13 +425,5 @@ const styles = StyleSheet.create({
   backBtnText: {
     fontSize: 14,
     fontWeight: '700' as const,
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 20,
-  },
-  errorText: {
-    fontSize: 16,
   },
 });
