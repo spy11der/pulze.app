@@ -258,24 +258,25 @@ const VenueCard = React.memo(function VenueCard({
 
       {/* Info on the right */}
       <View style={styles.cardBody}>
-        {/* Row 1: venue name + type chip */}
+        {/* Row 1: venue name + minutes away + type chip */}
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
             {venue.name}
           </Text>
-          <View style={[styles.typeChip, { backgroundColor: colors.aqua + '14' }]}>
-            <Text style={[styles.typeChipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
+          <View style={styles.cardRow1Right}>
+            <Text style={[styles.walkMins, { color: colors.textMuted }]}>{venue.eta}</Text>
+            <View style={[styles.typeChip, { backgroundColor: colors.aqua + '14' }]}>
+              <Text style={[styles.typeChipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Row 2: neighborhood + distance */}
+        {/* Row 2: neighborhood only */}
         <View style={styles.cardRow2}>
           <MapPin color={colors.textMuted} size={10} />
           <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
             {venue.neighborhood}
           </Text>
-          <Text style={[styles.metaDot, { color: colors.textMuted }]}>·</Text>
-          <Text style={[styles.metaText, { color: colors.textMuted }]}>{venue.eta}</Text>
         </View>
 
         {/* Row 3: busyness percentage — plain white, no bar, no color */}
@@ -394,7 +395,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
+  },
+  cardRow1Right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  walkMins: {
+    fontSize: 10,
+    fontWeight: '600' as const,
   },
   cardName: {
     fontSize: 14,
