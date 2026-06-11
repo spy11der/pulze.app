@@ -17,7 +17,6 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { getNearbyVenues, type NearbyVenue } from '@/hooks/useNearbyVenues';
 import { pulzeVenues } from '@/mocks/venues';
-import { getBusynessColor, getBusynessLabel } from '@/types/venue';
 
 const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
 
@@ -40,8 +39,6 @@ function NearbyCard({
     [venue.id],
   );
 
-  const busynessColor = pulzeVenue ? getBusynessColor(pulzeVenue.busyness) : '#6B8E7B';
-  const busynessLabel = pulzeVenue ? getBusynessLabel(pulzeVenue.busyness) : 'Quiet';
   const busynessPercent = pulzeVenue?.busynessPercent ?? 0;
   const photoUri = pulzeVenue?.photo;
   const displayTags = (pulzeVenue?.tags ?? []).slice(0, 2);
@@ -53,27 +50,28 @@ function NearbyCard({
       style={({ pressed }) => [
         styles.card,
         { backgroundColor: colors.surface, borderColor: colors.border },
-        pressed && styles.cardPressed,
+        pressed && { opacity: 0.8 },
       ]}
     >
-      {/* Mini photo banner */}
-      <View style={styles.cardPhotoWrap}>
+      {/* Small square thumbnail on the left */}
+      <View style={styles.thumbWrap}>
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.cardPhoto} />
+          <Image source={{ uri: photoUri }} style={styles.thumbnail} />
         ) : (
-          <View style={[styles.cardPhotoPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
-            <MapPin color={colors.aqua} size={14} />
+          <View style={[styles.thumbnailPlaceholder, { backgroundColor: isDark ? '#0A1F28' : '#DCE9EF' }]}>
+            <MapPin color={colors.aqua} size={16} />
           </View>
         )}
         {/* Walk time badge */}
         <View style={[styles.walkBadge, { backgroundColor: colors.aqua + '20' }]}>
-          <Navigation color={colors.aqua} size={10} />
+          <Navigation color={colors.aqua} size={9} />
           <Text style={[styles.walkBadgeText, { color: colors.aqua }]}>{walkMins}</Text>
         </View>
       </View>
 
-      <View style={styles.cardInfo}>
-        {/* Name + type */}
+      {/* Info on the right */}
+      <View style={styles.cardBody}>
+        {/* Row 1: venue name + type chip */}
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
             {venue.name}
@@ -85,43 +83,22 @@ function NearbyCard({
           </View>
         </View>
 
-        {/* Neighborhood + distance */}
+        {/* Row 2: neighborhood + distance */}
         <View style={styles.cardRow2}>
-          <View style={styles.metaItem}>
-            <MapPin color={colors.textSoft} size={11} />
-            <Text style={[styles.metaText, { color: colors.textSoft }]}>{venue.neighborhood}</Text>
-          </View>
-          <Text style={[styles.metaText, { color: colors.textSoft }]}>
-            {venue.distanceLabel}
+          <MapPin color={colors.textMuted} size={10} />
+          <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
+            {venue.neighborhood}
           </Text>
+          <Text style={[styles.metaDot, { color: colors.textMuted }]}>·</Text>
+          <Text style={[styles.metaText, { color: colors.textMuted }]}>{venue.distanceLabel}</Text>
         </View>
 
-        {/* Busyness bar */}
-        <View style={styles.barRow}>
-          <View
-            style={[
-              styles.barTrack,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
-            ]}
-          >
-            <View
-              style={[
-                styles.barFill,
-                {
-                  backgroundColor: busynessColor,
-                  width: `${busynessPercent}%` as `${number}%`,
-                },
-              ]}
-            />
-          </View>
-          <View style={[styles.busynessLabel, { backgroundColor: busynessColor + '22' }]}>
-            <Text style={[styles.busynessLabelText, { color: busynessColor }]}>
-              {busynessLabel}
-            </Text>
-          </View>
-        </View>
+        {/* Row 3: busyness percentage — plain white, no bar, no color */}
+        <Text style={[styles.busynessPercent, { color: colors.text }]}>
+          {busynessPercent}%
+        </Text>
 
-        {/* Vibe tags */}
+        {/* Row 4: vibe tags */}
         {displayTags.length > 0 && (
           <View style={styles.tagsRow}>
             {displayTags.map((tag) => (
@@ -222,7 +199,7 @@ export default function NearbyScreen() {
   );
 }
 
-const PHOTO_HEIGHT = 64;
+const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -266,58 +243,59 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  // Cards
+  // Cards — compact row layout (matches Discover)
   cardList: {
     paddingHorizontal: 16,
     gap: 8,
     paddingTop: 4,
   },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden' as const,
-  },
-  cardPressed: {
-    opacity: 0.94,
-    transform: [{ scale: 0.988 }],
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 10,
   },
 
-  // Photo
-  cardPhotoWrap: {
+  // Thumbnail
+  thumbWrap: {
     position: 'relative' as const,
-    height: PHOTO_HEIGHT,
   },
-  cardPhoto: {
-    width: '100%',
-    height: PHOTO_HEIGHT,
-    resizeMode: 'cover' as const,
+  thumbnail: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  cardPhotoPlaceholder: {
-    width: '100%',
-    height: PHOTO_HEIGHT,
+  thumbnailPlaceholder: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 10,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   walkBadge: {
     position: 'absolute' as const,
-    top: 6,
-    right: 6,
+    bottom: 2,
+    right: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
+    gap: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   walkBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700' as const,
   },
 
-  // Info
-  cardInfo: {
-    padding: 10,
-    gap: 5,
+  // Card body (right side of thumbnail)
+  cardBody: {
+    flex: 1,
+    gap: 3,
+    justifyContent: 'center' as const,
   },
   cardRow1: {
     flexDirection: 'row',
@@ -342,42 +320,20 @@ const styles = StyleSheet.create({
   cardRow2: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 4,
   },
   metaText: {
     fontSize: 11,
     fontWeight: '500' as const,
   },
+  metaDot: {
+    fontSize: 11,
+  },
 
-  // Busyness bar
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  barTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden' as const,
-  },
-  barFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  busynessLabel: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  busynessLabelText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
+  // Busyness percentage — plain text, no bar
+  busynessPercent: {
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
 
   // Tags

@@ -128,7 +128,7 @@ export default function CrewScreen() {
             {item.venueName}
           </Text>
           <View style={styles.itemMetaRow}>
-            <MapPin color={colors.textMuted} size={11} />
+            <MapPin color={colors.textMuted} size={10} />
             <Text style={[styles.neighborhood, { color: colors.textMuted }]} numberOfLines={1}>
               {item.neighborhood}
             </Text>
@@ -187,7 +187,7 @@ export default function CrewScreen() {
   );
 }
 
-const THUMBNAIL_SIZE = 60;
+const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -214,14 +214,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 12,
+    padding: 10,
   },
   thumbnail: {
     width: THUMBNAIL_SIZE,
     height: THUMBNAIL_SIZE,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   itemBody: {
@@ -243,14 +243,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   neighborhood: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500' as const,
   },
   timeDot: {
-    fontSize: 12,
+    fontSize: 11,
   },
   timeAgo: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500' as const,
   },
   proximityBar: {

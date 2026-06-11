@@ -20,7 +20,6 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
-import { getBusynessLabel, getBusynessColor, getBusynessBgColor } from '@/types/venue';
 import type { PulzeVenue } from '@/types/venue';
 
 export default function VenueDetailScreen() {
@@ -58,9 +57,6 @@ export default function VenueDetailScreen() {
   }
 
   const hearted = isFavorited(venue.id);
-  const busynessColor = getBusynessColor(venue.busyness);
-  const busynessBg = getBusynessBgColor(venue.busyness);
-  const busynessLabel = getBusynessLabel(venue.busyness);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -116,33 +112,10 @@ export default function VenueDetailScreen() {
 
         {/* Body */}
         <View style={styles.body}>
-          {/* Busyness gauge */}
-          <View style={[styles.busynessCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.busynessHeader}>
-              <View style={[styles.busynessBadge, { backgroundColor: busynessBg }]}>
-                <View style={[styles.busynessDot, { backgroundColor: busynessColor }]} />
-                <Text style={[styles.busynessBadgeText, { color: busynessColor }]}>{busynessLabel}</Text>
-              </View>
-              <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}% full</Text>
-            </View>
-            {/* Busyness bar */}
-            <View style={[styles.busynessBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
-              <View
-                style={[
-                  styles.busynessBarFill,
-                  {
-                    backgroundColor: busynessColor,
-                    width: `${venue.busynessPercent}%`,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.busynessLabels}>
-              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Quiet</Text>
-              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Getting Busy</Text>
-              <Text style={[styles.busynessLabelSmall, { color: colors.textSoft }]}>Packed</Text>
-            </View>
-          </View>
+          {/* Busyness — plain white text only */}
+          <Text style={[styles.busynessText, { color: colors.text }]}>
+            {venue.busynessPercent}% full
+          </Text>
 
           {/* Stats */}
           <View style={styles.statsRow}>
@@ -282,54 +255,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 14,
   },
-  busynessCard: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    gap: 12,
-  },
-  busynessHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  busynessBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  busynessDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  busynessBadgeText: {
-    fontSize: 13,
+  busynessText: {
+    fontSize: 18,
     fontWeight: '700' as const,
-  },
-  busynessPercent: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  busynessBar: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  busynessBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  busynessLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  busynessLabelSmall: {
-    fontSize: 10,
-    fontWeight: '500' as const,
+    letterSpacing: -0.2,
   },
   statsRow: {
     flexDirection: 'row',
