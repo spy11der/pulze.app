@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingTop: 4,
-    flexGrow: 1,
+
   },
   feedItem: {
     flexDirection: 'row',

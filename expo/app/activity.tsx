@@ -251,7 +251,7 @@ export default function ActivityScreen() {
           data={notifs}
           keyExtractor={(it) => it.id}
           renderItem={renderNotif}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
@@ -261,7 +261,7 @@ export default function ActivityScreen() {
           data={nearby}
           keyExtractor={(it) => it.venue.id}
           renderItem={renderNearby}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    flexGrow: 1,
+
   },
   notifRow: {
     flexDirection: 'row',

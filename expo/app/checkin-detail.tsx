@@ -69,15 +69,6 @@ export default function CheckinDetailScreen() {
         {/* Hero photo */}
         <View style={styles.heroWrap}>
           <Image source={{ uri: checkIn.photoUri }} style={styles.heroImage} />
-          <View style={styles.heroGradient} />
-
-          {/* Friend info overlaid at bottom of photo */}
-          <View style={styles.heroContent}>
-            <Text style={styles.heroName}>{checkIn.friendName}</Text>
-            {checkIn.caption ? (
-              <Text style={styles.heroCaption} numberOfLines={3}>{checkIn.caption}</Text>
-            ) : null}
-          </View>
 
           {/* Top bar */}
           <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
@@ -88,6 +79,14 @@ export default function CheckinDetailScreen() {
               <ArrowLeft color="#fff" size={20} />
             </Pressable>
           </View>
+        </View>
+
+        {/* Friend name and caption below photo */}
+        <View style={styles.nameSection}>
+          <Text style={[styles.heroName, { color: colors.text }]}>{checkIn.friendName}</Text>
+          {checkIn.caption ? (
+            <Text style={[styles.heroCaption, { color: colors.textMuted }]} numberOfLines={3}>{checkIn.caption}</Text>
+          ) : null}
         </View>
 
         {/* Minimal info below photo */}
@@ -113,7 +112,7 @@ export default function CheckinDetailScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { flexGrow: 1 },
+  content: {},
   heroWrap: {
     width: '100%',
     height: 480,
@@ -124,33 +123,19 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 160,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-  },
-  heroContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  nameSection: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingTop: 16,
     gap: 4,
   },
   heroName: {
     fontSize: 26,
     fontWeight: '700' as const,
-    color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   heroCaption: {
     fontSize: 15,
     fontWeight: '400' as const,
-    color: 'rgba(255,255,255,0.85)',
     lineHeight: 21,
   },
   topBar: {
