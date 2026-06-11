@@ -109,7 +109,7 @@ function NearbyCard({
                 styles.barFill,
                 {
                   backgroundColor: busynessColor,
-                  width: `${busynessPercent}%` as unknown as undefined,
+                  width: `${busynessPercent}%` as `${number}%`,
                 },
               ]}
             />

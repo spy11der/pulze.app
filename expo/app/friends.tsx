@@ -77,7 +77,7 @@ export default function FriendsScreen() {
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: { title: string; tier?: TierInfo; requests?: FriendRequest[] } }) => {
+    ({ section }: { section: { title: string; data: Friend[]; tier?: TierInfo; requests?: FriendRequest[] } }) => {
       const tierColor = section.tier?.color ?? colors.aqua;
       return (
         <View style={styles.sectionHeader}>

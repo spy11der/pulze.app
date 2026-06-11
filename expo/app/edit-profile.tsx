@@ -41,6 +41,7 @@ export default function EditProfileScreen() {
     try {
       const { error } = await supabase
         .from('profiles')
+        // @ts-expect-error supabase types not configured for profiles table
         .update({ display_name: displayName, username, bio })
         .eq('id', user.id);
 

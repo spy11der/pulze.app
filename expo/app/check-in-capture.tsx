@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Camera, CameraType } from 'expo-camera';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -51,7 +51,7 @@ export default function CheckInCaptureScreen() {
     neighborhood: string;
   }>();
 
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<CameraView>(null);
   const stampViewRef = useRef<View>(null);
   const countdownAnim = useRef(new Animated.Value(COUNTDOWN_SECONDS)).current;
   const quipOpacity = useRef(new Animated.Value(0)).current;
@@ -69,11 +69,17 @@ export default function CheckInCaptureScreen() {
   const venueType: VenueType = venue?.type ?? 'bar';
 
   // Request camera permission
+  const [camPermission, requestCamPermission] = useCameraPermissions();
   useEffect(() => {
-    void (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasCameraPermission(status === 'granted');
-    })();
+    if (camPermission) {
+      setHasCameraPermission(camPermission.granted);
+    }
+  }, [camPermission]);
+
+  useEffect(() => {
+    if (camPermission && !camPermission.granted) {
+      void requestCamPermission();
+    }
   }, []);
 
   // Countdown animation
@@ -264,10 +270,10 @@ export default function CheckInCaptureScreen() {
     return (
       <View style={styles.screen}>
         <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
-        <Camera
+        <CameraView
           ref={cameraRef}
           style={styles.camera}
-          type={CameraType.front}
+          facing="front"
           ratio="16:9"
         >
           {/* Darken overlay */}
@@ -316,7 +322,7 @@ export default function CheckInCaptureScreen() {
             <Text style={styles.venueName}>{venueName}</Text>
             <Text style={styles.venueHood}>{neighborhood}</Text>
           </View>
-        </Camera>
+        </CameraView>
       </View>
     );
   }

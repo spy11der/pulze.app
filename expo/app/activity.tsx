@@ -77,7 +77,7 @@ export default function ActivityScreen() {
   const nearby = useMemo(() => {
     return pulzeVenues.slice(0, 6).map((v, i) => ({
       venue: v,
-      checkIns: 12 + ((v.peopleCount * 7) % 40),
+      checkIns: v.checkins,
       lastSeen: ['just now', '3 min ago', '7 min ago', '12 min ago', '22 min ago', '38 min ago'][i] ?? 'recent',
     }));
   }, []);
@@ -151,7 +151,7 @@ export default function ActivityScreen() {
   }, [colors, handleAccept, handleDecline]);
 
   const renderNearby: ListRenderItem<typeof nearby[number]> = useCallback(({ item }) => {
-    const dotColor = getVibeDotColor(item.venue.vibe_score);
+    const dotColor = getVibeDotColor(item.venue.busynessPercent);
     return (
       <Pressable
         onPress={() => router.push({ pathname: '/venue-detail', params: { venueId: item.venue.id } })}

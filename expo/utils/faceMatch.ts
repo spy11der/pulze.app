@@ -40,7 +40,7 @@ export async function scoreFaceMatch(
 
 async function getImageInfo(uri: string): Promise<{ size: number }> {
   try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    const info = await FileSystem.getInfoAsync(uri, { size: true } as Record<string, unknown>);
     return { size: (info as { size?: number }).size ?? 0 };
   } catch (e) {
     console.log('[faceMatch] getImageInfo error:', e);

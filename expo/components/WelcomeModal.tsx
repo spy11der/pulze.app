@@ -105,7 +105,7 @@ export function WelcomeModal() {
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} testID="welcome-modal">
-      <View style={[styles.card, { backgroundColor: colors.surfaceCard ?? '#0a2228' }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
         {/* Page indicator dots */}
         <View style={styles.dotsRow}>
           {([0, 1, 2] as Step[]).map((s) => (
