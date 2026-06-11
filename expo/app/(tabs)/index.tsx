@@ -144,21 +144,19 @@ export default function HomeScreen() {
       {/* Fixed header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable
-              onPress={() => router.push('/activity')}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Bell color={colors.textMuted} size={20} />
-            </Pressable>
-            <View style={styles.brandBlock}>
-              <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
-              <View style={styles.timeRow}>
-                <View style={[styles.liveDot, { backgroundColor: colors.aquaBright }]} />
-                <Text style={[styles.timeLabel, { color: colors.textMuted }]}>{timeContext}</Text>
-              </View>
+          <View style={styles.brandBlock}>
+            <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
+            <View style={styles.timeRow}>
+              <View style={[styles.liveDot, { backgroundColor: colors.aquaBright }]} />
+              <Text style={[styles.timeLabel, { color: colors.textMuted }]}>{timeContext}</Text>
             </View>
           </View>
+          <Pressable
+            onPress={() => router.push('/activity')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Bell color={colors.textMuted} size={20} />
+          </Pressable>
         </View>
 
         {/* Filter pills */}

@@ -169,17 +169,17 @@ export default function CrewScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
+          </View>
           <Pressable
             onPress={() => router.push('/activity')}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <Bell color={colors.textMuted} size={20} />
           </Pressable>
-          <View>
-            <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
-          </View>
         </View>
       </View>
 
