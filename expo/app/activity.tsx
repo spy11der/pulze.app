@@ -375,11 +375,10 @@ export default function ActivityScreen() {
         onPress={() => {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           const top = nearby[0];
+          if (!top) return;
           router.push({
             pathname: '/check-in-capture',
-            params: top
-              ? { venueId: top.venue.id, venueName: top.venue.name, neighborhood: top.venue.neighborhood }
-              : {},
+            params: { venueId: top.venue.id, venueName: top.venue.name, neighborhood: top.venue.neighborhood },
           });
         }}
         style={({ pressed }) => [
