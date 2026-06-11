@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Bell,
   Calendar,
+  Camera,
   Flame,
   Heart,
   Inbox,
@@ -246,6 +247,33 @@ export default function ActivityScreen() {
         })}
       </View>
 
+      <Pressable
+        onPress={() => {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          const top = nearby[0];
+          router.push({
+            pathname: '/check-in-capture',
+            params: top
+              ? { venueId: top.venue.id, venueName: top.venue.name, neighborhood: top.venue.neighborhood }
+              : {},
+          });
+        }}
+        style={({ pressed }) => [
+          styles.manualCheckin,
+          {
+            backgroundColor: colors.aqua + '10',
+            borderColor: colors.aqua + '20',
+            opacity: pressed ? 0.7 : 1,
+          },
+        ]}
+        testID="manual-check-in"
+      >
+        <Camera color={colors.aqua} size={15} />
+        <Text style={[styles.manualCheckinText, { color: colors.aqua }]}>
+          Check in manually
+        </Text>
+      </Pressable>
+
       {tab === 'notifications' ? (
         <FlatList
           data={notifs}
@@ -382,4 +410,20 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700' as const },
   emptySub: { fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 18 },
+  manualCheckin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  manualCheckinText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
 });
