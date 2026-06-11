@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -13,9 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   ArrowLeft,
-  Bell,
   Calendar,
   Camera,
+  ChevronDown,
   Flame,
   Heart,
   Inbox,
@@ -26,7 +27,7 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { pulzeVenues } from '@/mocks/venues';
 
-type TabKey = 'notifications' | 'nearby';
+type TabKey = 'notifications' | 'nearby' | 'friendRequests';
 
 type NotifType = 'checkin' | 'busy' | 'request' | 'like' | 'event';
 
@@ -51,6 +52,26 @@ const MOCK_NOTIFS: NotifItem[] = [
   { id: 'n10', type: 'checkin', title: 'Theo checked into Meow Wolf Denver', time: '5 hrs ago', unread: false },
 ];
 
+interface FriendRequestItem {
+  id: string;
+  name: string;
+  mutualFriends: number;
+  time: string;
+}
+
+const MOCK_FRIEND_REQUESTS: FriendRequestItem[] = [
+  { id: 'fr1', name: 'Devon', mutualFriends: 12, time: '34 min ago' },
+  { id: 'fr2', name: 'Riley', mutualFriends: 5, time: '4 hrs ago' },
+  { id: 'fr3', name: 'Jordan', mutualFriends: 23, time: '1 day ago' },
+  { id: 'fr4', name: 'Casey', mutualFriends: 8, time: '2 days ago' },
+];
+
+const TAB_LABELS: Record<TabKey, string> = {
+  notifications: 'Notifications',
+  nearby: 'Nearby',
+  friendRequests: 'Friend requests',
+};
+
 function getVibeDotColor(score: number): string {
   if (score >= 61) return '#2BBFBA';
   if (score >= 31) return '#FFB800';
@@ -74,6 +95,10 @@ export default function ActivityScreen() {
   const { colors } = useTheme();
   const [tab, setTab] = useState<TabKey>('notifications');
   const [notifs, setNotifs] = useState<NotifItem[]>(MOCK_NOTIFS);
+  const [friendReqs, setFriendReqs] = useState<FriendRequestItem[]>(MOCK_FRIEND_REQUESTS);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0 });
+  const triggerRef = useRef<View>(null);
 
   const nearby = useMemo(() => {
     return pulzeVenues.slice(0, 6).map((v, i) => ({
@@ -97,6 +122,29 @@ export default function ActivityScreen() {
   const handleDecline = useCallback((id: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setNotifs((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const handleOpenDropdown = useCallback(() => {
+    triggerRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      setDropdownPos({ x: pageX, y: pageY + 4 });
+      setShowDropdown(true);
+    });
+  }, []);
+
+  const handleSelectTab = useCallback((t: TabKey) => {
+    void Haptics.selectionAsync();
+    setTab(t);
+    setShowDropdown(false);
+  }, []);
+
+  const handleAcceptFriend = useCallback((id: string) => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setFriendReqs((prev) => prev.filter((fr) => fr.id !== id));
+  }, []);
+
+  const handleDeclineFriend = useCallback((id: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFriendReqs((prev) => prev.filter((fr) => fr.id !== id));
   }, []);
 
   const renderNotif: ListRenderItem<NotifItem> = useCallback(({ item }) => {
@@ -176,22 +224,69 @@ export default function ActivityScreen() {
     );
   }, [colors, router]);
 
+  const renderFriendReq: ListRenderItem<FriendRequestItem> = useCallback(({ item }) => {
+    return (
+      <View style={[styles.friendRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.friendAvatar, { backgroundColor: colors.aqua + '14' }]}>
+          <UserPlus color={colors.aqua} size={18} />
+        </View>
+        <View style={styles.friendBody}>
+          <Text style={[styles.friendName, { color: colors.text }]}>{item.name}</Text>
+          <Text style={[styles.friendMeta, { color: colors.textMuted }]}>
+            {item.mutualFriends} mutual friends
+          </Text>
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={() => handleAcceptFriend(item.id)}
+              style={({ pressed }) => [
+                styles.acceptBtn,
+                { backgroundColor: colors.aqua, opacity: pressed ? 0.85 : 1 },
+              ]}
+              testID={`accept-friend-${item.id}`}
+            >
+              <Text style={[styles.acceptText, { color: colors.background }]}>Accept</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleDeclineFriend(item.id)}
+              style={({ pressed }) => [
+                styles.declineBtn,
+                { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+              ]}
+              testID={`decline-friend-${item.id}`}
+            >
+              <Text style={[styles.declineText, { color: colors.textMuted }]}>Decline</Text>
+            </Pressable>
+          </View>
+        </View>
+        <Text style={[styles.friendTime, { color: colors.textSoft }]}>{item.time}</Text>
+      </View>
+    );
+  }, [colors, handleAcceptFriend, handleDeclineFriend]);
+
   const empty = (
     <View style={styles.emptyWrap}>
       <View style={[styles.emptyIcon, { backgroundColor: colors.aqua + '14' }]}>
         {tab === 'notifications' ? (
           <Inbox color={colors.aqua} size={32} />
-        ) : (
+        ) : tab === 'nearby' ? (
           <MapPin color={colors.aqua} size={32} />
+        ) : (
+          <UserPlus color={colors.aqua} size={32} />
         )}
       </View>
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        {tab === 'notifications' ? 'No activity yet' : 'Nothing nearby'}
+        {tab === 'notifications'
+          ? 'No activity yet'
+          : tab === 'nearby'
+            ? 'Nothing nearby'
+            : 'No friend requests'}
       </Text>
       <Text style={[styles.emptySub, { color: colors.textMuted }]}>
         {tab === 'notifications'
           ? 'Friend check-ins and event alerts will appear here'
-          : 'Move around to discover venues with live activity'}
+          : tab === 'nearby'
+            ? 'Move around to discover venues with live activity'
+            : "When someone wants to connect, they'll appear here"}
       </Text>
     </View>
   );
@@ -207,10 +302,17 @@ export default function ActivityScreen() {
         >
           <ArrowLeft color={colors.text} size={22} />
         </Pressable>
-        <View style={styles.headerTitleWrap}>
-          <Bell color={colors.aqua} size={16} />
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Activity</Text>
-        </View>
+        <Pressable
+          ref={triggerRef}
+          onPress={handleOpenDropdown}
+          style={({ pressed }) => [styles.dropdownTrigger, { opacity: pressed ? 0.6 : 1 }]}
+          testID="activity-dropdown"
+        >
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {TAB_LABELS[tab]}
+          </Text>
+          <ChevronDown color={colors.textMuted} size={14} style={styles.chevron} />
+        </Pressable>
         <Pressable
           onPress={handleMarkAll}
           style={({ pressed }) => [styles.markBtn, { opacity: pressed ? 0.6 : 1 }]}
@@ -220,32 +322,54 @@ export default function ActivityScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
-        {(['notifications', 'nearby'] as TabKey[]).map((t) => {
-          const active = tab === t;
-          return (
-            <Pressable
-              key={t}
-              onPress={() => {
-                void Haptics.selectionAsync();
-                setTab(t);
-              }}
-              style={styles.tabBtn}
-              testID={`tab-${t}`}
+      {showDropdown && (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowDropdown(false)}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setShowDropdown(false)}
+            testID="dropdown-backdrop"
+          >
+            <View
+              style={[
+                styles.dropdownMenu,
+                {
+                  top: dropdownPos.y,
+                  left: dropdownPos.x,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: active ? colors.text : colors.textMuted, fontWeight: active ? '700' : '500' },
-                ]}
-              >
-                {t === 'notifications' ? 'Notifications' : 'Nearby'}
-              </Text>
-              {active && <View style={[styles.tabUnderline, { backgroundColor: colors.aqua }]} />}
-            </Pressable>
-          );
-        })}
-      </View>
+              {(Object.keys(TAB_LABELS) as TabKey[]).map((t) => {
+                const isActive = tab === t;
+                return (
+                  <Pressable
+                    key={t}
+                    onPress={() => handleSelectTab(t)}
+                    style={({ pressed }) => [
+                      styles.dropdownItem,
+                      { backgroundColor: pressed ? colors.aqua + '0F' : 'transparent' },
+                    ]}
+                    testID={`dropdown-${t}`}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        {
+                          color: isActive ? colors.aqua : colors.text,
+                          fontWeight: isActive ? ('700' as const) : ('500' as const),
+                        },
+                      ]}
+                    >
+                      {TAB_LABELS[t]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Pressable>
+        </Modal>
+      )}
 
       <Pressable
         onPress={() => {
@@ -284,11 +408,21 @@ export default function ActivityScreen() {
           ListEmptyComponent={empty}
           showsVerticalScrollIndicator={false}
         />
-      ) : (
+      ) : tab === 'nearby' ? (
         <FlatList
           data={nearby}
           keyExtractor={(it) => it.venue.id}
           renderItem={renderNearby}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          ListEmptyComponent={empty}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={friendReqs}
+          keyExtractor={(it) => it.id}
+          renderItem={renderFriendReq}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom }]}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={empty}
@@ -316,39 +450,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleWrap: {
+  dropdownTrigger: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
   },
   headerTitle: {
     fontSize: 17,
     fontWeight: '800' as const,
     letterSpacing: -0.3,
   },
+  chevron: { marginTop: 1 },
   markBtn: { paddingHorizontal: 8, paddingVertical: 8 },
   markText: { fontSize: 13, fontWeight: '700' as const },
-  tabBar: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  tabBtn: {
-    paddingVertical: 14,
-    marginRight: 24,
-    alignItems: 'center',
-  },
-  tabText: { fontSize: 14 },
-  tabUnderline: {
+  backdrop: { flex: 1 },
+  dropdownMenu: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    borderRadius: 2,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 12,
   },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  dropdownItemText: { fontSize: 15 },
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -410,6 +545,24 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700' as const },
   emptySub: { fontSize: 13, textAlign: 'center', maxWidth: 260, lineHeight: 18 },
+  friendRow: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  friendAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendBody: { flex: 1, gap: 2 },
+  friendName: { fontSize: 14, fontWeight: '700' as const },
+  friendMeta: { fontSize: 12 },
+  friendTime: { fontSize: 11, fontWeight: '600' as const },
   manualCheckin: {
     flexDirection: 'row',
     alignItems: 'center',
