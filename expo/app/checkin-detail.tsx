@@ -2,22 +2,23 @@ import React, { useCallback, useMemo } from 'react';
 import {
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { ArrowLeft, MapPin } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { mockFriendCheckIns } from '@/mocks/friends';
 import { pulzeVenues } from '@/mocks/venues';
-import { getBusynessLabel } from '@/types/venue';
 
 export default function CheckinDetailScreen() {
+  const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const router = useRouter();
@@ -38,6 +39,8 @@ export default function CheckinDetailScreen() {
     router.back();
   }, [router]);
 
+  const topPanelHeight = Math.round(screenHeight * 0.23);
+
   if (!checkIn) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -55,121 +58,153 @@ export default function CheckinDetailScreen() {
     );
   }
 
-  const busynessLabel = venue ? getBusynessLabel(venue.busyness) : '';
   const busynessPercent = venue ? `${venue.busynessPercent}%` : '';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
+      {/* Top dark info panel — ~23% of screen */}
+      <View
+        style={[
+          styles.topPanel,
+          {
+            backgroundColor: colors.surface,
+            height: topPanelHeight,
+            paddingTop: insets.top,
+          },
+        ]}
       >
-        {/* Hero photo */}
-        <View style={styles.heroWrap}>
-          <Image source={{ uri: checkIn.photoUri }} style={styles.heroImage} />
+        {/* Back button */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={handleBack}
+            style={[
+              styles.backCircle,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+            ]}
+          >
+            <ArrowLeft color={colors.text} size={20} />
+          </Pressable>
+        </View>
 
-          {/* Top bar */}
-          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-            <Pressable
-              onPress={handleBack}
-              style={styles.backCircle}
+        {/* Main info area */}
+        <View style={styles.panelContent}>
+          {/* Row: avatar + name … percentage */}
+          <View style={styles.nameRow}>
+            <Image source={{ uri: checkIn.friendAvatar }} style={styles.avatar} />
+            <Text
+              style={[styles.friendName, { color: colors.text }]}
+              numberOfLines={1}
             >
-              <ArrowLeft color="#fff" size={20} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Friend name and caption below photo */}
-        <View style={styles.nameSection}>
-          <Text style={[styles.heroName, { color: colors.text }]}>{checkIn.friendName}</Text>
-          {checkIn.caption ? (
-            <Text style={[styles.heroCaption, { color: colors.textMuted }]} numberOfLines={3}>{checkIn.caption}</Text>
-          ) : null}
-        </View>
-
-        {/* Minimal info below photo */}
-        <View style={styles.info}>
-          <View style={styles.venueRow}>
-            <MapPin color={colors.textMuted} size={13} />
-            <Text style={[styles.venueName, { color: colors.textMuted }]}>{checkIn.venueName}</Text>
-            <Text style={[styles.dot, { color: colors.textMuted }]}>·</Text>
-            <Text style={[styles.timeAgo, { color: colors.textMuted }]}>{checkIn.timeAgo}</Text>
-          </View>
-
-          {/* Busyness — simple white text, no bar */}
-          {venue ? (
-            <Text style={[styles.busyness, { color: colors.text }]}>
-              {busynessLabel} · {busynessPercent} full
+              {checkIn.friendName}
             </Text>
-          ) : null}
+            <View style={styles.spacer} />
+            {venue ? (
+              <Text style={styles.busynessPercent}>{busynessPercent}</Text>
+            ) : null}
+          </View>
+
+          {/* Row: venue name · time ago */}
+          <View style={styles.subRow}>
+            <Text style={[styles.venueName, { color: colors.textMuted }]}>
+              {checkIn.venueName}
+            </Text>
+            <Text style={[styles.subDot, { color: colors.textMuted }]}>·</Text>
+            <Text style={[styles.timeAgo, { color: colors.textMuted }]}>
+              {checkIn.timeAgo}
+            </Text>
+          </View>
         </View>
-      </ScrollView>
+      </View>
+
+      {/* Photo — fills remaining screen space */}
+      <View style={styles.photoContainer}>
+        <Image
+          source={{ uri: checkIn.photoUri }}
+          style={styles.photo}
+          resizeMode="cover"
+        />
+
+        {/* Subtle caption overlay pinned to bottom of photo */}
+        {checkIn.caption ? (
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.captionOverlay}
+            pointerEvents="none"
+          >
+            <Text style={styles.captionText} numberOfLines={2}>
+              {checkIn.caption}
+            </Text>
+          </LinearGradient>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {},
-  content: {},
-  heroWrap: {
+  screen: {
+    flex: 1,
+  },
+  topPanel: {
     width: '100%',
-    height: 480,
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  nameSection: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 4,
-  },
-  heroName: {
-    fontSize: 26,
-    fontWeight: '700' as const,
-    letterSpacing: -0.3,
-  },
-  heroCaption: {
-    fontSize: 15,
-    fontWeight: '400' as const,
-    lineHeight: 21,
   },
   topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     paddingHorizontal: 16,
+    paddingBottom: 4,
   },
   backCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: {
+  panelContent: {
+    flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 0,
-    gap: 6,
+    paddingBottom: 14,
   },
-  venueRow: {
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  friendName: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    letterSpacing: -0.3,
+    flexShrink: 1,
+  },
+  spacer: {
+    flex: 1,
+  },
+  busynessPercent: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
     gap: 5,
   },
   venueName: {
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  dot: {
+  subDot: {
     fontSize: 13,
     fontWeight: '500' as const,
   },
@@ -177,10 +212,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500' as const,
   },
-  busyness: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
+  photoContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  captionOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 88,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  captionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500' as const,
+    lineHeight: 21,
   },
   notFound: {
     flex: 1,
