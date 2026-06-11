@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1 },
   heroWrap: {
     width: '100%',
-    height: 400,
+    height: 480,
     position: 'relative',
   },
   heroImage: {
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 180,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    height: 160,
+    backgroundColor: 'rgba(0,0,0,0.50)',
   },
   heroContent: {
     position: 'absolute',
@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 24,
-    gap: 6,
+    paddingBottom: 16,
+    gap: 4,
   },
   heroName: {
     fontSize: 26,
@@ -171,8 +171,9 @@ const styles = StyleSheet.create({
   },
   info: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 10,
+    paddingTop: 14,
+    paddingBottom: 0,
+    gap: 6,
   },
   venueRow: {
     flexDirection: 'row',
