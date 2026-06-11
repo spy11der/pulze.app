@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 
 import { getVenuesSortedByBusyness } from '@/mocks/venues';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useTabScroll } from '@/providers/TabScrollProvider';
 
 import type { PulzeVenue } from '@/types/venue';
 
@@ -75,6 +76,7 @@ function venueMatchesBusynessFilter(venue: PulzeVenue, filterKey: string): boole
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { onScroll } = useTabScroll();
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
@@ -190,6 +192,8 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.cardList}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

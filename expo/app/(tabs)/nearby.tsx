@@ -14,6 +14,7 @@ import { MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { getNearbyVenues, type NearbyVenue } from '@/hooks/useNearbyVenues';
 import { pulzeVenues } from '@/mocks/venues';
@@ -118,6 +119,7 @@ export default function NearbyScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { userLocation } = useMapLocation();
+  const { onScroll } = useTabScroll();
 
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
 

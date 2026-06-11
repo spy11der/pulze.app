@@ -22,6 +22,7 @@ import { useData } from '@/providers/DataProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
+import { useTabScroll } from '@/providers/TabScrollProvider';
 import { currentUser } from '@/constants/identity';
 
 interface MenuRowProps {
@@ -70,6 +71,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark, mode, setThemeMode } = useTheme();
+  const { onScroll } = useTabScroll();
   const { user, logout } = useAuth();
   const { vibeCount } = useData();
   const { favoriteVenues } = useFavorites();

@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { MapPin } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
   type FriendCheckInFeedItem,
@@ -78,6 +79,7 @@ export default function CrewScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { userLocation } = useMapLocation();
+  const { onScroll } = useTabScroll();
 
   const proximityHint = useMemo<ProximityHint | null>(() => {
     return computeProximityHint(
