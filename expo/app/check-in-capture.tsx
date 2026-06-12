@@ -75,6 +75,7 @@ export default function CheckInCaptureScreen() {
   const stampScaleRef = useRef(stampScale);
   const captionPosRef = useRef(captionPos);
   const captionScaleRef = useRef(captionScale);
+  const captionInputRef = useRef<TextInput>(null);
   stampPosRef.current = stampPos;
   stampScaleRef.current = stampScale;
   captionPosRef.current = captionPos;
@@ -131,10 +132,12 @@ export default function CheckInCaptureScreen() {
   ).current;
 
   // Caption PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
+  // Uses capture phase so the parent claims the touch before the TextInput child.
+  // On tap (no movement) the TextInput is focused programmatically for typing.
   const captionPan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderGrant: (evt) => {
         captionOffset.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
         if (evt.nativeEvent.touches.length >= 2) {
@@ -161,6 +164,10 @@ export default function CheckInCaptureScreen() {
         }
       },
       onPanResponderRelease: (_, gs) => {
+        // Tap (minimal movement) → focus TextInput for typing
+        if (Math.abs(gs.dx) < 5 && Math.abs(gs.dy) < 5) {
+          captionInputRef.current?.focus();
+        }
         captionOffset.current = {
           x: captionOffset.current.x + gs.dx,
           y: captionOffset.current.y + gs.dy,
@@ -453,8 +460,7 @@ export default function CheckInCaptureScreen() {
             style={[
               styles.stampOverlay,
               {
-                top: stampPos.y,
-                transform: [{ translateX: stampPos.x }, { scale: stampScale }],
+                transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }],
               },
             ]}
             {...stampPan.panHandlers}
@@ -471,13 +477,13 @@ export default function CheckInCaptureScreen() {
             style={[
               styles.captionOverlay,
               {
-                top: captionPos.y,
-                transform: [{ translateX: captionPos.x }, { scale: captionScale }],
+                transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }],
               },
             ]}
             {...captionPan.panHandlers}
           >
             <TextInput
+              ref={captionInputRef}
               style={styles.captionOverlayInput}
               value={caption}
               onChangeText={setCaption}
