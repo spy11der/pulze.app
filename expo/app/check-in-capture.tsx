@@ -79,8 +79,11 @@ export default function CheckInCaptureScreen() {
   stampScaleRef.current = stampScale;
   captionPosRef.current = captionPos;
   captionScaleRef.current = captionScale;
-  const stampDragStart = useRef({ x: 0, y: 0 });
-  const captionDragStart = useRef({ x: 0, y: 0 });
+
+  // Persistent offsets — committed at the end of each gesture so the next
+  // gesture starts from where the last one left off.
+  const stampOffset = useRef({ x: 0, y: 180 });
+  const captionOffset = useRef({ x: 0, y: 340 });
   const stampPinchBase = useRef<{ dist: number; scale: number } | null>(null);
   const captionPinchBase = useRef<{ dist: number; scale: number } | null>(null);
 
@@ -90,7 +93,8 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
       onPanResponderGrant: (evt) => {
-        stampDragStart.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
+        // Snapshot the committed offset as the base for this gesture
+        stampOffset.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
         if (evt.nativeEvent.touches.length >= 2) {
           const [t0, t1] = evt.nativeEvent.touches;
           stampPinchBase.current = {
@@ -107,14 +111,20 @@ export default function CheckInCaptureScreen() {
           const ratio = dist / stampPinchBase.current.dist;
           setStampScale(Math.max(0.4, Math.min(3, stampPinchBase.current.scale * ratio)));
         } else {
+          // Position = committed offset + cumulative gesture delta
           setStampPos({
-            x: stampDragStart.current.x + gs.dx,
-            y: stampDragStart.current.y + gs.dy,
+            x: stampOffset.current.x + gs.dx,
+            y: stampOffset.current.y + gs.dy,
           });
           stampPinchBase.current = null;
         }
       },
-      onPanResponderRelease: () => {
+      onPanResponderRelease: (_, gs) => {
+        // Commit final position so the next gesture continues from here
+        stampOffset.current = {
+          x: stampOffset.current.x + gs.dx,
+          y: stampOffset.current.y + gs.dy,
+        };
         stampPinchBase.current = null;
       },
     }),
@@ -126,7 +136,7 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
       onPanResponderGrant: (evt) => {
-        captionDragStart.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
+        captionOffset.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
         if (evt.nativeEvent.touches.length >= 2) {
           const [t0, t1] = evt.nativeEvent.touches;
           captionPinchBase.current = {
@@ -144,13 +154,17 @@ export default function CheckInCaptureScreen() {
           setCaptionScale(Math.max(0.4, Math.min(3, captionPinchBase.current.scale * ratio)));
         } else {
           setCaptionPos({
-            x: captionDragStart.current.x + gs.dx,
-            y: captionDragStart.current.y + gs.dy,
+            x: captionOffset.current.x + gs.dx,
+            y: captionOffset.current.y + gs.dy,
           });
           captionPinchBase.current = null;
         }
       },
-      onPanResponderRelease: () => {
+      onPanResponderRelease: (_, gs) => {
+        captionOffset.current = {
+          x: captionOffset.current.x + gs.dx,
+          y: captionOffset.current.y + gs.dy,
+        };
         captionPinchBase.current = null;
       },
     }),
@@ -613,7 +627,6 @@ const styles = StyleSheet.create({
   },
   stampOverlay: {
     position: 'absolute',
-    bottom: 180,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -720,8 +733,8 @@ const styles = StyleSheet.create({
   // Caption overlay on photo
   captionOverlay: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   captionOverlayInput: {
