@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/services/supabase';
+import { incrementVenueCheckInCount } from '@/services/checkInCounts';
 
 const DEDUP_CACHE_KEY = 'pulze_geofence_dedup';
 const DEDUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -74,11 +75,20 @@ export async function insertCheckIn(record: CheckInRecord): Promise<string | nul
       console.log('[CheckIn DB] Inserted check-in:', checkInId);
     }
 
+    // Increment venue check-in count
+    if (record.venueId) {
+      void incrementVenueCheckInCount(record.venueId);
+    }
+
     return checkInId;
   } catch (e) {
     console.log('[CheckIn DB] Exception, storing locally:', e);
     const checkInId = `ci_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await storeLocalCheckIn(record, checkInId);
+    // Increment venue check-in count
+    if (record.venueId) {
+      void incrementVenueCheckInCount(record.venueId);
+    }
     return checkInId;
   }
 }

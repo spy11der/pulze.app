@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View, Image, Text, Dimensions, Easing } from 'react-native';
+import { Animated, StyleSheet, View, Text, Dimensions, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 interface PulseSplashProps {
@@ -148,12 +148,8 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
         <Animated.View
           style={[styles.ring, { transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]}
         />
-        <Animated.View style={[styles.logoImageWrap, { transform: [{ scale: logoScale }] }]}>
-          <Image
-            source={require('@/assets/images/pulze-splash.png')}
-            style={styles.splashImage}
-            resizeMode="contain"
-          />
+        <Animated.View style={[styles.logoTextWrap, { transform: [{ scale: logoScale }] }]}>
+          <Text style={styles.logoText}>P.</Text>
         </Animated.View>
       </View>
       <Animated.Text style={[styles.wordmark, { opacity: wordmarkOpacity }]} testID="pulse-splash-wordmark">
@@ -188,15 +184,17 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(43, 191, 186, 0.7)',
   },
-  logoImageWrap: {
+  logoTextWrap: {
     width: 120,
     height: 120,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  splashImage: {
-    width: 120,
-    height: 120,
+  logoText: {
+    fontSize: 64,
+    fontWeight: '700' as const,
+    color: '#2BBFBA',
+    letterSpacing: -2,
   },
   wordmark: {
     marginTop: 24,

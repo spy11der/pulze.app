@@ -3,10 +3,12 @@ import {
   Animated,
   Dimensions,
   Image,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,6 +64,8 @@ export default function CheckInCaptureScreen() {
   const [quip, setQuip] = useState<string>('');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [caption, setCaption] = useState<string>('');
+  const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 180 });
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
@@ -190,7 +194,7 @@ export default function CheckInCaptureScreen() {
       photoUri,
       photoVisibility: true,
       capturedAt: new Date().toISOString(),
-      quip,
+      quip: caption || quip,
     });
 
     // Dismiss camera and go back
@@ -327,6 +331,24 @@ export default function CheckInCaptureScreen() {
     );
   }
 
+  // Draggable stamp pan responder
+  const stampPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderMove: (_, gesture) => {
+        setStampPos((prev) => ({
+          x: prev.x + gesture.dx * 0.3,
+          y: prev.y + gesture.dy * 0.3,
+        }));
+      },
+      onPanResponderRelease: () => {},
+    }),
+  ).current;
+
   // Captured phase — show photo with stamp overlay + quip
   if (phase === 'captured' && capturedPhoto) {
     const now = new Date();
@@ -343,8 +365,18 @@ export default function CheckInCaptureScreen() {
         {/* Stampable view */}
         <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
           <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
-          {/* Stamp overlay on photo */}
-          <View style={styles.stampOverlay}>
+          {/* Draggable stamp overlay on photo */}
+          <View
+            style={[
+              styles.stampOverlay,
+              {
+                bottom: undefined as any,
+                top: stampPos.y,
+                transform: [{ translateX: stampPos.x }],
+              },
+            ]}
+            {...stampPan.panHandlers}
+          >
             <View style={styles.stampBox}>
               <Text style={styles.stampVenue}>{venueName}</Text>
               <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
@@ -360,6 +392,11 @@ export default function CheckInCaptureScreen() {
         >
           <Text style={styles.quipText}>{quip}</Text>
         </Animated.View>
+
+        {/* Hint: drag to reposition */}
+        <View style={styles.dragHint} pointerEvents="none">
+          <Text style={styles.dragHintText}>Press and drag the stamp to reposition</Text>
+        </View>
       </View>
     );
   }
@@ -373,6 +410,20 @@ export default function CheckInCaptureScreen() {
         {stampedPhoto && (
           <Image source={{ uri: stampedPhoto }} style={styles.resultPhoto} />
         )}
+
+        {/* Caption input */}
+        <View style={styles.captionContainer}>
+          <TextInput
+            style={styles.captionInput}
+            value={caption}
+            onChangeText={setCaption}
+            placeholder="Add a caption..."
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            maxLength={120}
+            returnKeyType="done"
+            autoCorrect
+          />
+        </View>
 
         <View style={[styles.resultActions, { paddingBottom: insets.bottom + 20 }]}>
           <Pressable
@@ -577,6 +628,38 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   btnPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  // Caption input
+  captionContainer: {
+    paddingHorizontal: 20,
+    marginTop: 12,
+  },
+  captionInput: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontWeight: '500' as const,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  // Drag hint
+  dragHint: {
+    position: 'absolute',
+    bottom: 72,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  dragHintText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: 'rgba(255,255,255,0.4)',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
   // Permission
   permissionText: {
     fontSize: 16,

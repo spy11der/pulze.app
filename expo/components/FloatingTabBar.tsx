@@ -99,7 +99,7 @@ export function PersistentFloatingTabBar() {
   const firstSegment = segArr[0] ?? '';
   if (HIDDEN_SEGMENTS.has(firstSegment)) return null;
 
-  const activeTab = segArr[1] ?? '';
+  const activeTab = segArr[1] || 'index';
   const tabNames = ['index', 'nearby', 'crew', 'profile'] as const;
 
   return (

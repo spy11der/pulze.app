@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -23,6 +23,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { pulzeVenues } from '@/mocks/venues';
 import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
+import { getVenueCheckInCount } from '@/services/checkInCounts';
 
 const TABS = [
   { icon: Compass, route: '/(tabs)' },
@@ -39,6 +40,12 @@ export default function VenueDetailScreen() {
   const { isFavorited, toggleFavorite } = useFavorites();
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
+  const [localCheckins, setLocalCheckins] = useState<number>(0);
+
+  useEffect(() => {
+    if (!params.venueId) return;
+    void getVenueCheckInCount(params.venueId).then(setLocalCheckins);
+  }, [params.venueId]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -151,7 +158,7 @@ export default function VenueDetailScreen() {
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Users color={colors.aqua} size={16} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{venue.checkins}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{venue.checkins + localCheckins}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Checked in</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
