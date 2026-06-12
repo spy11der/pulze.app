@@ -84,6 +84,78 @@ export default function CheckInCaptureScreen() {
   const stampPinchBase = useRef<{ dist: number; scale: number } | null>(null);
   const captionPinchBase = useRef<{ dist: number; scale: number } | null>(null);
 
+  // Stamp PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
+  const stampPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
+      onPanResponderGrant: (evt) => {
+        stampDragStart.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
+        if (evt.nativeEvent.touches.length >= 2) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          stampPinchBase.current = {
+            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
+            scale: stampScaleRef.current,
+          };
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderMove: (evt, gs) => {
+        if (evt.nativeEvent.touches.length >= 2 && stampPinchBase.current) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
+          const ratio = dist / stampPinchBase.current.dist;
+          setStampScale(Math.max(0.4, Math.min(3, stampPinchBase.current.scale * ratio)));
+        } else {
+          setStampPos({
+            x: stampDragStart.current.x + gs.dx,
+            y: stampDragStart.current.y + gs.dy,
+          });
+          stampPinchBase.current = null;
+        }
+      },
+      onPanResponderRelease: () => {
+        stampPinchBase.current = null;
+      },
+    }),
+  ).current;
+
+  // Caption PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
+  const captionPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
+      onPanResponderGrant: (evt) => {
+        captionDragStart.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
+        if (evt.nativeEvent.touches.length >= 2) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          captionPinchBase.current = {
+            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
+            scale: captionScaleRef.current,
+          };
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderMove: (evt, gs) => {
+        if (evt.nativeEvent.touches.length >= 2 && captionPinchBase.current) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
+          const ratio = dist / captionPinchBase.current.dist;
+          setCaptionScale(Math.max(0.4, Math.min(3, captionPinchBase.current.scale * ratio)));
+        } else {
+          setCaptionPos({
+            x: captionDragStart.current.x + gs.dx,
+            y: captionDragStart.current.y + gs.dy,
+          });
+          captionPinchBase.current = null;
+        }
+      },
+      onPanResponderRelease: () => {
+        captionPinchBase.current = null;
+      },
+    }),
+  ).current;
+
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
   const neighborhood = params.neighborhood ?? venue?.neighborhood ?? 'Denver';
@@ -344,78 +416,6 @@ export default function CheckInCaptureScreen() {
       </View>
     );
   }
-
-  // Stamp PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
-  const stampPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
-      onPanResponderGrant: (evt) => {
-        stampDragStart.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
-        if (evt.nativeEvent.touches.length >= 2) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          stampPinchBase.current = {
-            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
-            scale: stampScaleRef.current,
-          };
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-      onPanResponderMove: (evt, gs) => {
-        if (evt.nativeEvent.touches.length >= 2 && stampPinchBase.current) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
-          const ratio = dist / stampPinchBase.current.dist;
-          setStampScale(Math.max(0.4, Math.min(3, stampPinchBase.current.scale * ratio)));
-        } else {
-          setStampPos({
-            x: stampDragStart.current.x + gs.dx,
-            y: stampDragStart.current.y + gs.dy,
-          });
-          stampPinchBase.current = null;
-        }
-      },
-      onPanResponderRelease: () => {
-        stampPinchBase.current = null;
-      },
-    }),
-  ).current;
-
-  // Caption PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
-  const captionPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
-      onPanResponderGrant: (evt) => {
-        captionDragStart.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
-        if (evt.nativeEvent.touches.length >= 2) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          captionPinchBase.current = {
-            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
-            scale: captionScaleRef.current,
-          };
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-      onPanResponderMove: (evt, gs) => {
-        if (evt.nativeEvent.touches.length >= 2 && captionPinchBase.current) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
-          const ratio = dist / captionPinchBase.current.dist;
-          setCaptionScale(Math.max(0.4, Math.min(3, captionPinchBase.current.scale * ratio)));
-        } else {
-          setCaptionPos({
-            x: captionDragStart.current.x + gs.dx,
-            y: captionDragStart.current.y + gs.dy,
-          });
-          captionPinchBase.current = null;
-        }
-      },
-      onPanResponderRelease: () => {
-        captionPinchBase.current = null;
-      },
-    }),
-  ).current;
 
   // Captured phase — photo with draggable+resizable stamp + caption overlay
   if (phase === 'captured' && capturedPhoto) {
