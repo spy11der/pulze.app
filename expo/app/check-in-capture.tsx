@@ -66,6 +66,23 @@ export default function CheckInCaptureScreen() {
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 180 });
+  const [stampScale, setStampScale] = useState(1);
+  const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 340 });
+  const [captionScale, setCaptionScale] = useState(1);
+
+  // Refs that mirror positional state so PanResponder closures stay fresh
+  const stampPosRef = useRef(stampPos);
+  const stampScaleRef = useRef(stampScale);
+  const captionPosRef = useRef(captionPos);
+  const captionScaleRef = useRef(captionScale);
+  stampPosRef.current = stampPos;
+  stampScaleRef.current = stampScale;
+  captionPosRef.current = captionPos;
+  captionScaleRef.current = captionScale;
+  const stampDragStart = useRef({ x: 0, y: 0 });
+  const captionDragStart = useRef({ x: 0, y: 0 });
+  const stampPinchBase = useRef<{ dist: number; scale: number } | null>(null);
+  const captionPinchBase = useRef<{ dist: number; scale: number } | null>(null);
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
@@ -129,54 +146,51 @@ export default function CheckInCaptureScreen() {
     }
   }, []);
 
-  // After photo captured, generate stamp and show quip
+  // Set quip when entering captured phase
   useEffect(() => {
     if (phase !== 'captured' || !capturedPhoto) return;
-
-    const q = getQuip(venueType);
-    setQuip(q);
-
-    // Wait a beat then stamp
-    const stampTimer = setTimeout(async () => {
-      try {
-        if (stampViewRef.current) {
-          const uri = await captureRef(stampViewRef.current, {
-            format: 'jpg',
-            quality: 0.9,
-          });
-          setStampedPhoto(uri);
-        }
-      } catch (e) {
-        console.log('[Capture] Stamp error:', e);
-        setStampedPhoto(capturedPhoto);
-      }
-
-      // Show quip
-      Animated.timing(quipOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-
-      // Then transition to result
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(quipOpacity, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(resultOpacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start(() => setPhase('result'));
-      }, QUIP_DISPLAY_MS);
-    }, 300);
-
-    return () => clearTimeout(stampTimer);
+    setQuip(getQuip(venueType));
   }, [phase, capturedPhoto]);
+
+  // User taps Continue after positioning stamp + caption
+  const handleContinue = useCallback(async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      if (stampViewRef.current) {
+        const uri = await captureRef(stampViewRef.current, {
+          format: 'jpg',
+          quality: 0.9,
+        });
+        setStampedPhoto(uri);
+      }
+    } catch (e) {
+      console.log('[Capture] Stamp error:', e);
+      setStampedPhoto(capturedPhoto);
+    }
+
+    // Brief quip then transition to result
+    Animated.timing(quipOpacity, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(quipOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(resultOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setPhase('result'));
+    }, QUIP_DISPLAY_MS);
+  }, [capturedPhoto]);
 
   const handleShareWithCrew = useCallback(async () => {
     if (isSharing) return;
@@ -331,25 +345,79 @@ export default function CheckInCaptureScreen() {
     );
   }
 
-  // Draggable stamp pan responder
+  // Stamp PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
   const stampPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
+      onPanResponderGrant: (evt) => {
+        stampDragStart.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
+        if (evt.nativeEvent.touches.length >= 2) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          stampPinchBase.current = {
+            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
+            scale: stampScaleRef.current,
+          };
+        }
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
-      onPanResponderMove: (_, gesture) => {
-        setStampPos((prev) => ({
-          x: prev.x + gesture.dx * 0.3,
-          y: prev.y + gesture.dy * 0.3,
-        }));
+      onPanResponderMove: (evt, gs) => {
+        if (evt.nativeEvent.touches.length >= 2 && stampPinchBase.current) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
+          const ratio = dist / stampPinchBase.current.dist;
+          setStampScale(Math.max(0.4, Math.min(3, stampPinchBase.current.scale * ratio)));
+        } else {
+          setStampPos({
+            x: stampDragStart.current.x + gs.dx,
+            y: stampDragStart.current.y + gs.dy,
+          });
+          stampPinchBase.current = null;
+        }
       },
-      onPanResponderRelease: () => {},
+      onPanResponderRelease: () => {
+        stampPinchBase.current = null;
+      },
     }),
   ).current;
 
-  // Captured phase — show photo with stamp overlay + quip
+  // Caption PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
+  const captionPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
+      onPanResponderGrant: (evt) => {
+        captionDragStart.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
+        if (evt.nativeEvent.touches.length >= 2) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          captionPinchBase.current = {
+            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
+            scale: captionScaleRef.current,
+          };
+        }
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+      onPanResponderMove: (evt, gs) => {
+        if (evt.nativeEvent.touches.length >= 2 && captionPinchBase.current) {
+          const [t0, t1] = evt.nativeEvent.touches;
+          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
+          const ratio = dist / captionPinchBase.current.dist;
+          setCaptionScale(Math.max(0.4, Math.min(3, captionPinchBase.current.scale * ratio)));
+        } else {
+          setCaptionPos({
+            x: captionDragStart.current.x + gs.dx,
+            y: captionDragStart.current.y + gs.dy,
+          });
+          captionPinchBase.current = null;
+        }
+      },
+      onPanResponderRelease: () => {
+        captionPinchBase.current = null;
+      },
+    }),
+  ).current;
+
+  // Captured phase — photo with draggable+resizable stamp + caption overlay
   if (phase === 'captured' && capturedPhoto) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', {
@@ -362,17 +430,17 @@ export default function CheckInCaptureScreen() {
       <View style={styles.screen}>
         <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
 
-        {/* Stampable view */}
+        {/* Capturable view — photo + stamp overlay + caption overlay */}
         <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
           <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
-          {/* Draggable stamp overlay on photo */}
+
+          {/* Draggable + resizable stamp */}
           <View
             style={[
               styles.stampOverlay,
               {
-                bottom: undefined as any,
                 top: stampPos.y,
-                transform: [{ translateX: stampPos.x }],
+                transform: [{ translateX: stampPos.x }, { scale: stampScale }],
               },
             ]}
             {...stampPan.panHandlers}
@@ -383,6 +451,41 @@ export default function CheckInCaptureScreen() {
               <Text style={styles.stampTime}>{timeStr}</Text>
             </View>
           </View>
+
+          {/* Draggable + resizable caption text overlay */}
+          <View
+            style={[
+              styles.captionOverlay,
+              {
+                top: captionPos.y,
+                transform: [{ translateX: captionPos.x }, { scale: captionScale }],
+              },
+            ]}
+            {...captionPan.panHandlers}
+          >
+            <TextInput
+              style={styles.captionOverlayInput}
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Add a caption..."
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              maxLength={120}
+              returnKeyType="done"
+            />
+          </View>
+        </View>
+
+        {/* Continue button */}
+        <View style={[styles.continueWrap, { paddingBottom: insets.bottom + 12 }]}>
+          <Pressable
+            onPress={handleContinue}
+            style={({ pressed }) => [
+              styles.continueBtn,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <Text style={styles.continueBtnText}>Continue</Text>
+          </Pressable>
         </View>
 
         {/* Quip overlay */}
@@ -393,9 +496,9 @@ export default function CheckInCaptureScreen() {
           <Text style={styles.quipText}>{quip}</Text>
         </Animated.View>
 
-        {/* Hint: drag to reposition */}
+        {/* Hint */}
         <View style={styles.dragHint} pointerEvents="none">
-          <Text style={styles.dragHintText}>Press and drag the stamp to reposition</Text>
+          <Text style={styles.dragHintText}>Drag to reposition · Pinch to resize</Text>
         </View>
       </View>
     );
@@ -410,20 +513,6 @@ export default function CheckInCaptureScreen() {
         {stampedPhoto && (
           <Image source={{ uri: stampedPhoto }} style={styles.resultPhoto} />
         )}
-
-        {/* Caption input */}
-        <View style={styles.captionContainer}>
-          <TextInput
-            style={styles.captionInput}
-            value={caption}
-            onChangeText={setCaption}
-            placeholder="Add a caption..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            maxLength={120}
-            returnKeyType="done"
-            autoCorrect
-          />
-        </View>
 
         <View style={[styles.resultActions, { paddingBottom: insets.bottom + 20 }]}>
           <Pressable
@@ -628,26 +717,50 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   btnPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
-  // Caption input
-  captionContainer: {
-    paddingHorizontal: 20,
-    marginTop: 12,
+  // Caption overlay on photo
+  captionOverlay: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    alignItems: 'center',
   },
-  captionInput: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
+  captionOverlayInput: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    paddingHorizontal: 18,
     paddingVertical: 14,
-    fontSize: 15,
-    fontWeight: '500' as const,
+    fontSize: 16,
+    fontWeight: '700' as const,
     color: '#FFFFFF',
+    textAlign: 'center',
+    minWidth: 200,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  // Continue button
+  continueWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+  },
+  continueBtn: {
+    backgroundColor: '#2BBFBA',
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueBtnText: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#041318',
   },
   // Drag hint
   dragHint: {
     position: 'absolute',
-    bottom: 72,
+    bottom: 100,
     left: 0,
     right: 0,
     alignItems: 'center',
