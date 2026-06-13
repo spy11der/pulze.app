@@ -65,11 +65,11 @@ export default function CheckInCaptureScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
-  const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 180 });
-  const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 340 });
+  const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const stampOffset = useRef({ x: 0, y: 180 });
-  const captionOffset = useRef({ x: 0, y: 340 });
+  const stampOffset = useRef({ x: 0, y: 0 });
+  const captionOffset = useRef({ x: 0, y: 0 });
   const captionInputRef = useRef<TextInput>(null);
 
   const stampPanResponder = PanResponder.create({
@@ -559,6 +559,7 @@ const styles = StyleSheet.create({
   stampViewContainer: {
     flex: 1,
     width: '100%' as const,
+    height: SCREEN_HEIGHT,
   },
   stampImage: {
     ...StyleSheet.absoluteFillObject,
@@ -566,6 +567,8 @@ const styles = StyleSheet.create({
   },
   stampOverlay: {
     position: 'absolute',
+    top: 180,
+    left: 20,
     alignItems: 'center',
   },
   stampBox: {
@@ -670,6 +673,8 @@ const styles = StyleSheet.create({
   // Caption overlay on photo
   captionOverlay: {
     position: 'absolute',
+    top: 340,
+    left: 20,
     alignItems: 'center',
   },
   captionOverlayInput: {
