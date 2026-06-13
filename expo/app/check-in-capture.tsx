@@ -393,9 +393,7 @@ export default function CheckInCaptureScreen() {
           <Animated.View
             style={[
               styles.stampOverlay,
-              {
-                transform: [{ translateX: stampAnim.x }, { translateY: stampAnim.y }],
-              },
+              { transform: stampAnim.getTranslateTransform() },
             ]}
             {...stampPanResponder.panHandlers}
           >
@@ -410,9 +408,7 @@ export default function CheckInCaptureScreen() {
           <Animated.View
             style={[
               styles.captionOverlay,
-              {
-                transform: [{ translateX: captionAnim.x }, { translateY: captionAnim.y }],
-              },
+              { transform: captionAnim.getTranslateTransform() },
             ]}
             {...captionPanResponder.panHandlers}
           >
