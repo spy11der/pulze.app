@@ -66,116 +66,49 @@ export default function CheckInCaptureScreen() {
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 180 });
-  const [stampScale, setStampScale] = useState(1);
   const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 340 });
-  const [captionScale, setCaptionScale] = useState(1);
 
-  // Refs that mirror positional state so PanResponder closures stay fresh
-  const stampPosRef = useRef(stampPos);
-  const stampScaleRef = useRef(stampScale);
-  const captionPosRef = useRef(captionPos);
-  const captionScaleRef = useRef(captionScale);
-  const captionInputRef = useRef<TextInput>(null);
-  stampPosRef.current = stampPos;
-  stampScaleRef.current = stampScale;
-  captionPosRef.current = captionPos;
-  captionScaleRef.current = captionScale;
-
-  // Persistent offsets — committed at the end of each gesture so the next
-  // gesture starts from where the last one left off.
   const stampOffset = useRef({ x: 0, y: 180 });
   const captionOffset = useRef({ x: 0, y: 340 });
-  const stampPinchBase = useRef<{ dist: number; scale: number } | null>(null);
-  const captionPinchBase = useRef<{ dist: number; scale: number } | null>(null);
+  const captionInputRef = useRef<TextInput>(null);
 
-  // Stamp PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
-  const stampPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 1 || Math.abs(gs.dy) > 1,
-      onPanResponderGrant: (evt) => {
-        // Snapshot the committed offset as the base for this gesture
-        stampOffset.current = { x: stampPosRef.current.x, y: stampPosRef.current.y };
-        if (evt.nativeEvent.touches.length >= 2) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          stampPinchBase.current = {
-            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
-            scale: stampScaleRef.current,
-          };
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-      onPanResponderMove: (evt, gs) => {
-        if (evt.nativeEvent.touches.length >= 2 && stampPinchBase.current) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
-          const ratio = dist / stampPinchBase.current.dist;
-          setStampScale(Math.max(0.4, Math.min(3, stampPinchBase.current.scale * ratio)));
-        } else {
-          // Position = committed offset + cumulative gesture delta
-          setStampPos({
-            x: stampOffset.current.x + gs.dx,
-            y: stampOffset.current.y + gs.dy,
-          });
-          stampPinchBase.current = null;
-        }
-      },
-      onPanResponderRelease: (_, gs) => {
-        // Commit final position so the next gesture continues from here
-        stampOffset.current = {
-          x: stampOffset.current.x + gs.dx,
-          y: stampOffset.current.y + gs.dy,
-        };
-        stampPinchBase.current = null;
-      },
-    }),
-  ).current;
+  const stampPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: (_, gesture) => {
+      setStampPos({
+        x: stampOffset.current.x + gesture.dx,
+        y: stampOffset.current.y + gesture.dy,
+      });
+    },
+    onPanResponderRelease: (_, gesture) => {
+      stampOffset.current = {
+        x: stampOffset.current.x + gesture.dx,
+        y: stampOffset.current.y + gesture.dy,
+      };
+    },
+  });
 
-  // Caption PanResponder — drag (1 finger) + pinch-to-resize (2 fingers)
-  // Uses capture phase so the parent claims the touch before the TextInput child.
-  // On tap (no movement) the TextInput is focused programmatically for typing.
-  const captionPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: (evt) => {
-        captionOffset.current = { x: captionPosRef.current.x, y: captionPosRef.current.y };
-        if (evt.nativeEvent.touches.length >= 2) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          captionPinchBase.current = {
-            dist: Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY),
-            scale: captionScaleRef.current,
-          };
-        }
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      },
-      onPanResponderMove: (evt, gs) => {
-        if (evt.nativeEvent.touches.length >= 2 && captionPinchBase.current) {
-          const [t0, t1] = evt.nativeEvent.touches;
-          const dist = Math.hypot(t1.pageX - t0.pageX, t1.pageY - t0.pageY);
-          const ratio = dist / captionPinchBase.current.dist;
-          setCaptionScale(Math.max(0.4, Math.min(3, captionPinchBase.current.scale * ratio)));
-        } else {
-          setCaptionPos({
-            x: captionOffset.current.x + gs.dx,
-            y: captionOffset.current.y + gs.dy,
-          });
-          captionPinchBase.current = null;
-        }
-      },
-      onPanResponderRelease: (_, gs) => {
-        // Tap (minimal movement) → focus TextInput for typing
-        if (Math.abs(gs.dx) < 5 && Math.abs(gs.dy) < 5) {
-          captionInputRef.current?.focus();
-        }
-        captionOffset.current = {
-          x: captionOffset.current.x + gs.dx,
-          y: captionOffset.current.y + gs.dy,
-        };
-        captionPinchBase.current = null;
-      },
-    }),
-  ).current;
+  const captionPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: (_, gesture) => {
+      setCaptionPos({
+        x: captionOffset.current.x + gesture.dx,
+        y: captionOffset.current.y + gesture.dy,
+      });
+    },
+    onPanResponderRelease: (_, gesture) => {
+      captionOffset.current = {
+        x: captionOffset.current.x + gesture.dx,
+        y: captionOffset.current.y + gesture.dy,
+      };
+      // Tap (minimal movement) → focus TextInput for typing
+      if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
+        captionInputRef.current?.focus();
+      }
+    },
+  });
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
@@ -460,10 +393,10 @@ export default function CheckInCaptureScreen() {
             style={[
               styles.stampOverlay,
               {
-                transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }],
+                transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }],
               },
             ]}
-            {...stampPan.panHandlers}
+            {...stampPanResponder.panHandlers}
           >
             <View style={styles.stampBox}>
               <Text style={styles.stampVenue}>{venueName}</Text>
@@ -477,10 +410,10 @@ export default function CheckInCaptureScreen() {
             style={[
               styles.captionOverlay,
               {
-                transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }],
+                transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }],
               },
             ]}
-            {...captionPan.panHandlers}
+            {...captionPanResponder.panHandlers}
           >
             <TextInput
               ref={captionInputRef}
@@ -518,7 +451,7 @@ export default function CheckInCaptureScreen() {
 
         {/* Hint */}
         <View style={styles.dragHint} pointerEvents="none">
-          <Text style={styles.dragHintText}>Drag to reposition · Pinch to resize</Text>
+          <Text style={styles.dragHintText}>Drag to reposition</Text>
         </View>
       </View>
     );
@@ -633,8 +566,6 @@ const styles = StyleSheet.create({
   },
   stampOverlay: {
     position: 'absolute',
-    left: 0,
-    right: 0,
     alignItems: 'center',
   },
   stampBox: {
@@ -739,8 +670,6 @@ const styles = StyleSheet.create({
   // Caption overlay on photo
   captionOverlay: {
     position: 'absolute',
-    left: 0,
-    right: 0,
     alignItems: 'center',
   },
   captionOverlayInput: {
