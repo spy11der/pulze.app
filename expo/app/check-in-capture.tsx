@@ -449,6 +449,23 @@ export default function CheckInCaptureScreen() {
           <Text style={styles.quipText}>{quip}</Text>
         </Animated.View>
 
+        {/* Debug position readout */}
+        <View style={styles.debugPanel} pointerEvents="none">
+          <Text style={styles.debugTitle}>DEBUG — Live Position Values</Text>
+          <Text style={styles.debugRow}>
+            stampPos:  x={stampPos.x.toFixed(0)}  y={stampPos.y.toFixed(0)}
+          </Text>
+          <Text style={styles.debugRow}>
+            stampOffset:  x={stampOffset.current.x.toFixed(0)}  y={stampOffset.current.y.toFixed(0)}
+          </Text>
+          <Text style={styles.debugRow}>
+            captionPos:  x={captionPos.x.toFixed(0)}  y={captionPos.y.toFixed(0)}
+          </Text>
+          <Text style={styles.debugRow}>
+            captionOffset:  x={captionOffset.current.x.toFixed(0)}  y={captionOffset.current.y.toFixed(0)}
+          </Text>
+        </View>
+
         {/* Hint */}
         <View style={styles.dragHint} pointerEvents="none">
           <Text style={styles.dragHintText}>Drag to reposition</Text>
@@ -704,6 +721,31 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#041318',
+  },
+  // Debug panel
+  debugPanel: {
+    position: 'absolute',
+    top: 60,
+    left: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    borderRadius: 10,
+    padding: 14,
+    zIndex: 100,
+  },
+  debugTitle: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    color: '#2BBFBA',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  debugRow: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 18,
   },
   // Drag hint
   dragHint: {
