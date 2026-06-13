@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -10,8 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import AnimatedReanimated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
@@ -67,84 +66,58 @@ export default function CheckInCaptureScreen() {
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [showCaption, setShowCaption] = useState<boolean>(false);
-  const stampScaleSv = useSharedValue<number>(1);
-  const captionScaleSv = useSharedValue<number>(1);
-  const stampBaseScaleSv = useSharedValue<number>(1);
-  const captionBaseScaleSv = useSharedValue<number>(1);
+  const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const stampOffset = useRef({ x: 0, y: 0 });
+  const captionOffset = useRef({ x: 0, y: 0 });
   const captionInputRef = useRef<TextInput>(null);
 
-  const stampTranslateX = useSharedValue<number>(0);
-  const stampTranslateY = useSharedValue<number>(0);
-  const captionTranslateX = useSharedValue<number>(0);
-  const captionTranslateY = useSharedValue<number>(0);
-  const savedStampX = useSharedValue<number>(0);
-  const savedStampY = useSharedValue<number>(0);
-  const savedCaptionX = useSharedValue<number>(0);
-  const savedCaptionY = useSharedValue<number>(0);
+  const stampPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setStampPos({
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        stampOffset.current = {
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        };
+      },
+    }),
+  ).current;
 
-  const focusCaptionInput = useCallback(() => {
-    captionInputRef.current?.focus();
-  }, []);
-
-  const stampPan = Gesture.Pan()
-    .onUpdate((e) => {
-      stampTranslateX.value = savedStampX.value + e.translationX;
-      stampTranslateY.value = savedStampY.value + e.translationY;
-    })
-    .onEnd(() => {
-      savedStampX.value = stampTranslateX.value;
-      savedStampY.value = stampTranslateY.value;
-    });
-
-  const stampPinch = Gesture.Pinch()
-    .onUpdate((e) => {
-      stampScaleSv.value = Math.min(3, Math.max(0.5, stampBaseScaleSv.value * e.scale));
-    })
-    .onEnd(() => {
-      stampBaseScaleSv.value = stampScaleSv.value;
-    });
-
-  const stampGesture = Gesture.Simultaneous(stampPan, stampPinch);
-
-  const captionPan = Gesture.Pan()
-    .onUpdate((e) => {
-      captionTranslateX.value = savedCaptionX.value + e.translationX;
-      captionTranslateY.value = savedCaptionY.value + e.translationY;
-    })
-    .onEnd((e) => {
-      savedCaptionX.value = captionTranslateX.value;
-      savedCaptionY.value = captionTranslateY.value;
-      if (Math.abs(e.translationX) < 5 && Math.abs(e.translationY) < 5) {
-        runOnJS(focusCaptionInput)();
-      }
-    });
-
-  const captionPinch = Gesture.Pinch()
-    .onUpdate((e) => {
-      captionScaleSv.value = Math.min(3, Math.max(0.5, captionBaseScaleSv.value * e.scale));
-    })
-    .onEnd(() => {
-      captionBaseScaleSv.value = captionScaleSv.value;
-    });
-
-  const captionGesture = Gesture.Simultaneous(captionPan, captionPinch);
-
-  const stampAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: stampTranslateX.value },
-      { translateY: stampTranslateY.value },
-      { scale: stampScaleSv.value },
-    ],
-  }));
-
-  const captionAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: captionTranslateX.value },
-      { translateY: captionTranslateY.value },
-      { scale: captionScaleSv.value },
-    ],
-  }));
+  const captionPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setCaptionPos({
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        captionOffset.current = {
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        };
+        // Tap (minimal movement) → focus TextInput for typing
+        if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
+          captionInputRef.current?.focus();
+        }
+      },
+    }),
+  ).current;
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
@@ -425,30 +398,31 @@ export default function CheckInCaptureScreen() {
             <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
               <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-              {/* Draggable stamp with pinch-to-resize */}
-              <GestureDetector gesture={stampGesture}>
-                <AnimatedReanimated.View
-                  style={[styles.stampOverlay, stampAnimatedStyle]}
-                >
-                  <View style={styles.stampBox}>
-                    <Text style={styles.stampVenue}>{venueName}</Text>
-                    <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                    <Text style={styles.stampTime}>{timeStr}</Text>
-                  </View>
-                </AnimatedReanimated.View>
-              </GestureDetector>
+              {/* Draggable stamp */}
+              <View
+                style={[
+                  styles.stampOverlay,
+                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
+                ]}
+                {...stampPanResponder.panHandlers}
+              >
+                <View style={styles.stampBox}>
+                  <Text style={styles.stampVenue}>{venueName}</Text>
+                  <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                  <Text style={styles.stampTime}>{timeStr}</Text>
+                </View>
+              </View>
 
-              {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
+              {/* Draggable caption text overlay — only visible after user taps */}
               {showCaption && (
-                <GestureDetector gesture={captionGesture}>
-                  <AnimatedReanimated.View
-                    style={[{ position: 'absolute', top: 340, left: 20 }, captionAnimatedStyle]}
-                  >
-                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                      {caption || 'Add a caption...'}
-                    </Text>
-                  </AnimatedReanimated.View>
-                </GestureDetector>
+                <View
+                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
+                  {...captionPanResponder.panHandlers}
+                >
+                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                    {caption || 'Add a caption...'}
+                  </Text>
+                </View>
               )}
             </View>
           </View>
