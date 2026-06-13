@@ -72,47 +72,51 @@ export default function CheckInCaptureScreen() {
   const captionOffset = useRef({ x: 0, y: 0 });
   const captionInputRef = useRef<TextInput>(null);
 
-  const stampPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderMove: (_, gesture) => {
-      setStampPos({
-        x: stampOffset.current.x + gesture.dx,
-        y: stampOffset.current.y + gesture.dy,
-      });
-    },
-    onPanResponderRelease: (_, gesture) => {
-      stampOffset.current = {
-        x: stampOffset.current.x + gesture.dx,
-        y: stampOffset.current.y + gesture.dy,
-      };
-    },
-  });
+  const stampPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setStampPos({
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        stampOffset.current = {
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        };
+      },
+    }),
+  ).current;
 
-  const captionPanResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderMove: (_, gesture) => {
-      setCaptionPos({
-        x: captionOffset.current.x + gesture.dx,
-        y: captionOffset.current.y + gesture.dy,
-      });
-    },
-    onPanResponderRelease: (_, gesture) => {
-      captionOffset.current = {
-        x: captionOffset.current.x + gesture.dx,
-        y: captionOffset.current.y + gesture.dy,
-      };
-      // Tap (minimal movement) → focus TextInput for typing
-      if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
-        captionInputRef.current?.focus();
-      }
-    },
-  });
+  const captionPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setCaptionPos({
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        captionOffset.current = {
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        };
+        // Tap (minimal movement) → focus TextInput for typing
+        if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
+          captionInputRef.current?.focus();
+        }
+      },
+    }),
+  ).current;
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
