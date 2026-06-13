@@ -425,11 +425,9 @@ export default function CheckInCaptureScreen() {
                   style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
                   {...captionPanResponder.panHandlers}
                 >
-                  <View style={styles.captionOverlayInput}>
-                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                      {caption || 'Add a caption...'}
-                    </Text>
-                  </View>
+                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }}>
+                    {caption || 'Add a caption...'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -585,32 +583,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stampBox: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(43,191,186,0.5)',
-    transform: [{ rotate: '-3deg' }],
   },
   stampVenue: {
     fontSize: 20,
     fontWeight: '800' as const,
     color: '#FFFFFF',
     letterSpacing: 0.5,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   stampNeighborhood: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#2BBFBA',
     marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   stampTime: {
     fontSize: 12,
     fontWeight: '500' as const,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   // Quip
   quipOverlay: {
@@ -691,8 +691,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   captionOverlayInput: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 12,
     paddingHorizontal: 18,
     paddingVertical: 14,
     fontSize: 16,
@@ -700,8 +698,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     minWidth: 200,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
   },
   // Continue button
   continueWrap: {
