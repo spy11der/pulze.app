@@ -65,6 +65,7 @@ export default function CheckInCaptureScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
+  const [showCaption, setShowCaption] = useState<boolean>(false);
 
   const captionInputRef = useRef<TextInput>(null);
 
@@ -290,7 +291,7 @@ export default function CheckInCaptureScreen() {
   if (hasCameraPermission === null) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Text style={styles.permissionText}>Checking camera...</Text>
       </View>
     );
@@ -300,7 +301,7 @@ export default function CheckInCaptureScreen() {
   if (!hasCameraPermission) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Text style={styles.permissionText}>Camera access is required</Text>
         <Pressable
           onPress={() => router.back()}
@@ -322,7 +323,7 @@ export default function CheckInCaptureScreen() {
 
     return (
       <View style={styles.screen}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <CameraView
           ref={cameraRef}
           style={styles.camera}
@@ -391,39 +392,49 @@ export default function CheckInCaptureScreen() {
 
     return (
       <View style={styles.screen}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
 
-        {/* Capturable view — photo + stamp overlay + caption overlay */}
-        <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
-          <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+        {/* Tap target to reveal caption input */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setShowCaption(true)}
+        >
+          <View style={{ flex: 1 }} pointerEvents="box-none">
+            {/* Capturable view — photo + stamp overlay + caption overlay */}
+            <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
+              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-          {/* Draggable stamp */}
-          <View
-            style={[
-              styles.stampOverlay,
-              { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
-            ]}
-            {...stampPanResponder.panHandlers}
-          >
-            <View style={styles.stampBox}>
-              <Text style={styles.stampVenue}>{venueName}</Text>
-              <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-              <Text style={styles.stampTime}>{timeStr}</Text>
+              {/* Draggable stamp */}
+              <View
+                style={[
+                  styles.stampOverlay,
+                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
+                ]}
+                {...stampPanResponder.panHandlers}
+              >
+                <View style={styles.stampBox}>
+                  <Text style={styles.stampVenue}>{venueName}</Text>
+                  <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                  <Text style={styles.stampTime}>{timeStr}</Text>
+                </View>
+              </View>
+
+              {/* Draggable caption text overlay — only visible after user taps */}
+              {showCaption && (
+                <View
+                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
+                  {...captionPanResponder.panHandlers}
+                >
+                  <View style={styles.captionOverlayInput}>
+                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                      {caption || 'Add a caption...'}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
-
-          {/* Draggable caption text overlay */}
-          <View
-            style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
-            {...captionPanResponder.panHandlers}
-          >
-            <View style={styles.captionOverlayInput}>
-              <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                {caption || 'Add a caption...'}
-              </Text>
-            </View>
-          </View>
-        </View>
+        </Pressable>
 
         {/* Hidden TextInput for caption editing */}
         <TextInput
@@ -467,7 +478,7 @@ export default function CheckInCaptureScreen() {
   // Result phase — two buttons
   return (
     <View style={[styles.screen, styles.resultScreen, { backgroundColor: '#000' }]}>
-      <Stack.Screen options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
 
       <Animated.View style={[styles.resultContent, { opacity: resultOpacity }]}>
         {stampedPhoto && (
