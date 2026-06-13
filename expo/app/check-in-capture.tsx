@@ -406,10 +406,7 @@ export default function CheckInCaptureScreen() {
 
           {/* Draggable caption text overlay */}
           <Animated.View
-            style={[
-              styles.captionOverlay,
-              { transform: captionAnim.getTranslateTransform() },
-            ]}
+            style={{ position: 'absolute', top: 340, left: 20, transform: captionAnim.getTranslateTransform() }}
             {...captionPanResponder.panHandlers}
           >
             <View style={styles.captionOverlayInput}>
