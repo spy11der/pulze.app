@@ -48,7 +48,7 @@ function RootLayoutNav() {
       <Stack.Screen name="terms-of-service" options={{ presentation: 'card' }} />
       <Stack.Screen name="location-selector" options={{ presentation: 'modal', headerShown: false }} />
       <Stack.Screen name="venue-detail" options={{ presentation: 'card', headerShown: false }} />
-      <Stack.Screen name="check-in-capture" options={{ presentation: 'modal', headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="check-in-capture" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="activity" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="checkin-detail" options={{ presentation: 'card', headerShown: false }} />
     </Stack>

@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
@@ -291,7 +291,6 @@ export default function CheckInCaptureScreen() {
   if (hasCameraPermission === null) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Text style={styles.permissionText}>Checking camera...</Text>
       </View>
     );
@@ -301,7 +300,6 @@ export default function CheckInCaptureScreen() {
   if (!hasCameraPermission) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Text style={styles.permissionText}>Camera access is required</Text>
         <Pressable
           onPress={() => router.back()}
@@ -323,7 +321,6 @@ export default function CheckInCaptureScreen() {
 
     return (
       <View style={styles.screen}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
         <CameraView
           ref={cameraRef}
           style={styles.camera}
@@ -392,8 +389,6 @@ export default function CheckInCaptureScreen() {
 
     return (
       <View style={styles.screen}>
-        <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
-
         {/* Tap target to reveal caption input */}
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -476,8 +471,6 @@ export default function CheckInCaptureScreen() {
   // Result phase — two buttons
   return (
     <View style={[styles.screen, styles.resultScreen, { backgroundColor: '#000' }]}>
-      <Stack.Screen options={{ headerShown: false, animation: 'fade', presentation: 'fullScreenModal', gestureEnabled: false }} />
-
       <Animated.View style={[styles.resultContent, { opacity: resultOpacity }]}>
         {stampedPhoto && (
           <Image source={{ uri: stampedPhoto }} style={styles.resultPhoto} />
