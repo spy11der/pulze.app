@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
@@ -66,6 +67,10 @@ export default function CheckInCaptureScreen() {
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [showCaption, setShowCaption] = useState<boolean>(false);
+  const [stampScale, setStampScale] = useState<number>(1);
+  const [captionScale, setCaptionScale] = useState<number>(1);
+  const stampBaseScale = useRef<number>(1);
+  const captionBaseScale = useRef<number>(1);
 
   const captionInputRef = useRef<TextInput>(null);
 
@@ -399,31 +404,55 @@ export default function CheckInCaptureScreen() {
             <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
               <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-              {/* Draggable stamp */}
-              <View
-                style={[
-                  styles.stampOverlay,
-                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
-                ]}
-                {...stampPanResponder.panHandlers}
+              {/* Draggable stamp with pinch-to-resize */}
+              <PinchGestureHandler
+                onGestureEvent={(e) => {
+                  const s = stampBaseScale.current * e.nativeEvent.scale;
+                  setStampScale(Math.max(0.5, Math.min(3, s)));
+                }}
+                onHandlerStateChange={(e) => {
+                  if (e.nativeEvent.state === GestureState.END) {
+                    stampBaseScale.current = Math.max(0.5, Math.min(3, stampBaseScale.current * e.nativeEvent.scale));
+                  }
+                }}
               >
-                <View style={styles.stampBox}>
-                  <Text style={styles.stampVenue}>{venueName}</Text>
-                  <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                  <Text style={styles.stampTime}>{timeStr}</Text>
-                </View>
-              </View>
-
-              {/* Draggable caption text overlay — only visible after user taps */}
-              {showCaption && (
                 <View
-                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
-                  {...captionPanResponder.panHandlers}
+                  style={[
+                    styles.stampOverlay,
+                    { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
+                  ]}
+                  {...stampPanResponder.panHandlers}
                 >
-                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }}>
-                    {caption || 'Add a caption...'}
-                  </Text>
+                  <View style={styles.stampBox}>
+                    <Text style={styles.stampVenue}>{venueName}</Text>
+                    <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                    <Text style={styles.stampTime}>{timeStr}</Text>
+                  </View>
                 </View>
+              </PinchGestureHandler>
+
+              {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
+              {showCaption && (
+                <PinchGestureHandler
+                  onGestureEvent={(e) => {
+                    const s = captionBaseScale.current * e.nativeEvent.scale;
+                    setCaptionScale(Math.max(0.5, Math.min(3, s)));
+                  }}
+                  onHandlerStateChange={(e) => {
+                    if (e.nativeEvent.state === GestureState.END) {
+                      captionBaseScale.current = Math.max(0.5, Math.min(3, captionBaseScale.current * e.nativeEvent.scale));
+                    }
+                  }}
+                >
+                  <View
+                    style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                    {...captionPanResponder.panHandlers}
+                  >
+                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                      {caption || 'Add a caption...'}
+                    </Text>
+                  </View>
+                </PinchGestureHandler>
               )}
             </View>
           </View>
@@ -460,10 +489,7 @@ export default function CheckInCaptureScreen() {
           <Text style={styles.quipText}>{quip}</Text>
         </Animated.View>
 
-        {/* Hint */}
-        <View style={styles.dragHint} pointerEvents="none">
-          <Text style={styles.dragHintText}>Drag to reposition</Text>
-        </View>
+
       </View>
     );
   }
@@ -583,27 +609,18 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   stampNeighborhood: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#2BBFBA',
     marginTop: 2,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   stampTime: {
     fontSize: 12,
     fontWeight: '500' as const,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   // Quip
   quipOverlay: {
@@ -619,9 +636,6 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#FFFFFF',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
   },
   // Result
   resultScreen: {
@@ -712,22 +726,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#041318',
   },
-  // Drag hint
-  dragHint: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  dragHintText: {
-    fontSize: 13,
-    fontWeight: '500' as const,
-    color: 'rgba(255,255,255,0.4)',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
+
   // Permission
   permissionText: {
     fontSize: 16,
