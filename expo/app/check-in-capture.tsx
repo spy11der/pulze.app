@@ -418,7 +418,6 @@ export default function CheckInCaptureScreen() {
               },
             ]}
             {...captionPanResponder.panHandlers}
-            onTouchEnd={() => captionInputRef.current?.focus()}
           >
             <View style={styles.captionOverlayInput}>
               <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
@@ -433,7 +432,7 @@ export default function CheckInCaptureScreen() {
           ref={captionInputRef}
           value={caption}
           onChangeText={setCaption}
-          style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }}
+          style={{ position: 'absolute', opacity: 0, width: 1, height: 1, top: -100 }}
           maxLength={120}
           returnKeyType="done"
         />
