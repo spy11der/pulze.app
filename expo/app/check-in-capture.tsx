@@ -420,7 +420,7 @@ export default function CheckInCaptureScreen() {
                   style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
                   {...captionPanResponder.panHandlers}
                 >
-                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }}>
+                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
                     {caption || 'Add a caption...'}
                   </Text>
                 </View>
@@ -448,7 +448,7 @@ export default function CheckInCaptureScreen() {
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.continueBtnText}>Continue</Text>
+            <Text style={styles.continueBtnText}>📍 Continue</Text>
           </Pressable>
         </View>
 
@@ -460,10 +460,7 @@ export default function CheckInCaptureScreen() {
           <Text style={styles.quipText}>{quip}</Text>
         </Animated.View>
 
-        {/* Hint */}
-        <View style={styles.dragHint} pointerEvents="none">
-          <Text style={styles.dragHintText}>Drag to reposition</Text>
-        </View>
+
       </View>
     );
   }
@@ -583,27 +580,18 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   stampNeighborhood: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#2BBFBA',
     marginTop: 2,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   stampTime: {
     fontSize: 12,
     fontWeight: '500' as const,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   // Quip
   quipOverlay: {
@@ -698,12 +686,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
+    alignItems: 'center',
   },
   continueBtn: {
     backgroundColor: '#2BBFBA',
     borderRadius: 16,
     paddingVertical: 18,
+    paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -712,22 +701,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#041318',
   },
-  // Drag hint
-  dragHint: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  dragHintText: {
-    fontSize: 13,
-    fontWeight: '500' as const,
-    color: 'rgba(255,255,255,0.4)',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
+
   // Permission
   permissionText: {
     fontSize: 16,
