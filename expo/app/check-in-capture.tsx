@@ -409,7 +409,7 @@ export default function CheckInCaptureScreen() {
             </View>
           </View>
 
-          {/* Draggable + resizable caption text overlay */}
+          {/* Draggable caption text overlay */}
           <View
             style={[
               styles.captionOverlay,
@@ -418,19 +418,25 @@ export default function CheckInCaptureScreen() {
               },
             ]}
             {...captionPanResponder.panHandlers}
+            onTouchEnd={() => captionInputRef.current?.focus()}
           >
-            <TextInput
-              ref={captionInputRef}
-              style={styles.captionOverlayInput}
-              value={caption}
-              onChangeText={setCaption}
-              placeholder="Add a caption..."
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              maxLength={120}
-              returnKeyType="done"
-            />
+            <View style={styles.captionOverlayInput}>
+              <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                {caption || 'Add a caption...'}
+              </Text>
+            </View>
           </View>
         </View>
+
+        {/* Hidden TextInput for caption editing */}
+        <TextInput
+          ref={captionInputRef}
+          value={caption}
+          onChangeText={setCaption}
+          style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }}
+          maxLength={120}
+          returnKeyType="done"
+        />
 
         {/* Continue button */}
         <View style={[styles.continueWrap, { paddingBottom: insets.bottom + 12 }]}>
@@ -559,7 +565,6 @@ const styles = StyleSheet.create({
   stampViewContainer: {
     flex: 1,
     width: '100%' as const,
-    height: SCREEN_HEIGHT,
   },
   stampImage: {
     ...StyleSheet.absoluteFillObject,
