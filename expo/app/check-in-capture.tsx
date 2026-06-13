@@ -448,7 +448,7 @@ export default function CheckInCaptureScreen() {
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.continueBtnText}>Continue</Text>
+            <Text style={styles.continueBtnText}>📍 Check in</Text>
           </Pressable>
         </View>
 
