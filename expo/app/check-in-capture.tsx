@@ -68,9 +68,17 @@ export default function CheckInCaptureScreen() {
   const [showCaption, setShowCaption] = useState<boolean>(false);
   const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [stampScale, setStampScale] = useState<number>(1);
+  const [captionScale, setCaptionScale] = useState<number>(1);
 
   const stampOffset = useRef({ x: 0, y: 0 });
   const captionOffset = useRef({ x: 0, y: 0 });
+  const stampBaseScale = useRef<number>(1);
+  const stampInitialDist = useRef<number>(0);
+  const stampScaleCache = useRef<number>(1);
+  const captionBaseScale = useRef<number>(1);
+  const captionInitialDist = useRef<number>(0);
+  const captionScaleCache = useRef<number>(1);
   const captionInputRef = useRef<TextInput>(null);
 
   const stampPanResponder = useRef(
@@ -79,17 +87,40 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderMove: (_, gesture) => {
-        setStampPos({
-          x: stampOffset.current.x + gesture.dx,
-          y: stampOffset.current.y + gesture.dy,
-        });
+      onPanResponderGrant: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches && touches.length >= 2) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          stampInitialDist.current = Math.sqrt(dx * dx + dy * dy);
+        }
+      },
+      onPanResponderMove: (evt, gesture) => {
+        const touches = evt?.nativeEvent?.touches;
+        if (touches && touches.length >= 2) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (stampInitialDist.current > 0) {
+            const ratio = dist / stampInitialDist.current;
+            const s = Math.min(3, Math.max(0.5, stampBaseScale.current * ratio));
+            stampScaleCache.current = s;
+            setStampScale(s);
+          }
+        } else {
+          setStampPos({
+            x: stampOffset.current.x + gesture.dx,
+            y: stampOffset.current.y + gesture.dy,
+          });
+        }
       },
       onPanResponderRelease: (_, gesture) => {
         stampOffset.current = {
           x: stampOffset.current.x + gesture.dx,
           y: stampOffset.current.y + gesture.dy,
         };
+        stampBaseScale.current = stampScaleCache.current;
+        stampInitialDist.current = 0;
       },
     }),
   ).current;
@@ -100,17 +131,40 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderMove: (_, gesture) => {
-        setCaptionPos({
-          x: captionOffset.current.x + gesture.dx,
-          y: captionOffset.current.y + gesture.dy,
-        });
+      onPanResponderGrant: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches && touches.length >= 2) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          captionInitialDist.current = Math.sqrt(dx * dx + dy * dy);
+        }
+      },
+      onPanResponderMove: (evt, gesture) => {
+        const touches = evt?.nativeEvent?.touches;
+        if (touches && touches.length >= 2) {
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (captionInitialDist.current > 0) {
+            const ratio = dist / captionInitialDist.current;
+            const s = Math.min(3, Math.max(0.5, captionBaseScale.current * ratio));
+            captionScaleCache.current = s;
+            setCaptionScale(s);
+          }
+        } else {
+          setCaptionPos({
+            x: captionOffset.current.x + gesture.dx,
+            y: captionOffset.current.y + gesture.dy,
+          });
+        }
       },
       onPanResponderRelease: (_, gesture) => {
         captionOffset.current = {
           x: captionOffset.current.x + gesture.dx,
           y: captionOffset.current.y + gesture.dy,
         };
+        captionBaseScale.current = captionScaleCache.current;
+        captionInitialDist.current = 0;
         // Tap (minimal movement) → focus TextInput for typing
         if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
           captionInputRef.current?.focus();
@@ -402,7 +456,7 @@ export default function CheckInCaptureScreen() {
               <View
                 style={[
                   styles.stampOverlay,
-                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
+                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
                 ]}
                 {...stampPanResponder.panHandlers}
               >
@@ -416,7 +470,7 @@ export default function CheckInCaptureScreen() {
               {/* Draggable caption text overlay — only visible after user taps */}
               {showCaption && (
                 <View
-                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
+                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   {...captionPanResponder.panHandlers}
                 >
                   <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
@@ -628,6 +682,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 10,
     paddingTop: 16,
+    alignItems: 'center' as const,
   },
   shareBtn: {
     flexDirection: 'row',
@@ -637,6 +692,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2BBFBA',
     borderRadius: 16,
     paddingVertical: 18,
+    paddingHorizontal: 32,
+    alignSelf: 'center' as const,
   },
   shareBtnText: {
     fontSize: 17,
@@ -651,8 +708,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 16,
     paddingVertical: 16,
+    paddingHorizontal: 32,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center' as const,
   },
   justCheckBtnText: {
     fontSize: 16,
@@ -683,13 +742,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
+    alignItems: 'center' as const,
   },
   continueBtn: {
     backgroundColor: '#2BBFBA',
     borderRadius: 16,
     paddingVertical: 18,
+    paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center' as const,
   },
   continueBtnText: {
     fontSize: 17,
