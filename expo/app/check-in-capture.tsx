@@ -68,48 +68,56 @@ export default function CheckInCaptureScreen() {
 
   const captionInputRef = useRef<TextInput>(null);
 
-  const stampAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  const captionAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const [stampPos, setStampPos] = useState({ x: 0, y: 0 });
+  const [captionPos, setCaptionPos] = useState({ x: 0, y: 0 });
+  const stampOffset = useRef({ x: 0, y: 0 });
+  const captionOffset = useRef({ x: 0, y: 0 });
 
-  const stampPanResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderGrant: () => {
-      stampAnim.setOffset({ x: (stampAnim.x as any)._value, y: (stampAnim.y as any)._value });
-      stampAnim.setValue({ x: 0, y: 0 });
-    },
-    onPanResponderMove: Animated.event(
-      [null, { dx: stampAnim.x, dy: stampAnim.y }],
-      { useNativeDriver: false },
-    ),
-    onPanResponderRelease: () => {
-      stampAnim.flattenOffset();
-    },
-  })).current;
+  const stampPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setStampPos({
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        stampOffset.current = {
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        };
+      },
+    }),
+  ).current;
 
-  const captionPanResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderGrant: () => {
-      captionAnim.setOffset({ x: (captionAnim.x as any)._value, y: (captionAnim.y as any)._value });
-      captionAnim.setValue({ x: 0, y: 0 });
-    },
-    onPanResponderMove: Animated.event(
-      [null, { dx: captionAnim.x, dy: captionAnim.y }],
-      { useNativeDriver: false },
-    ),
-    onPanResponderRelease: (_, gesture) => {
-      captionAnim.flattenOffset();
-      // Tap (minimal movement) → focus TextInput for typing
-      if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
-        captionInputRef.current?.focus();
-      }
-    },
-  })).current;
+  const captionPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderMove: (_, gesture) => {
+        setCaptionPos({
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        });
+      },
+      onPanResponderRelease: (_, gesture) => {
+        captionOffset.current = {
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        };
+        // Tap (minimal movement) → focus TextInput for typing
+        if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
+          captionInputRef.current?.focus();
+        }
+      },
+    }),
+  ).current;
 
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
@@ -390,10 +398,10 @@ export default function CheckInCaptureScreen() {
           <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
           {/* Draggable stamp */}
-          <Animated.View
+          <View
             style={[
               styles.stampOverlay,
-              { transform: stampAnim.getTranslateTransform() },
+              { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }] },
             ]}
             {...stampPanResponder.panHandlers}
           >
@@ -402,11 +410,11 @@ export default function CheckInCaptureScreen() {
               <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
               <Text style={styles.stampTime}>{timeStr}</Text>
             </View>
-          </Animated.View>
+          </View>
 
           {/* Draggable caption text overlay */}
-          <Animated.View
-            style={{ position: 'absolute', top: 340, left: 20, transform: captionAnim.getTranslateTransform() }}
+          <View
+            style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }] }}
             {...captionPanResponder.panHandlers}
           >
             <View style={styles.captionOverlayInput}>
@@ -414,7 +422,7 @@ export default function CheckInCaptureScreen() {
                 {caption || 'Add a caption...'}
               </Text>
             </View>
-          </Animated.View>
+          </View>
         </View>
 
         {/* Hidden TextInput for caption editing */}
