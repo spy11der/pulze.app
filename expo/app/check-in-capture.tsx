@@ -442,45 +442,44 @@ export default function CheckInCaptureScreen() {
 
     return (
       <View style={styles.screen}>
-        {/* Tap target to reveal caption input */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setShowCaption(true)}
-        >
-          <View style={{ flex: 1 }} pointerEvents="box-none">
-            {/* Capturable view — photo + stamp overlay + caption overlay */}
-            <View ref={stampViewRef} style={styles.stampViewContainer} collapsable={false}>
-              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+        <View style={StyleSheet.absoluteFill}>
+          {/* Capturable view — photo + stamp overlay + caption overlay */}
+          <Pressable
+            ref={stampViewRef}
+            style={styles.stampViewContainer}
+            collapsable={false}
+            onPress={() => setShowCaption(true)}
+          >
+            <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-              {/* Draggable stamp */}
-              <View
-                style={[
-                  styles.stampOverlay,
-                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
-                ]}
-                {...stampPanResponder.panHandlers}
-              >
-                <View style={styles.stampBox}>
-                  <Text style={styles.stampVenue}>{venueName}</Text>
-                  <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                  <Text style={styles.stampTime}>{timeStr}</Text>
-                </View>
+            {/* Draggable stamp */}
+            <View
+              style={[
+                styles.stampOverlay,
+                { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
+              ]}
+              {...stampPanResponder.panHandlers}
+            >
+              <View style={styles.stampBox}>
+                <Text style={styles.stampVenue}>{venueName}</Text>
+                <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                <Text style={styles.stampTime}>{timeStr}</Text>
               </View>
-
-              {/* Draggable caption text overlay — only visible after user taps */}
-              {showCaption && (
-                <View
-                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
-                  {...captionPanResponder.panHandlers}
-                >
-                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                    {caption || 'Add a caption...'}
-                  </Text>
-                </View>
-              )}
             </View>
-          </View>
-        </Pressable>
+
+            {/* Draggable caption text overlay — only visible after user taps */}
+            {showCaption && (
+              <View
+                style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                {...captionPanResponder.panHandlers}
+              >
+                <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                  {caption || 'Add a caption...'}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
 
         {/* Hidden TextInput for caption editing */}
         <TextInput
