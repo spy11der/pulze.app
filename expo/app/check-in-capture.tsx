@@ -424,7 +424,7 @@ export default function CheckInCaptureScreen() {
 
             {/* Draggable stamp with pinch-to-resize */}
             <PinchGestureHandler onGestureEvent={onStampPinch} onHandlerStateChange={onStampPinch}>
-              <View
+              <Animated.View
                 style={[
                   styles.stampOverlay,
                   { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
@@ -436,20 +436,20 @@ export default function CheckInCaptureScreen() {
                   <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
                   <Text style={styles.stampTime}>{timeStr}</Text>
                 </View>
-              </View>
+              </Animated.View>
             </PinchGestureHandler>
 
             {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
             {showCaption && (
               <PinchGestureHandler onGestureEvent={onCaptionPinch} onHandlerStateChange={onCaptionPinch}>
-                <View
+                <Animated.View
                   style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   {...captionPanResponder.panHandlers}
                 >
                   <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
                     {caption || 'Add a caption...'}
                   </Text>
-                </View>
+                </Animated.View>
               </PinchGestureHandler>
             )}
           </Pressable>
