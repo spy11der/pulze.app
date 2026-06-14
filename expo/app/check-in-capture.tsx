@@ -22,6 +22,7 @@ import {
   Check,
   X,
 } from 'lucide-react-native';
+import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -68,18 +69,33 @@ export default function CheckInCaptureScreen() {
   const [showCaption, setShowCaption] = useState<boolean>(false);
   const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [stampScale, setStampScale] = useState<number>(1);
-  const [captionScale, setCaptionScale] = useState<number>(1);
-
   const stampOffset = useRef({ x: 0, y: 0 });
   const captionOffset = useRef({ x: 0, y: 0 });
-  const stampBaseScale = useRef<number>(1);
-  const stampInitialDist = useRef<number>(0);
-  const stampScaleCache = useRef<number>(1);
-  const captionBaseScale = useRef<number>(1);
-  const captionInitialDist = useRef<number>(0);
-  const captionScaleCache = useRef<number>(1);
   const captionInputRef = useRef<TextInput>(null);
+
+  // Pinch-to-resize via PinchGestureHandler
+  const [stampScale, setStampScale] = useState<number>(1);
+  const [captionScale, setCaptionScale] = useState<number>(1);
+  const stampBaseScale = useRef<number>(1);
+  const captionBaseScale = useRef<number>(1);
+
+  const onStampPinch = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      setStampScale(Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale)));
+    }
+    if (event.nativeEvent.state === State.END) {
+      stampBaseScale.current = Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale));
+    }
+  }, []);
+
+  const onCaptionPinch = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      setCaptionScale(Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale)));
+    }
+    if (event.nativeEvent.state === State.END) {
+      captionBaseScale.current = Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale));
+    }
+  }, []);
 
   const stampPanResponder = useRef(
     PanResponder.create({
@@ -87,41 +103,17 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: (evt) => {
-        const touches = evt.nativeEvent.touches;
-        if (touches && touches.length >= 2) {
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          stampInitialDist.current = Math.sqrt(dx * dx + dy * dy);
-        }
-      },
-      onPanResponderMove: (evt, gesture) => {
-        const touches = evt?.nativeEvent?.touches;
-        if (touches && touches.length >= 2) {
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (stampInitialDist.current === 0) {
-            stampInitialDist.current = dist;
-          }
-          const ratio = dist / stampInitialDist.current;
-          const s = Math.min(3, Math.max(0.5, stampBaseScale.current * ratio));
-          stampScaleCache.current = s;
-          setStampScale(s);
-        } else if (touches && touches.length === 1) {
-          setStampPos({
-            x: stampOffset.current.x + gesture.dx,
-            y: stampOffset.current.y + gesture.dy,
-          });
-        }
+      onPanResponderMove: (_, gesture) => {
+        setStampPos({
+          x: stampOffset.current.x + gesture.dx,
+          y: stampOffset.current.y + gesture.dy,
+        });
       },
       onPanResponderRelease: (_, gesture) => {
         stampOffset.current = {
           x: stampOffset.current.x + gesture.dx,
           y: stampOffset.current.y + gesture.dy,
         };
-        stampBaseScale.current = stampScaleCache.current;
-        stampInitialDist.current = 0;
       },
     }),
   ).current;
@@ -132,41 +124,17 @@ export default function CheckInCaptureScreen() {
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: (evt) => {
-        const touches = evt.nativeEvent.touches;
-        if (touches && touches.length >= 2) {
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          captionInitialDist.current = Math.sqrt(dx * dx + dy * dy);
-        }
-      },
-      onPanResponderMove: (evt, gesture) => {
-        const touches = evt?.nativeEvent?.touches;
-        if (touches && touches.length >= 2) {
-          const dx = touches[0].pageX - touches[1].pageX;
-          const dy = touches[0].pageY - touches[1].pageY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (captionInitialDist.current === 0) {
-            captionInitialDist.current = dist;
-          }
-          const ratio = dist / captionInitialDist.current;
-          const s = Math.min(3, Math.max(0.5, captionBaseScale.current * ratio));
-          captionScaleCache.current = s;
-          setCaptionScale(s);
-        } else if (touches && touches.length === 1) {
-          setCaptionPos({
-            x: captionOffset.current.x + gesture.dx,
-            y: captionOffset.current.y + gesture.dy,
-          });
-        }
+      onPanResponderMove: (_, gesture) => {
+        setCaptionPos({
+          x: captionOffset.current.x + gesture.dx,
+          y: captionOffset.current.y + gesture.dy,
+        });
       },
       onPanResponderRelease: (_, gesture) => {
         captionOffset.current = {
           x: captionOffset.current.x + gesture.dx,
           y: captionOffset.current.y + gesture.dy,
         };
-        captionBaseScale.current = captionScaleCache.current;
-        captionInitialDist.current = 0;
         // Tap (minimal movement) → focus TextInput for typing
         if (Math.abs(gesture.dx) < 5 && Math.abs(gesture.dy) < 5) {
           captionInputRef.current?.focus();
@@ -454,31 +422,35 @@ export default function CheckInCaptureScreen() {
           >
             <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-            {/* Draggable stamp */}
-            <View
-              style={[
-                styles.stampOverlay,
-                { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
-              ]}
-              {...stampPanResponder.panHandlers}
-            >
-              <View style={styles.stampBox}>
-                <Text style={styles.stampVenue}>{venueName}</Text>
-                <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                <Text style={styles.stampTime}>{timeStr}</Text>
-              </View>
-            </View>
-
-            {/* Draggable caption text overlay — only visible after user taps */}
-            {showCaption && (
+            {/* Draggable stamp with pinch-to-resize */}
+            <PinchGestureHandler onHandlerStateChange={onStampPinch}>
               <View
-                style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
-                {...captionPanResponder.panHandlers}
+                style={[
+                  styles.stampOverlay,
+                  { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
+                ]}
+                {...stampPanResponder.panHandlers}
               >
-                <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                  {caption || 'Add a caption...'}
-                </Text>
+                <View style={styles.stampBox}>
+                  <Text style={styles.stampVenue}>{venueName}</Text>
+                  <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                  <Text style={styles.stampTime}>{timeStr}</Text>
+                </View>
               </View>
+            </PinchGestureHandler>
+
+            {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
+            {showCaption && (
+              <PinchGestureHandler onHandlerStateChange={onCaptionPinch}>
+                <View
+                  style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                  {...captionPanResponder.panHandlers}
+                >
+                  <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                    {caption || 'Add a caption...'}
+                  </Text>
+                </View>
+              </PinchGestureHandler>
             )}
           </Pressable>
         </View>
