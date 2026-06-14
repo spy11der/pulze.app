@@ -82,11 +82,14 @@ export default function CheckInCaptureScreen() {
   const stampBaseScale = useRef<number>(1);
   const captionBaseScale = useRef<number>(1);
 
-  const onStampPinch = useCallback((event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
+  const onStampPinchGesture = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
       setStampScale(Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale)));
     }
-    if (event.nativeEvent.state === State.END) {
+  }, []);
+
+  const onStampPinchState = useCallback((event: any) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
       stampBaseScale.current = Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale));
     }
   }, []);
@@ -106,11 +109,14 @@ export default function CheckInCaptureScreen() {
     }
   }, []);
 
-  const onCaptionPinch = useCallback((event: any) => {
-    if (event.nativeEvent.state === State.ACTIVE) {
+  const onCaptionPinchGesture = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
       setCaptionScale(Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale)));
     }
-    if (event.nativeEvent.state === State.END) {
+  }, []);
+
+  const onCaptionPinchState = useCallback((event: any) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
       captionBaseScale.current = Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale));
     }
   }, []);
@@ -426,8 +432,8 @@ export default function CheckInCaptureScreen() {
               <PinchGestureHandler
                 ref={stampPinchRef}
                 simultaneousHandlers={stampPanRef}
-                onGestureEvent={onStampPinch}
-                onHandlerStateChange={onStampPinch}
+                onGestureEvent={onStampPinchGesture}
+                onHandlerStateChange={onStampPinchState}
               >
                 <PanGestureHandler
                   ref={stampPanRef}
@@ -456,8 +462,8 @@ export default function CheckInCaptureScreen() {
                 <PinchGestureHandler
                   ref={captionPinchRef}
                   simultaneousHandlers={captionPanRef}
-                  onGestureEvent={onCaptionPinch}
-                  onHandlerStateChange={onCaptionPinch}
+                  onGestureEvent={onCaptionPinchGesture}
+                  onHandlerStateChange={onCaptionPinchState}
                 >
                   <PanGestureHandler
                     ref={captionPanRef}
