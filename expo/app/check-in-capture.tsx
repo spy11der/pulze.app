@@ -101,13 +101,14 @@ export default function CheckInCaptureScreen() {
           const dx = touches[0].pageX - touches[1].pageX;
           const dy = touches[0].pageY - touches[1].pageY;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (stampInitialDist.current > 0) {
-            const ratio = dist / stampInitialDist.current;
-            const s = Math.min(3, Math.max(0.5, stampBaseScale.current * ratio));
-            stampScaleCache.current = s;
-            setStampScale(s);
+          if (stampInitialDist.current === 0) {
+            stampInitialDist.current = dist;
           }
-        } else {
+          const ratio = dist / stampInitialDist.current;
+          const s = Math.min(3, Math.max(0.5, stampBaseScale.current * ratio));
+          stampScaleCache.current = s;
+          setStampScale(s);
+        } else if (touches && touches.length === 1) {
           setStampPos({
             x: stampOffset.current.x + gesture.dx,
             y: stampOffset.current.y + gesture.dy,
@@ -145,13 +146,14 @@ export default function CheckInCaptureScreen() {
           const dx = touches[0].pageX - touches[1].pageX;
           const dy = touches[0].pageY - touches[1].pageY;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (captionInitialDist.current > 0) {
-            const ratio = dist / captionInitialDist.current;
-            const s = Math.min(3, Math.max(0.5, captionBaseScale.current * ratio));
-            captionScaleCache.current = s;
-            setCaptionScale(s);
+          if (captionInitialDist.current === 0) {
+            captionInitialDist.current = dist;
           }
-        } else {
+          const ratio = dist / captionInitialDist.current;
+          const s = Math.min(3, Math.max(0.5, captionBaseScale.current * ratio));
+          captionScaleCache.current = s;
+          setCaptionScale(s);
+        } else if (touches && touches.length === 1) {
           setCaptionPos({
             x: captionOffset.current.x + gesture.dx,
             y: captionOffset.current.y + gesture.dy,
