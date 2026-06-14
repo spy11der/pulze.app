@@ -468,13 +468,13 @@ export default function CheckInCaptureScreen() {
                     onHandlerStateChange={onCaptionPan}
                     minDist={0}
                   >
-                    <View
+                    <Animated.View
                       style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                     >
                       <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
                         {caption || 'Add a caption...'}
                       </Text>
-                    </View>
+                    </Animated.View>
                   </PanGestureHandler>
                 </PinchGestureHandler>
               )}
