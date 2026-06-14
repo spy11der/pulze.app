@@ -423,7 +423,7 @@ export default function CheckInCaptureScreen() {
             <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
             {/* Draggable stamp with pinch-to-resize */}
-            <PinchGestureHandler onHandlerStateChange={onStampPinch}>
+            <PinchGestureHandler onGestureEvent={onStampPinch} onHandlerStateChange={onStampPinch}>
               <View
                 style={[
                   styles.stampOverlay,
