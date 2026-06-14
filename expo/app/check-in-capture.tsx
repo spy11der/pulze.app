@@ -441,7 +441,7 @@ export default function CheckInCaptureScreen() {
 
             {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
             {showCaption && (
-              <PinchGestureHandler onHandlerStateChange={onCaptionPinch}>
+              <PinchGestureHandler onGestureEvent={onCaptionPinch} onHandlerStateChange={onCaptionPinch}>
                 <View
                   style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   {...captionPanResponder.panHandlers}
