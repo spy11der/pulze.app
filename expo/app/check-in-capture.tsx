@@ -21,7 +21,7 @@ import {
   Check,
   X,
 } from 'lucide-react-native';
-import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, PinchGestureHandler, State, TapGestureHandler } from 'react-native-gesture-handler';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -54,7 +54,6 @@ export default function CheckInCaptureScreen() {
   }>();
 
   const cameraRef = useRef<CameraView>(null);
-  const stampViewRef = useRef<View>(null);
   const countdownAnim = useRef(new Animated.Value(COUNTDOWN_SECONDS)).current;
   const quipOpacity = useRef(new Animated.Value(0)).current;
   const resultOpacity = useRef(new Animated.Value(0)).current;
@@ -71,6 +70,7 @@ export default function CheckInCaptureScreen() {
   const stampOffset = useRef({ x: 0, y: 0 });
   const captionOffset = useRef({ x: 0, y: 0 });
   const captionInputRef = useRef<TextInput>(null);
+  const stampViewRef = useRef<View>(null);
 
   // Gesture handler refs for simultaneous pinch + pan coordination
   const stampPinchRef = useRef<any>(null);
@@ -133,6 +133,12 @@ export default function CheckInCaptureScreen() {
       if (Math.abs(event.nativeEvent.translationX) < 5 && Math.abs(event.nativeEvent.translationY) < 5) {
         captionInputRef.current?.focus();
       }
+    }
+  }, []);
+
+  const handlePhotoTap = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.END) {
+      setShowCaption(true);
     }
   }, []);
 
@@ -407,69 +413,73 @@ export default function CheckInCaptureScreen() {
       <View style={styles.screen}>
         <View style={StyleSheet.absoluteFill}>
           {/* Capturable view — photo + stamp overlay + caption overlay */}
-          <Pressable
-            ref={stampViewRef}
-            style={styles.stampViewContainer}
-            collapsable={false}
-            onPress={() => setShowCaption(true)}
+          <TapGestureHandler
+            onHandlerStateChange={handlePhotoTap}
+            numberOfTaps={1}
           >
-            <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
-
-            {/* Draggable stamp with pinch-to-resize */}
-            <PinchGestureHandler
-              ref={stampPinchRef}
-              simultaneousHandlers={stampPanRef}
-              onGestureEvent={onStampPinch}
-              onHandlerStateChange={onStampPinch}
+            <View
+              ref={stampViewRef}
+              style={styles.stampViewContainer}
+              collapsable={false}
             >
-              <PanGestureHandler
-                ref={stampPanRef}
-                simultaneousHandlers={stampPinchRef}
-                onGestureEvent={onStampPan}
-                onHandlerStateChange={onStampPan}
-                minDist={0}
-              >
-                <View
-                  style={[
-                    styles.stampOverlay,
-                    { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
-                  ]}
-                >
-                  <View style={styles.stampBox}>
-                    <Text style={styles.stampVenue}>{venueName}</Text>
-                    <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                    <Text style={styles.stampTime}>{timeStr}</Text>
-                  </View>
-                </View>
-              </PanGestureHandler>
-            </PinchGestureHandler>
+              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
 
-            {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
-            {showCaption && (
+              {/* Draggable stamp with pinch-to-resize */}
               <PinchGestureHandler
-                ref={captionPinchRef}
-                simultaneousHandlers={captionPanRef}
-                onGestureEvent={onCaptionPinch}
-                onHandlerStateChange={onCaptionPinch}
+                ref={stampPinchRef}
+                simultaneousHandlers={stampPanRef}
+                onGestureEvent={onStampPinch}
+                onHandlerStateChange={onStampPinch}
               >
                 <PanGestureHandler
-                  ref={captionPanRef}
-                  simultaneousHandlers={captionPinchRef}
-                  onGestureEvent={onCaptionPan}
-                  onHandlerStateChange={onCaptionPan}
+                  ref={stampPanRef}
+                  simultaneousHandlers={stampPinchRef}
+                  onGestureEvent={onStampPan}
+                  onHandlerStateChange={onStampPan}
                   minDist={0}
                 >
                   <View
-                    style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                    style={[
+                      styles.stampOverlay,
+                      { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
+                    ]}
                   >
-                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                      {caption || 'Add a caption...'}
-                    </Text>
+                    <View style={styles.stampBox}>
+                      <Text style={styles.stampVenue}>{venueName}</Text>
+                      <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                      <Text style={styles.stampTime}>{timeStr}</Text>
+                    </View>
                   </View>
                 </PanGestureHandler>
               </PinchGestureHandler>
-            )}
-          </Pressable>
+
+              {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
+              {showCaption && (
+                <PinchGestureHandler
+                  ref={captionPinchRef}
+                  simultaneousHandlers={captionPanRef}
+                  onGestureEvent={onCaptionPinch}
+                  onHandlerStateChange={onCaptionPinch}
+                >
+                  <PanGestureHandler
+                    ref={captionPanRef}
+                    simultaneousHandlers={captionPinchRef}
+                    onGestureEvent={onCaptionPan}
+                    onHandlerStateChange={onCaptionPan}
+                    minDist={0}
+                  >
+                    <View
+                      style={{ position: 'absolute', top: 340, left: 20, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                    >
+                      <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                        {caption || 'Add a caption...'}
+                      </Text>
+                    </View>
+                  </PanGestureHandler>
+                </PinchGestureHandler>
+              )}
+            </View>
+          </TapGestureHandler>
         </View>
 
         {/* Hidden TextInput for caption editing */}
