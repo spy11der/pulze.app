@@ -417,73 +417,76 @@ export default function CheckInCaptureScreen() {
       <View style={styles.screen}>
         <View style={StyleSheet.absoluteFill}>
           {/* Capturable view — photo + stamp overlay + caption overlay */}
-          <TapGestureHandler
-            onHandlerStateChange={handlePhotoTap}
-            numberOfTaps={1}
+          <View
+            ref={stampViewRef}
+            style={styles.stampViewContainer}
+            collapsable={false}
           >
-            <View
-              ref={stampViewRef}
-              style={styles.stampViewContainer}
-              collapsable={false}
+            {/* Tap target on photo background — shows caption on tap */}
+            <TapGestureHandler
+              onHandlerStateChange={handlePhotoTap}
+              numberOfTaps={1}
             >
-              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+              <View style={StyleSheet.absoluteFill}>
+                <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+              </View>
+            </TapGestureHandler>
 
-              {/* Draggable stamp with pinch-to-resize */}
+            {/* Draggable stamp with pinch-to-resize */}
+            <PinchGestureHandler
+              ref={stampPinchRef}
+              simultaneousHandlers={stampPanRef}
+              onGestureEvent={onStampPinchGesture}
+              onHandlerStateChange={onStampPinchState}
+            >
+              <PanGestureHandler
+                ref={stampPanRef}
+                simultaneousHandlers={stampPinchRef}
+                onGestureEvent={onStampPan}
+                onHandlerStateChange={onStampPan}
+                minDist={0}
+              >
+                <View
+                  style={[
+                    styles.stampOverlay,
+                    { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
+                  ]}
+                >
+                  <View style={styles.stampBox}>
+                    <Text style={styles.stampVenue}>{venueName}</Text>
+                    <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
+                    <Text style={styles.stampTime}>{timeStr}</Text>
+                  </View>
+                </View>
+              </PanGestureHandler>
+            </PinchGestureHandler>
+
+            {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
+            {showCaption && (
               <PinchGestureHandler
-                ref={stampPinchRef}
-                simultaneousHandlers={stampPanRef}
-                onGestureEvent={onStampPinchGesture}
-                onHandlerStateChange={onStampPinchState}
+                ref={captionPinchRef}
+                simultaneousHandlers={captionPanRef}
+                onGestureEvent={onCaptionPinchGesture}
+                onHandlerStateChange={onCaptionPinchState}
               >
                 <PanGestureHandler
-                  ref={stampPanRef}
-                  simultaneousHandlers={stampPinchRef}
-                  onGestureEvent={onStampPan}
-                  onHandlerStateChange={onStampPan}
+                  ref={captionPanRef}
+                  simultaneousHandlers={captionPinchRef}
+                  onGestureEvent={onCaptionPan}
+                  onHandlerStateChange={onCaptionPan}
                   minDist={0}
                 >
-                  <View
-                    style={[
-                      styles.stampOverlay,
-                      { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
-                    ]}
+                  <Animated.View
+                    style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   >
-                    <View style={styles.stampBox}>
-                      <Text style={styles.stampVenue}>{venueName}</Text>
-                      <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
-                      <Text style={styles.stampTime}>{timeStr}</Text>
-                    </View>
-                  </View>
+                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                      {caption || 'Add a caption...'}
+                    </Text>
+                  </Animated.View>
                 </PanGestureHandler>
               </PinchGestureHandler>
-
-              {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
-              {showCaption && (
-                <PinchGestureHandler
-                  ref={captionPinchRef}
-                  simultaneousHandlers={captionPanRef}
-                  onGestureEvent={onCaptionPinchGesture}
-                  onHandlerStateChange={onCaptionPinchState}
-                >
-                  <PanGestureHandler
-                    ref={captionPanRef}
-                    simultaneousHandlers={captionPinchRef}
-                    onGestureEvent={onCaptionPan}
-                    onHandlerStateChange={onCaptionPan}
-                    minDist={0}
-                  >
-                    <Animated.View
-                      style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
-                    >
-                      <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                        {caption || 'Add a caption...'}
-                      </Text>
-                    </Animated.View>
-                  </PanGestureHandler>
-                </PinchGestureHandler>
-              )}
-            </View>
-          </TapGestureHandler>
+            )}
+          </View>
         </View>
 
         {/* Hidden TextInput for caption editing */}
