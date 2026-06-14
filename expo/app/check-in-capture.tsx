@@ -17,8 +17,6 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
 import {
-  Share2,
-  Check,
   X,
 } from 'lucide-react-native';
 import { PanGestureHandler, PinchGestureHandler, State, TapGestureHandler } from 'react-native-gesture-handler';
@@ -527,27 +525,28 @@ export default function CheckInCaptureScreen() {
         )}
 
         <View style={[styles.resultActions, { paddingBottom: insets.bottom + 20 }]}>
-          <Pressable
-            onPress={handleShareWithCrew}
-            disabled={isSharing}
-            style={({ pressed }) => [
-              styles.shareBtn,
-              pressed && styles.btnPressed,
-            ]}
-          >
-            <Share2 color="#041318" size={20} />
-            <Text style={styles.shareBtnText}>Share with crew</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleJustCheckIn}
-            style={({ pressed }) => [
-              styles.justCheckBtn,
-              pressed && styles.btnPressed,
-            ]}
-          >
-            <Check color="rgba(255,255,255,0.8)" size={20} />
-            <Text style={styles.justCheckBtnText}>Just check in</Text>
-          </Pressable>
+          <View style={styles.segmentedPill}>
+            <Pressable
+              onPress={handleShareWithCrew}
+              disabled={isSharing}
+              style={({ pressed }) => [
+                styles.segmentedLeft,
+                pressed && styles.btnPressed,
+              ]}
+            >
+              <Text style={styles.shareBtnText}>Share with crew</Text>
+            </Pressable>
+            <View style={styles.segmentedDivider} />
+            <Pressable
+              onPress={handleJustCheckIn}
+              style={({ pressed }) => [
+                styles.segmentedRight,
+                pressed && styles.btnPressed,
+              ]}
+            >
+              <Text style={styles.justCheckBtnText}>Just check in</Text>
+            </Pressable>
+          </View>
         </View>
       </Animated.View>
     </View>
@@ -684,35 +683,39 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     alignItems: 'center' as const,
   },
-  shareBtn: {
+  segmentedPill: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignSelf: 'center' as const,
+  },
+  segmentedLeft: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
     backgroundColor: '#2BBFBA',
-    borderRadius: 16,
     paddingVertical: 18,
-    paddingHorizontal: 32,
-    alignSelf: 'center' as const,
+    paddingHorizontal: 24,
+  },
+  segmentedDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  segmentedRight: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
   },
   shareBtnText: {
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#041318',
   },
-  justCheckBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    alignSelf: 'center' as const,
-  },
+
   justCheckBtnText: {
     fontSize: 16,
     fontWeight: '600' as const,
