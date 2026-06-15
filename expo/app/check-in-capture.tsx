@@ -36,7 +36,7 @@ const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE * 2) / 2;
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 const QUIP_DISPLAY_MS = 2800;
 
-type CapturePhase = 'countdown' | 'captured' | 'result';
+type CapturePhase = 'choice' | 'countdown' | 'captured' | 'result';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -55,7 +55,7 @@ export default function CheckInCaptureScreen() {
   const countdownAnim = useRef(new Animated.Value(COUNTDOWN_SECONDS)).current;
   const quipOpacity = useRef(new Animated.Value(0)).current;
   const resultOpacity = useRef(new Animated.Value(0)).current;
-  const [phase, setPhase] = useState<CapturePhase>('countdown');
+  const [phase, setPhase] = useState<CapturePhase>('choice');
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [stampedPhoto, setStampedPhoto] = useState<string | null>(null);
   const [quip, setQuip] = useState<string>('');
@@ -277,7 +277,7 @@ export default function CheckInCaptureScreen() {
     router.back();
   }, [isSharing, stampedPhoto, capturedPhoto, user, params.venueId, venueName, neighborhood, quip, router]);
 
-  const handleJustCheckIn = useCallback(async () => {
+  const handleJustCheckInChoice = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const userId = user?.id ?? 'unknown';
@@ -289,11 +289,11 @@ export default function CheckInCaptureScreen() {
       photoUri: null,
       photoVisibility: false,
       capturedAt: new Date().toISOString(),
-      quip,
+      quip: null,
     });
 
     router.back();
-  }, [user, params.venueId, venueName, neighborhood, quip, router]);
+  }, [user, params.venueId, venueName, neighborhood, router]);
 
   const handleSkip = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -333,6 +333,42 @@ export default function CheckInCaptureScreen() {
         >
           <Text style={styles.skipBtnText}>Go back</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  // Choice phase — pre-camera picker
+  if (phase === 'choice') {
+    return (
+      <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
+        {/* Venue name */}
+        <Text style={styles.choiceVenueName}>{venueName}</Text>
+        <Text style={styles.choiceNeighborhood}>{neighborhood}</Text>
+
+        {/* Buttons */}
+        <View style={[styles.choiceButtons, { paddingBottom: insets.bottom + 40 }]}>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setPhase('countdown');
+            }}
+            style={({ pressed }) => [
+              styles.choicePrimaryBtn,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <Text style={styles.choicePrimaryBtnText}>📍 Check in with a pic</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleJustCheckInChoice}
+            style={({ pressed }) => [
+              styles.choiceSecondaryBtn,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <Text style={styles.choiceSecondaryBtnText}>Just check in</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -525,7 +561,7 @@ export default function CheckInCaptureScreen() {
     );
   }
 
-  // Result phase — two buttons
+  // Result phase — single compact share button
   return (
     <View style={[styles.screen, styles.resultScreen, { backgroundColor: '#000' }]}>
       <Animated.View style={[styles.resultContent, { opacity: resultOpacity }]}>
@@ -534,28 +570,16 @@ export default function CheckInCaptureScreen() {
         )}
 
         <View style={[styles.resultActions, { paddingBottom: insets.bottom + 20 }]}>
-          <View style={styles.segmentedPill}>
-            <Pressable
-              onPress={handleShareWithCrew}
-              disabled={isSharing}
-              style={({ pressed }) => [
-                styles.segmentedLeft,
-                pressed && styles.btnPressed,
-              ]}
-            >
-              <Text style={styles.shareBtnText}>Share with crew</Text>
-            </Pressable>
-            <View style={styles.segmentedDivider} />
-            <Pressable
-              onPress={handleJustCheckIn}
-              style={({ pressed }) => [
-                styles.segmentedRight,
-                pressed && styles.btnPressed,
-              ]}
-            >
-              <Text style={styles.justCheckBtnText}>Just check in</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={handleShareWithCrew}
+            disabled={isSharing}
+            style={({ pressed }) => [
+              styles.shareBtn,
+              pressed && styles.btnPressed,
+            ]}
+          >
+            <Text style={styles.shareBtnText}>Share with crew</Text>
+          </Pressable>
         </View>
       </Animated.View>
     </View>
@@ -688,49 +712,79 @@ const styles = StyleSheet.create({
   },
   resultActions: {
     paddingHorizontal: 20,
-    gap: 10,
     paddingTop: 16,
     alignItems: 'center' as const,
   },
-  segmentedPill: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
+  shareBtn: {
+    backgroundColor: '#2BBFBA',
     borderRadius: 16,
-    overflow: 'hidden',
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     alignSelf: 'center' as const,
   },
-  segmentedLeft: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2BBFBA',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-  },
-  segmentedDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  segmentedRight: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-  },
+
   shareBtnText: {
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#041318',
   },
 
-  justCheckBtnText: {
+  btnPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  // Choice screen
+  choiceVenueName: {
+    fontSize: 26,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    letterSpacing: 0.3,
+  },
+  choiceNeighborhood: {
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 4,
+    marginBottom: 48,
+  },
+  choiceButtons: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  choicePrimaryBtn: {
+    backgroundColor: '#2BBFBA',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choicePrimaryBtnText: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: '#041318',
+  },
+  choiceSecondaryBtn: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  choiceSecondaryBtnText: {
     fontSize: 16,
     fontWeight: '600' as const,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.7)',
   },
-  btnPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
   // Caption overlay on photo
   captionOverlay: {
     position: 'absolute',
