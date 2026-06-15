@@ -69,11 +69,12 @@ export async function insertCheckIn(record: CheckInRecord): Promise<string | nul
 
     if (error) {
       console.log('[CheckIn DB] Insert error:', error.message);
-      // Fall back to local storage
-      await storeLocalCheckIn(record, checkInId);
     } else {
       console.log('[CheckIn DB] Inserted check-in:', checkInId);
     }
+
+    // Always cache locally so the crew feed has immediate access
+    await storeLocalCheckIn(record, checkInId);
 
     // Increment venue check-in count
     if (record.venueId) {

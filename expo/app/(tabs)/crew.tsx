@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -7,13 +7,16 @@ import {
   Text,
   View,
   ListRenderItem,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Bell, MapPin } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Bell } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAuth } from '@/providers/AuthProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
@@ -23,6 +26,24 @@ import {
   mockProximityHint,
 } from '@/mocks/friends';
 import { pulzeVenues } from '@/mocks/venues';
+import { getLocalCheckIns, type CheckInRecord } from '@/services/checkInDatabase';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_PADDING = 16;
+const CARD_WIDTH = SCREEN_WIDTH - CARD_PADDING * 2;
+const CARD_TOP_PANEL = 62;
+const CARD_PHOTO_HEIGHT = CARD_WIDTH * 1.05;
+
+function getTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 function haversineMeters(
   lat1: number,
@@ -74,12 +95,64 @@ function computeProximityHint(
   };
 }
 
+function localCheckInToFeedItem(
+  c: CheckInRecord & { id: string },
+  displayName: string,
+  username: string,
+  userId: string,
+): FriendCheckInFeedItem {
+  return {
+    id: c.id,
+    friendName: displayName || 'You',
+    friendHandle: username || '',
+    friendAvatar: '',
+    friendId: userId,
+    venueName: c.venueName,
+    venueId: c.venueId,
+    neighborhood: c.neighborhood,
+    photoUri: c.photoUri ?? '',
+    timeAgo: getTimeAgo(c.capturedAt),
+    caption: c.quip ?? undefined,
+  };
+}
+
 export default function CrewScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { userLocation } = useMapLocation();
   const { onScroll } = useTabScroll();
+
+  const [localFeedItems, setLocalFeedItems] = useState<FriendCheckInFeedItem[]>([]);
+
+  useEffect(() => {
+    const loadLocal = async () => {
+      try {
+        const locals = await getLocalCheckIns();
+        const visible = locals.filter(
+          (c) => c.photoVisibility && c.photoUri,
+        );
+        const items = visible.map((c) =>
+          localCheckInToFeedItem(
+            c,
+            user?.displayName ?? 'You',
+            user?.username ?? '',
+            user?.id ?? '',
+          ),
+        );
+        setLocalFeedItems(items);
+      } catch {
+        // Local storage unavailable — feed falls back to mock data
+      }
+    };
+    void loadLocal();
+  }, [user]);
+
+  const feedItems = useMemo(() => {
+    // Real check-ins first, then mock friend check-ins
+    return [...localFeedItems, ...mockFriendCheckIns];
+  }, [localFeedItems]);
 
   const proximityHint = useMemo<ProximityHint | null>(() => {
     return computeProximityHint(
@@ -112,34 +185,93 @@ export default function CrewScreen() {
   );
 
   const renderItem: ListRenderItem<FriendCheckInFeedItem> = useCallback(
-    ({ item }) => (
-      <Pressable
-        onPress={() => handleItemPress(item)}
-        style={({ pressed }) => [
-          styles.feedItem,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-          pressed && { opacity: 0.8 },
-        ]}
-      >
-        <Image source={{ uri: item.photoUri }} style={styles.thumbnail} />
-        <View style={styles.itemBody}>
-          <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>
-            {item.friendName}
-          </Text>
-          <Text style={[styles.venueName, { color: colors.textSoft }]} numberOfLines={1}>
-            {item.venueName}
-          </Text>
-          <View style={styles.itemMetaRow}>
-            <MapPin color={colors.textMuted} size={10} />
-            <Text style={[styles.neighborhood, { color: colors.textMuted }]} numberOfLines={1}>
-              {item.neighborhood}
-            </Text>
-            <Text style={[styles.timeDot, { color: colors.textMuted }]}>·</Text>
-            <Text style={[styles.timeAgo, { color: colors.textMuted }]}>{item.timeAgo}</Text>
+    ({ item }) => {
+      const venue = pulzeVenues.find((v) => v.id === item.venueId);
+      const busynessPercent = venue ? `${venue.busynessPercent}%` : '';
+
+      return (
+        <Pressable
+          onPress={() => handleItemPress(item)}
+          style={({ pressed }) => [
+            styles.feedCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+            pressed && { opacity: 0.92 },
+          ]}
+        >
+          {/* Top info panel */}
+          <View style={[styles.cardPanel, { backgroundColor: colors.surface }]}>
+            {/* Row: avatar + name … busyness */}
+            <View style={styles.cardNameRow}>
+              {item.friendAvatar ? (
+                <Image
+                  source={{ uri: item.friendAvatar }}
+                  style={styles.cardAvatar}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.cardAvatarPlaceholder,
+                    { backgroundColor: colors.aqua + '1A' },
+                  ]}
+                >
+                  <Text style={[styles.cardAvatarInitial, { color: colors.aqua }]}>
+                    {item.friendName?.charAt(0)?.toUpperCase() ?? '?'}
+                  </Text>
+                </View>
+              )}
+              <Text
+                style={[styles.cardName, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {item.friendName}
+              </Text>
+              <View style={styles.cardSpacer} />
+              {busynessPercent !== '' ? (
+                <Text style={styles.cardBusyness}>{busynessPercent}</Text>
+              ) : null}
+            </View>
+
+            {/* Row: venue · time ago */}
+            <View style={styles.cardSubRow}>
+              <Text style={[styles.cardVenue, { color: colors.textMuted }]}>
+                {item.venueName}
+              </Text>
+              <Text style={[styles.cardDot, { color: colors.textMuted }]}>·</Text>
+              <Text style={[styles.cardTime, { color: colors.textMuted }]}>
+                {item.timeAgo}
+              </Text>
+            </View>
           </View>
-        </View>
-      </Pressable>
-    ),
+
+          {/* Photo fills the rest */}
+          <View style={styles.cardPhotoContainer}>
+            <Image
+              source={{ uri: item.photoUri }}
+              style={styles.cardPhoto}
+              resizeMode="cover"
+            />
+
+            {/* Caption overlay */}
+            {item.caption ? (
+              <LinearGradient
+                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.cardCaptionOverlay}
+                pointerEvents="none"
+              >
+                <Text style={styles.cardCaptionText} numberOfLines={1}>
+                  {item.caption}
+                </Text>
+              </LinearGradient>
+            ) : null}
+          </View>
+        </Pressable>
+      );
+    },
     [colors, handleItemPress],
   );
 
@@ -157,7 +289,8 @@ export default function CrewScreen() {
       >
         <View style={[styles.proximityDot, { backgroundColor: colors.aqua }]} />
         <Text style={[styles.proximityText, { color: colors.textMuted }]} numberOfLines={1}>
-          {proximityHint.friendName} is {proximityHint.distanceLabel} · {proximityHint.venueBusynessLabel}
+          {proximityHint.friendName} is {proximityHint.distanceLabel} ·{' '}
+          {proximityHint.venueBusynessLabel}
         </Text>
       </Pressable>
     );
@@ -169,10 +302,18 @@ export default function CrewScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <View>
             <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+              Crew check-ins
+            </Text>
           </View>
           <Pressable
             onPress={() => router.push('/activity')}
@@ -184,22 +325,20 @@ export default function CrewScreen() {
       </View>
 
       <FlatList
-        data={mockFriendCheckIns}
+        data={feedItems}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: insets.bottom },
         ]}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListHeaderComponent={renderHeader}
         showsVerticalScrollIndicator={false}
       />
     </View>
   );
 }
-
-const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -218,53 +357,102 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   listContent: {
-    padding: 16,
+    padding: CARD_PADDING,
     paddingTop: 4,
+  },
 
-  },
-  feedItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
+  // Feed card — same structure as checkin-detail
+  feedCard: {
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 10,
+    overflow: 'hidden',
   },
-  thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  itemBody: {
-    flex: 1,
-    gap: 3,
-    justifyContent: 'center',
-  },
-  friendName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  venueName: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  itemMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardPanel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 4,
   },
-  neighborhood: {
-    fontSize: 11,
+  cardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cardAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  cardAvatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardAvatarInitial: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  cardName: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  cardSpacer: {
+    flex: 1,
+  },
+  cardBusyness: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  cardSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  cardVenue: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  cardDot: {
+    fontSize: 12,
     fontWeight: '500' as const,
   },
-  timeDot: {
-    fontSize: 11,
-  },
-  timeAgo: {
-    fontSize: 11,
+  cardTime: {
+    fontSize: 12,
     fontWeight: '500' as const,
   },
+
+  // Photo section
+  cardPhotoContainer: {
+    width: '100%',
+    height: CARD_PHOTO_HEIGHT,
+  },
+  cardPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  cardCaptionOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  cardCaptionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500' as const,
+    lineHeight: 20,
+  },
+
+  // Proximity bar
   proximityBar: {
     flexDirection: 'row',
     alignItems: 'center',

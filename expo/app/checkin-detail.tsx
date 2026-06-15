@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -13,20 +13,83 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
-import { mockFriendCheckIns } from '@/mocks/friends';
+import { useAuth } from '@/providers/AuthProvider';
+import { mockFriendCheckIns, type FriendCheckInFeedItem } from '@/mocks/friends';
 import { pulzeVenues } from '@/mocks/venues';
+import { getLocalCheckIns, type CheckInRecord } from '@/services/checkInDatabase';
+
+function getTimeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function localCheckInToFeedItem(
+  c: CheckInRecord & { id: string },
+  displayName: string,
+  username: string,
+  userId: string,
+): FriendCheckInFeedItem {
+  return {
+    id: c.id,
+    friendName: displayName || 'You',
+    friendHandle: username || '',
+    friendAvatar: '',
+    friendId: userId,
+    venueName: c.venueName,
+    venueId: c.venueId,
+    neighborhood: c.neighborhood,
+    photoUri: c.photoUri ?? '',
+    timeAgo: getTimeAgo(c.capturedAt),
+    caption: c.quip ?? undefined,
+  };
+}
 
 export default function CheckinDetailScreen() {
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams<{ checkInId: string }>();
 
-  const checkIn = useMemo(
-    () => mockFriendCheckIns.find((c) => c.id === params.checkInId),
-    [params.checkInId],
-  );
+  const [checkIn, setCheckIn] = useState<FriendCheckInFeedItem | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const resolve = async () => {
+      try {
+        // Search local check-ins first
+        const locals = await getLocalCheckIns();
+        const match = locals.find((c) => c.id === params.checkInId);
+        if (match) {
+          setCheckIn(
+            localCheckInToFeedItem(
+              match,
+              user?.displayName ?? 'You',
+              user?.username ?? '',
+              user?.id ?? '',
+            ),
+          );
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Local storage unavailable — fall back to mock
+      }
+
+      // Fall back to mock data
+      const mock = mockFriendCheckIns.find((c) => c.id === params.checkInId) ?? null;
+      setCheckIn(mock);
+      setLoading(false);
+    };
+    void resolve();
+  }, [params.checkInId, user]);
 
   const venue = useMemo(
     () => (checkIn ? pulzeVenues.find((v) => v.id === checkIn.venueId) : undefined),
@@ -39,6 +102,17 @@ export default function CheckinDetailScreen() {
   }, [router]);
 
   const topPanelHeight = Math.round(screenHeight * 0.23);
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.notFound, { paddingTop: insets.top + 60 }]}>
+          <Text style={[styles.notFoundText, { color: colors.textMuted }]}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!checkIn) {
     return (
@@ -78,7 +152,20 @@ export default function CheckinDetailScreen() {
         <View style={styles.panelContent}>
           {/* Row: avatar + name … percentage */}
           <View style={styles.nameRow}>
-            <Image source={{ uri: checkIn.friendAvatar }} style={styles.avatar} />
+            {checkIn.friendAvatar ? (
+              <Image source={{ uri: checkIn.friendAvatar }} style={styles.avatar} />
+            ) : (
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: colors.aqua + '1A' },
+                ]}
+              >
+                <Text style={[styles.avatarInitial, { color: colors.aqua }]}>
+                  {checkIn.friendName?.charAt(0)?.toUpperCase() ?? '?'}
+                </Text>
+              </View>
+            )}
             <Text
               style={[styles.friendName, { color: colors.text }]}
               numberOfLines={1}
@@ -138,17 +225,6 @@ const styles = StyleSheet.create({
   topPanel: {
     width: '100%',
   },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-  },
-  backCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   panelContent: {
     flex: 1,
     justifyContent: 'center',
@@ -164,6 +240,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 18,
+    fontWeight: '700' as const,
   },
   friendName: {
     fontSize: 24,
