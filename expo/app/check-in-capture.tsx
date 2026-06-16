@@ -453,20 +453,20 @@ export default function CheckInCaptureScreen() {
             </Pressable>
 
             {/* Draggable stamp with pinch-to-resize */}
-            <PinchGestureHandler
-              ref={stampPinchRef}
-              simultaneousHandlers={stampPanRef}
-              onGestureEvent={onStampPinchGesture}
-              onHandlerStateChange={onStampPinchState}
+            <PanGestureHandler
+              ref={stampPanRef}
+              simultaneousHandlers={stampPinchRef}
+              onGestureEvent={onStampPan}
+              onHandlerStateChange={onStampPan}
+              minDist={0}
             >
-              <PanGestureHandler
-                ref={stampPanRef}
-                simultaneousHandlers={stampPinchRef}
-                onGestureEvent={onStampPan}
-                onHandlerStateChange={onStampPan}
-                minDist={0}
+              <PinchGestureHandler
+                ref={stampPinchRef}
+                simultaneousHandlers={stampPanRef}
+                onGestureEvent={onStampPinchGesture}
+                onHandlerStateChange={onStampPinchState}
               >
-                <View
+                <Animated.View
                   style={[
                     styles.stampOverlay,
                     { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
@@ -477,9 +477,9 @@ export default function CheckInCaptureScreen() {
                     <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
                     <Text style={styles.stampTime}>{timeStr}</Text>
                   </View>
-                </View>
-              </PanGestureHandler>
-            </PinchGestureHandler>
+                </Animated.View>
+              </PinchGestureHandler>
+            </PanGestureHandler>
 
             {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
             {showCaption && (
