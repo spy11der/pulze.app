@@ -83,9 +83,7 @@ export default function CheckInCaptureScreen() {
   const captionBaseScale = useRef<number>(1);
 
   const onStampPinchGesture = useCallback((event: any) => {
-    if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
-      setStampScale(stampBaseScale.current * event.nativeEvent.scale);
-    }
+    setStampScale(stampBaseScale.current * event.nativeEvent.scale);
   }, []);
 
   const onStampPinchState = useCallback((event: any) => {
@@ -110,9 +108,7 @@ export default function CheckInCaptureScreen() {
   }, []);
 
   const onCaptionPinchGesture = useCallback((event: any) => {
-    if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
-      setCaptionScale(captionBaseScale.current * event.nativeEvent.scale);
-    }
+    setCaptionScale(captionBaseScale.current * event.nativeEvent.scale);
   }, []);
 
   const onCaptionPinchState = useCallback((event: any) => {
