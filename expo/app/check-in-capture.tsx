@@ -461,7 +461,7 @@ export default function CheckInCaptureScreen() {
               simultaneousHandlers={stampPinchRef}
               onGestureEvent={onStampPan}
               onHandlerStateChange={onStampPan}
-              minDist={0}
+              minDist={10}
             >
               <PinchGestureHandler
                 ref={stampPinchRef}
