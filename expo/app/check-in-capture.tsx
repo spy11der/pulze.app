@@ -129,7 +129,7 @@ export default function CheckInCaptureScreen() {
         x: captionOffset.current.x + event.nativeEvent.translationX,
         y: captionOffset.current.y + event.nativeEvent.translationY,
       };
-      if (Math.abs(event.nativeEvent.translationX) < 5 && Math.abs(event.nativeEvent.translationY) < 5) {
+      if (Math.abs(event.nativeEvent.translationX) < 20 && Math.abs(event.nativeEvent.translationY) < 20) {
         captionInputRef.current?.focus();
       }
     }
