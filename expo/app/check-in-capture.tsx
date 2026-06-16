@@ -125,9 +125,14 @@ export default function CheckInCaptureScreen() {
       });
     }
     if (event.nativeEvent.state === State.END) {
+      const tx = event.nativeEvent.translationX;
+      const ty = event.nativeEvent.translationY;
+      if (Math.abs(tx) < 5 && Math.abs(ty) < 5) {
+        captionInputRef.current?.focus();
+      }
       captionOffset.current = {
-        x: captionOffset.current.x + event.nativeEvent.translationX,
-        y: captionOffset.current.y + event.nativeEvent.translationY,
+        x: captionOffset.current.x + tx,
+        y: captionOffset.current.y + ty,
       };
     }
   }, []);
@@ -483,40 +488,30 @@ export default function CheckInCaptureScreen() {
 
             {/* Draggable caption text overlay with pinch-to-resize — only visible after user taps */}
             {showCaption && (
-              <PinchGestureHandler
-                ref={captionPinchRef}
-                simultaneousHandlers={captionPanRef}
-                onGestureEvent={onCaptionPinchGesture}
-                onHandlerStateChange={onCaptionPinchState}
+              <PanGestureHandler
+                ref={captionPanRef}
+                simultaneousHandlers={captionPinchRef}
+                onGestureEvent={onCaptionPan}
+                onHandlerStateChange={onCaptionPan}
+                minDist={0}
+                avgTouches={false}
+                shouldCancelWhenOutside={false}
               >
-                <PanGestureHandler
-                  ref={captionPanRef}
-                  simultaneousHandlers={captionPinchRef}
-                  onGestureEvent={onCaptionPan}
-                  onHandlerStateChange={onCaptionPan}
-                  minDist={0}
-                  avgTouches={false}
-                  shouldCancelWhenOutside={false}
+                <PinchGestureHandler
+                  ref={captionPinchRef}
+                  simultaneousHandlers={captionPanRef}
+                  onGestureEvent={onCaptionPinchGesture}
+                  onHandlerStateChange={onCaptionPinchState}
                 >
                   <Animated.View
                     style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   >
-                    <View
-                      onStartShouldSetResponder={() => true}
-                      onResponderRelease={(e) => {
-                        if (e.nativeEvent.identifier !== undefined) {
-                          captionInputRef.current?.focus();
-                        }
-                      }}
-                      style={{ minWidth: 120, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                        {caption || 'Add a caption...'}
-                      </Text>
-                    </View>
+                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                      {caption || 'Add a caption...'}
+                    </Text>
                   </Animated.View>
-                </PanGestureHandler>
-              </PinchGestureHandler>
+                </PinchGestureHandler>
+              </PanGestureHandler>
             )}
           </View>
         </View>
