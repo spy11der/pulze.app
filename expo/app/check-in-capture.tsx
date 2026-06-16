@@ -133,10 +133,6 @@ export default function CheckInCaptureScreen() {
         x: captionOffset.current.x + event.nativeEvent.translationX,
         y: captionOffset.current.y + event.nativeEvent.translationY,
       };
-      // Tap (minimal movement) → focus TextInput for typing
-      if (Math.abs(event.nativeEvent.translationX) < 5 && Math.abs(event.nativeEvent.translationY) < 5) {
-        captionInputRef.current?.focus();
-      }
     }
   }, []);
 
@@ -507,12 +503,17 @@ export default function CheckInCaptureScreen() {
                   shouldCancelWhenOutside={false}
                 >
                   <Animated.View
-                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
                     style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   >
-                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                      {caption || 'Add a caption...'}
-                    </Text>
+                    <Pressable
+                      onPress={() => captionInputRef.current?.focus()}
+                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                      style={{ minWidth: 120, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                        {caption || 'Add a caption...'}
+                      </Text>
+                    </Pressable>
                   </Animated.View>
                 </PanGestureHandler>
               </PinchGestureHandler>
