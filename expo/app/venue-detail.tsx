@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   Bookmark,
@@ -42,10 +42,12 @@ export default function VenueDetailScreen() {
   const venue = pulzeVenues.find((v) => v.id === params.venueId);
   const [localCheckins, setLocalCheckins] = useState<number>(0);
 
-  useEffect(() => {
-    if (!params.venueId) return;
-    void getVenueCheckInCount(params.venueId).then(setLocalCheckins);
-  }, [params.venueId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!params.venueId) return;
+      void getVenueCheckInCount(params.venueId).then(setLocalCheckins);
+    }, [params.venueId])
+  );
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
