@@ -84,13 +84,13 @@ export default function CheckInCaptureScreen() {
 
   const onStampPinchGesture = useCallback((event: any) => {
     if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
-      setStampScale(Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale)));
+      setStampScale(stampBaseScale.current * event.nativeEvent.scale);
     }
   }, []);
 
   const onStampPinchState = useCallback((event: any) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
-      stampBaseScale.current = Math.min(3, Math.max(0.5, stampBaseScale.current * event.nativeEvent.scale));
+      stampBaseScale.current = stampBaseScale.current * event.nativeEvent.scale;
     }
   }, []);
 
@@ -111,13 +111,13 @@ export default function CheckInCaptureScreen() {
 
   const onCaptionPinchGesture = useCallback((event: any) => {
     if (event.nativeEvent.state === State.BEGAN || event.nativeEvent.state === State.ACTIVE) {
-      setCaptionScale(Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale)));
+      setCaptionScale(captionBaseScale.current * event.nativeEvent.scale);
     }
   }, []);
 
   const onCaptionPinchState = useCallback((event: any) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
-      captionBaseScale.current = Math.min(3, Math.max(0.5, captionBaseScale.current * event.nativeEvent.scale));
+      captionBaseScale.current = captionBaseScale.current * event.nativeEvent.scale;
     }
   }, []);
 
