@@ -19,7 +19,7 @@ import { captureRef } from 'react-native-view-shot';
 import {
   X,
 } from 'lucide-react-native';
-import { PanGestureHandler, PinchGestureHandler, State, TapGestureHandler } from 'react-native-gesture-handler';
+import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -137,12 +137,6 @@ export default function CheckInCaptureScreen() {
       if (Math.abs(event.nativeEvent.translationX) < 5 && Math.abs(event.nativeEvent.translationY) < 5) {
         captionInputRef.current?.focus();
       }
-    }
-  }, []);
-
-  const handlePhotoTap = useCallback((event: any) => {
-    if (event.nativeEvent.state === State.END) {
-      setShowCaption(true);
     }
   }, []);
 
@@ -458,15 +452,13 @@ export default function CheckInCaptureScreen() {
             style={styles.stampViewContainer}
             collapsable={false}
           >
-            {/* Tap target on photo background — shows caption on tap */}
-            <TapGestureHandler
-              onHandlerStateChange={handlePhotoTap}
-              numberOfTaps={1}
+            {/* Background tap layer — shows caption on tap, sits behind stamp and caption gesture handlers */}
+            <Pressable
+              onPress={() => setShowCaption(true)}
+              style={StyleSheet.absoluteFill}
             >
-              <View style={StyleSheet.absoluteFill}>
-                <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
-              </View>
-            </TapGestureHandler>
+              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+            </Pressable>
 
             {/* Draggable stamp with pinch-to-resize */}
             <PinchGestureHandler
@@ -513,10 +505,9 @@ export default function CheckInCaptureScreen() {
                   minDist={0}
                   avgTouches={false}
                   shouldCancelWhenOutside={false}
-                  maxDeltaX={999}
-                  maxDeltaY={999}
                 >
                   <Animated.View
+                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
                     style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   >
                     <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
