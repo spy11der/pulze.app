@@ -125,15 +125,13 @@ export default function CheckInCaptureScreen() {
       });
     }
     if (event.nativeEvent.state === State.END) {
-      const tx = event.nativeEvent.translationX;
-      const ty = event.nativeEvent.translationY;
-      if (Math.abs(tx) < 5 && Math.abs(ty) < 5) {
+      captionOffset.current = {
+        x: captionOffset.current.x + event.nativeEvent.translationX,
+        y: captionOffset.current.y + event.nativeEvent.translationY,
+      };
+      if (Math.abs(event.nativeEvent.translationX) < 5 && Math.abs(event.nativeEvent.translationY) < 5) {
         captionInputRef.current?.focus();
       }
-      captionOffset.current = {
-        x: captionOffset.current.x + tx,
-        y: captionOffset.current.y + ty,
-      };
     }
   }, []);
 
@@ -477,11 +475,11 @@ export default function CheckInCaptureScreen() {
                     { transform: [{ translateX: stampPos.x }, { translateY: stampPos.y }, { scale: stampScale }] },
                   ]}
                 >
-                  <View style={styles.stampBox}>
+                  <Animated.View style={styles.stampBox}>
                     <Text style={styles.stampVenue}>{venueName}</Text>
                     <Text style={styles.stampNeighborhood}>{neighborhood}</Text>
                     <Text style={styles.stampTime}>{timeStr}</Text>
-                  </View>
+                  </Animated.View>
                 </Animated.View>
               </PinchGestureHandler>
             </PanGestureHandler>
