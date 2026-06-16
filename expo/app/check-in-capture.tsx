@@ -511,6 +511,10 @@ export default function CheckInCaptureScreen() {
                   onGestureEvent={onCaptionPan}
                   onHandlerStateChange={onCaptionPan}
                   minDist={0}
+                  avgTouches={false}
+                  shouldCancelWhenOutside={false}
+                  maxDeltaX={999}
+                  maxDeltaY={999}
                 >
                   <Animated.View
                     style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
