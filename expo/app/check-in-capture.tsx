@@ -501,15 +501,19 @@ export default function CheckInCaptureScreen() {
                   <Animated.View
                     style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
                   >
-                    <Pressable
-                      onPress={() => captionInputRef.current?.focus()}
-                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                    <View
+                      onStartShouldSetResponder={() => true}
+                      onResponderRelease={(e) => {
+                        if (e.nativeEvent.identifier !== undefined) {
+                          captionInputRef.current?.focus();
+                        }
+                      }}
                       style={{ minWidth: 120, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                     >
                       <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
                         {caption || 'Add a caption...'}
                       </Text>
-                    </Pressable>
+                    </View>
                   </Animated.View>
                 </PanGestureHandler>
               </PinchGestureHandler>
