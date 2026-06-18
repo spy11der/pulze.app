@@ -19,7 +19,7 @@ import { captureRef } from 'react-native-view-shot';
 import {
   X,
 } from 'lucide-react-native';
-import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, PinchGestureHandler, TapGestureHandler, State } from 'react-native-gesture-handler';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -132,6 +132,12 @@ export default function CheckInCaptureScreen() {
       if (Math.abs(event.nativeEvent.translationX) < 20 && Math.abs(event.nativeEvent.translationY) < 20) {
         captionInputRef.current?.focus();
       }
+    }
+  }, []);
+
+  const handlePhotoTap = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      setShowCaption(true);
     }
   }, []);
 
@@ -447,13 +453,12 @@ export default function CheckInCaptureScreen() {
             style={styles.stampViewContainer}
             collapsable={false}
           >
-            {/* Background tap layer — shows caption on tap, sits behind stamp and caption gesture handlers */}
-            <Pressable
-              onPress={() => setShowCaption(true)}
-              style={StyleSheet.absoluteFill}
-            >
-              <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
-            </Pressable>
+            {/* Background tap layer — shows caption on tap, sits behind stamp and caption gesture handlers. Uses TapGestureHandler (native) to avoid JS touch conflict with Pan/Pinch handlers. */}
+            <TapGestureHandler onHandlerStateChange={handlePhotoTap}>
+              <View style={StyleSheet.absoluteFill}>
+                <Image source={{ uri: capturedPhoto }} style={styles.stampImage} />
+              </View>
+            </TapGestureHandler>
 
             {/* Draggable stamp with pinch-to-resize */}
             <PanGestureHandler
