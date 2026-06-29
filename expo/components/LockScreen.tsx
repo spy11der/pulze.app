@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScanFace, Fingerprint, ShieldCheck } from 'lucide-react-native';
+import { ScanFace, Fingerprint } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -64,10 +64,7 @@ export function LockScreen() {
       testID="lock-screen"
     >
       <View style={styles.topSection}>
-        <View style={styles.logoRow}>
-          <ShieldCheck color={colors.aqua} size={20} />
-          <Text style={[styles.logoText, { color: colors.aqua }]}>PULZE</Text>
-        </View>
+        <Image source={require('@/assets/images/pulze-logo.png')} style={styles.logoImg} resizeMode="contain" />
         <Text style={[styles.lockLabel, { color: colors.textMuted }]}>App Locked</Text>
       </View>
 
@@ -117,15 +114,10 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     gap: 8,
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoText: {
-    fontSize: 16,
-    fontWeight: '800' as const,
-    letterSpacing: 3,
+  logoImg: {
+    width: 80,
+    height: 80,
+    alignSelf: 'center',
   },
   lockLabel: {
     fontSize: 14,
