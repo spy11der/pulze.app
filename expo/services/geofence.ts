@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const GEOFENCE_TASK = 'PULZE_GEOFENCE_CHECK';
 const GEOFENCE_RADIUS_METERS = 45; // ~150 feet
 const GEOFENCE_INTERVAL_MS = 60_000; // Check every 60 seconds
-const DEDUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 interface GeofenceTrigger {
   venueId: string;
