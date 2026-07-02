@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,44 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState<string>(user?.username ?? 'jordan.pulze');
   const [bio, setBio] = useState<string>('Always looking for something good happening tonight.');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsLoadingProfile(false);
+      return;
+    }
+    let cancelled = false;
+    const loadProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('display_name, username, bio')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (error) {
+          console.log('[EditProfile] Load error:', error.message);
+          return;
+        }
+        const profile = data as
+          | { display_name: string | null; username: string | null; bio: string | null }
+          | null;
+        if (profile) {
+          if (profile.display_name) setDisplayName(profile.display_name);
+          if (profile.username) setUsername(profile.username);
+          if (profile.bio !== null && profile.bio !== undefined) setBio(profile.bio);
+        }
+      } catch (e) {
+        console.log('[EditProfile] Load exception:', e);
+      } finally {
+        if (!cancelled) setIsLoadingProfile(false);
+      }
+    };
+    void loadProfile();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const handleSave = useCallback(async () => {
     if (isSaving) return;
@@ -170,6 +208,11 @@ export default function EditProfileScreen() {
           </Text>
         </View>
       </ScrollView>
+      {isLoadingProfile && (
+        <View style={[styles.loadingOverlay, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.aqua} />
+        </View>
+      )}
     </View>
   );
 }
@@ -273,5 +316,10 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.97 }],
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
