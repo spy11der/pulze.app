@@ -3,6 +3,7 @@ import { supabase } from '@/services/supabase';
 import { incrementVenueCheckInCount } from '@/services/checkInCounts';
 
 const DEDUP_CACHE_KEY = 'pulze_geofence_dedup';
+const DEDUP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 interface DedupEntry {
   venueId: string;
@@ -22,8 +23,12 @@ async function setDedupCache(userId: string, cache: Record<string, number>): Pro
   await AsyncStorage.setItem(`${DEDUP_CACHE_KEY}_${userId}`, JSON.stringify(cache));
 }
 
-export async function shouldTriggerCheckIn(_userId: string, _venueId: string): Promise<boolean> {
-  return true;
+export async function shouldTriggerCheckIn(userId: string, venueId: string): Promise<boolean> {
+  const cache = await getDedupCache(userId);
+  const lastTrigger = cache[venueId];
+  if (!lastTrigger) return true;
+  const elapsed = Date.now() - lastTrigger;
+  return elapsed >= DEDUP_WINDOW_MS;
 }
 
 export async function recordGeofenceTrigger(userId: string, venueId: string): Promise<void> {
