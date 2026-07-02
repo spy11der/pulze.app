@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -31,9 +31,41 @@ export default function FriendsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
+  // Local optimistic state — seeded from mocks, will be replaced by
+  // Supabase-backed friend request data once George's backend lands.
+  const [friends, setFriends] = useState<Friend[]>(mockFriends);
+  const [requests, setRequests] = useState<FriendRequest[]>(mockFriendRequests);
+
+  const handleAcceptRequest = useCallback((request: FriendRequest) => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // TODO: replace with real Supabase mutation (insert into friends table,
+    // update request status) once George's backend is wired up.
+    const newFriend: Friend = {
+      id: request.id,
+      name: request.name,
+      handle: request.handle,
+      avatar: request.avatar,
+      mutualFriends: request.mutualFriends,
+      tier: 'friends',
+      lastActive: 'Just now',
+    };
+
+    setFriends((prev) => [...prev, newFriend]);
+    setRequests((prev) => prev.filter((r) => r.id !== request.id));
+  }, []);
+
+  const handleDeclineRequest = useCallback((request: FriendRequest) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // TODO: replace with real Supabase mutation (update request status to
+    // declined) once George's backend is wired up.
+    setRequests((prev) => prev.filter((r) => r.id !== request.id));
+  }, []);
+
   const sections = useMemo(() => {
-    const innerCircle = mockFriends.filter((f) => f.tier === 'inner_circle');
-    const friends = mockFriends.filter((f) => f.tier === 'friends' || f.tier === 'public');
+    const innerCircle = friends.filter((f) => f.tier === 'inner_circle');
+    const friendsList = friends.filter((f) => f.tier === 'friends' || f.tier === 'public');
 
     const data: Array<{
       title: string;
@@ -42,11 +74,11 @@ export default function FriendsScreen() {
       requests?: FriendRequest[];
     }> = [];
 
-    if (mockFriendRequests.length > 0) {
+    if (requests.length > 0) {
       data.push({
         title: 'Requests',
         data: [],
-        requests: mockFriendRequests,
+        requests,
       });
     }
 
@@ -58,16 +90,16 @@ export default function FriendsScreen() {
       });
     }
 
-    if (friends.length > 0) {
+    if (friendsList.length > 0) {
       data.push({
         title: 'Friends',
-        data: friends,
+        data: friendsList,
         tier: tierDefinitions.find((t) => t.id === 'friends'),
       });
     }
 
     return data;
-  }, []);
+  }, [friends, requests]);
 
   const handleFriendPress = useCallback(
     (friend: Friend) => {
@@ -190,6 +222,7 @@ export default function FriendsScreen() {
           </View>
           <View style={styles.requestActions}>
             <Pressable
+              onPress={() => handleAcceptRequest(request)}
               style={({ pressed }) => [
                 styles.requestBtn,
                 { backgroundColor: colors.aqua, opacity: pressed ? 0.8 : 1 },
@@ -198,6 +231,7 @@ export default function FriendsScreen() {
               <Check color="#fff" size={14} />
             </Pressable>
             <Pressable
+              onPress={() => handleDeclineRequest(request)}
               style={({ pressed }) => [
                 styles.requestBtn,
                 {
@@ -212,7 +246,7 @@ export default function FriendsScreen() {
         </View>
       );
     },
-    [colors],
+    [colors, isDark, handleAcceptRequest, handleDeclineRequest],
   );
 
   const renderItem = useCallback(
