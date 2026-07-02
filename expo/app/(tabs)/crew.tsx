@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell } from 'lucide-react-native';
@@ -126,28 +126,29 @@ export default function CrewScreen() {
 
   const [localFeedItems, setLocalFeedItems] = useState<FriendCheckInFeedItem[]>([]);
 
-  useEffect(() => {
-    const loadLocal = async () => {
-      try {
-        const locals = await getLocalCheckIns();
-        const visible = locals.filter(
-          (c) => c.photoVisibility && c.photoUri,
-        );
-        const items = visible.map((c) =>
-          localCheckInToFeedItem(
-            c,
-            user?.displayName ?? 'You',
-            user?.username ?? '',
-            user?.id ?? '',
-          ),
-        );
-        setLocalFeedItems(items);
-      } catch {
-        // Local storage unavailable — feed falls back to mock data
-      }
-    };
-    void loadLocal();
+  const loadLocal = useCallback(async () => {
+    try {
+      const locals = await getLocalCheckIns();
+      const visible = locals.filter((c) => c.photoVisibility && c.photoUri);
+      const items = visible.map((c) =>
+        localCheckInToFeedItem(
+          c,
+          user?.displayName ?? 'You',
+          user?.username ?? '',
+          user?.id ?? '',
+        ),
+      );
+      setLocalFeedItems(items);
+    } catch {
+      // Local storage unavailable — feed falls back to mock data
+    }
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadLocal();
+    }, [loadLocal]),
+  );
 
   const feedItems = useMemo(() => {
     // Real check-ins first, then mock friend check-ins
