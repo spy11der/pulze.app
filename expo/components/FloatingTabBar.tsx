@@ -16,7 +16,7 @@ const TABS = [
   { route: '/(tabs)/profile', Icon: UserRound },
 ] as const;
 
-const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture']);
+const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture', 'venue-detail']);
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { scrollAnim } = useTabScroll();
