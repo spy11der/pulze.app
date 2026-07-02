@@ -48,7 +48,7 @@ export default function FriendsScreen() {
       avatar: request.avatar,
       mutualFriends: request.mutualFriends,
       tier: 'friends',
-      lastActive: 'Just now',
+      lastActive: 'now',
     };
 
     setFriends((prev) => [...prev, newFriend]);
