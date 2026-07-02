@@ -157,7 +157,7 @@ export default function SettingsScreen() {
     void Haptics.selectionAsync();
     try {
       await Share.share({
-        message: 'Check out Pulze — know before you go. https://pulze.app',
+        message: 'Check out Pulze — know before you go. https://pulze.pro',
       });
     } catch (e) {
       console.log('[Settings] share error', e);
@@ -171,10 +171,10 @@ export default function SettingsScreen() {
 
   const openMail = useCallback((subject: string) => {
     void Haptics.selectionAsync();
-    const url = `mailto:hello@pulze.app?subject=${encodeURIComponent(subject)}`;
+    const url = `mailto:hello@pulze.pro?subject=${encodeURIComponent(subject)}`;
     Linking.openURL(url).catch((e) => {
       console.log('[Settings] mail error', e);
-      Alert.alert('Email unavailable', 'Please email hello@pulze.app');
+      Alert.alert('Email unavailable', 'Please email hello@pulze.pro');
     });
   }, []);
 
@@ -446,7 +446,7 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.settingBody}>
               <Text style={[styles.settingValue, { color: colors.text }]}>Send Feedback</Text>
-              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>hello@pulze.app</Text>
+              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>hello@pulze.pro</Text>
             </View>
             <Mail color={colors.textSoft} size={16} />
           </Pressable>
