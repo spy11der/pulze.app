@@ -166,7 +166,7 @@ export default function EditProfileScreen() {
 
         <View style={[styles.infoCard, { backgroundColor: isDark ? '#102E38' : '#E0F0F5' }]}>
           <Text style={[styles.infoText, { color: colors.textMuted }]}>
-            Your profile info is stored locally on your device. Changes are applied immediately.
+            Your profile info is saved to your Pulze account. Changes are applied immediately.
           </Text>
         </View>
       </ScrollView>
