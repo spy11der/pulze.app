@@ -80,7 +80,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const login = useCallback(async (emailOrUsername: string, password: string): Promise<boolean> => {
     console.log('[Auth] Login attempt for', emailOrUsername);
 
-    const email = emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.app`;
+    const email = emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.pro`;
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -106,7 +106,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       id: 'local-' + Date.now(),
       displayName,
       username: displayName.toLowerCase().replace(/\s+/g, ''),
-      email: emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.app`,
+      email: emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.pro`,
       phone: '',
     };
     console.log('[Auth] Local login as', mockUser.displayName);
@@ -160,7 +160,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       id: 'local-' + Date.now(),
       displayName: name || username,
       username: username.toLowerCase().replace(/\s+/g, ''),
-      email: email || `${username}@pulze.app`,
+      email: email || `${username}@pulze.pro`,
       phone: phone || '',
     };
     console.log('[Auth] Local signup as', mockUser.displayName);
