@@ -125,8 +125,8 @@ export default function EditProfileScreen() {
           headerRight: () => (
             <Pressable
               onPress={handleSave}
-              disabled={isSaving}
-              style={[styles.saveBtn, { backgroundColor: colors.aqua, opacity: isSaving ? 0.7 : 1 }]}
+              disabled={isSaving || isLoadingProfile}
+              style={[styles.saveBtn, { backgroundColor: colors.aqua, opacity: (isSaving || isLoadingProfile) ? 0.7 : 1 }]}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color={isDark ? colors.background : '#fff'} />
