@@ -21,6 +21,7 @@ const ONBOARDING_DONE_KEY = 'pulze_onboarding_done';
 const MAX_OPENS = 5;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_INNER_WIDTH = SCREEN_WIDTH - 48;
 
 type Step = 0 | 1 | 2;
 
@@ -65,7 +66,7 @@ export function WelcomeModal() {
   const animateToStep = useCallback(
     (next: Step) => {
       Animated.timing(slideAnim, {
-        toValue: -next * SCREEN_WIDTH,
+        toValue: -next * CARD_INNER_WIDTH,
         duration: 300,
         useNativeDriver: true,
       }).start(() => setStep(next));
@@ -279,10 +280,10 @@ const styles = StyleSheet.create({
   },
   screensTrack: {
     flexDirection: 'row',
-    width: SCREEN_WIDTH - 48,
+    width: CARD_INNER_WIDTH,
   },
   screen: {
-    width: SCREEN_WIDTH - 48,
+    width: CARD_INNER_WIDTH,
     alignItems: 'center',
   },
   pill: {
