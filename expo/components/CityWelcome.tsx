@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/providers/ThemeProvider';
 
-const WELCOMED_CITIES_KEY = 'pulse_welcomed_cities';
+const WELCOMED_CITIES_KEY = 'pulze_welcomed_cities';
 
 interface CityWelcomeProps {
   cityName: string;
