@@ -11,16 +11,20 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Swipeable } from 'react-native-gesture-handler';
 import {
   Bell,
   Calendar,
   Camera,
+  Check,
+  CheckCheck,
   ChevronDown,
   Flame,
   Heart,
   Inbox,
   MapPin,
   Navigation,
+  Trash2,
   UserPlus,
 } from 'lucide-react-native';
 
@@ -118,14 +122,19 @@ export default function ActivityScreen() {
     }));
   }, []);
 
-  const handleAccept = useCallback((id: string) => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleDismissNotif = useCallback((id: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setNotifs((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
-  const handleDecline = useCallback((id: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNotifs((prev) => prev.filter((n) => n.id !== id));
+  const handleClearAllNotifs = useCallback(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setNotifs([]);
+  }, []);
+
+  const handleMarkAllRead = useCallback(() => {
+    void Haptics.selectionAsync();
+    setNotifs((prev) => prev.map((n) => ({ ...n, unread: false })));
   }, []);
 
   const handleOpenDropdown = useCallback(() => {
@@ -151,34 +160,53 @@ export default function ActivityScreen() {
     setFriendReqs((prev) => prev.filter((fr) => fr.id !== id));
   }, []);
 
+  const renderRightActions = useCallback(
+    (id: string) => (
+      <Pressable
+        onPress={() => handleDismissNotif(id)}
+        style={[styles.swipeDeleteAction, { backgroundColor: colors.danger }]}
+        testID={`dismiss-notif-${id}`}
+      >
+        <Trash2 color="#fff" size={20} />
+      </Pressable>
+    ),
+    [colors, handleDismissNotif],
+  );
+
   const renderNotif: ListRenderItem<NotifItem> = useCallback(({ item }) => {
     const unreadBg = item.unread ? colors.aqua + '0F' : colors.surface;
     return (
-      <View
-        style={[
-          styles.notifRow,
-          {
-            backgroundColor: unreadBg,
-            borderColor: colors.border,
-            borderLeftWidth: item.unread ? 2 : 0,
-            borderLeftColor: colors.aqua,
-          },
-        ]}
-        testID={`notif-${item.id}`}
+      <Swipeable
+        renderRightActions={() => renderRightActions(item.id)}
+        overshootRight={false}
+        rightThreshold={40}
+        onSwipeableOpen={() => handleDismissNotif(item.id)}
       >
-        <View style={[styles.iconWrap, { backgroundColor: colors.aqua + '14' }]}>
-          {getNotifIcon(item.type, colors.aqua, colors.amber)}
+        <View
+          style={[
+            styles.notifRow,
+            {
+              backgroundColor: unreadBg,
+              borderColor: colors.border,
+              borderLeftWidth: item.unread ? 2 : 0,
+              borderLeftColor: colors.aqua,
+            },
+          ]}
+          testID={`notif-${item.id}`}
+        >
+          <View style={[styles.iconWrap, { backgroundColor: colors.aqua + '14' }]}>
+            {getNotifIcon(item.type, colors.aqua, colors.amber)}
+          </View>
+          <View style={styles.notifBody}>
+            <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Text style={[styles.notifTime, { color: colors.textSoft }]}>{item.time}</Text>
+          </View>
         </View>
-        <View style={styles.notifBody}>
-          <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={[styles.notifTime, { color: colors.textSoft }]}>{item.time}</Text>
-    
-        </View>
-      </View>
+      </Swipeable>
     );
-  }, [colors]);
+  }, [colors, renderRightActions, handleDismissNotif]);
 
   const renderNearby: ListRenderItem<typeof nearby[number]> = useCallback(({ item }) => {
     const dotColor = getVibeDotColor(item.venue.busynessPercent);
@@ -488,6 +516,13 @@ const styles = StyleSheet.create({
   notifBody: { flex: 1, gap: 4 },
   notifTitle: { fontSize: 14, fontWeight: '600' as const, lineHeight: 19 },
   notifTime: { fontSize: 12, fontWeight: '500' as const },
+  swipeDeleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+  },
 
   nearbyRow: {
     flexDirection: 'row',
