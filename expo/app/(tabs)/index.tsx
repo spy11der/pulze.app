@@ -87,8 +87,7 @@ export default function HomeScreen() {
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    const t = setTimeout(() => setIsRefreshing(false), 800);
-    return () => clearTimeout(t);
+    setTimeout(() => setIsRefreshing(false), 800);
   }, []);
 
   const handleVenuePress = useCallback(

@@ -130,8 +130,7 @@ export default function NearbyScreen() {
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    const t = setTimeout(() => setIsRefreshing(false), 800);
-    return () => clearTimeout(t);
+    setTimeout(() => setIsRefreshing(false), 800);
   }, []);
 
   const handleVenuePress = useCallback(
@@ -167,6 +166,8 @@ export default function NearbyScreen() {
       <ScrollView
         contentContainerStyle={styles.cardList}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
