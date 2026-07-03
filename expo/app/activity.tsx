@@ -16,7 +16,6 @@ import {
   Bell,
   Calendar,
   Camera,
-  Check,
   CheckCheck,
   ChevronDown,
   Flame,
