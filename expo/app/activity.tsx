@@ -321,6 +321,27 @@ export default function ActivityScreen() {
         </Pressable>
       </View>
 
+      {tab === 'notifications' && notifs.length > 0 && (
+        <View style={styles.notifActionsRow}>
+          <Pressable
+            onPress={handleMarkAllRead}
+            style={({ pressed }) => [styles.notifActionBtn, { opacity: pressed ? 0.6 : 1 }]}
+            testID="mark-all-read"
+          >
+            <CheckCheck color={colors.aqua} size={14} />
+            <Text style={[styles.notifActionText, { color: colors.aqua }]}>Mark all read</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleClearAllNotifs}
+            style={({ pressed }) => [styles.notifActionBtn, { opacity: pressed ? 0.6 : 1 }]}
+            testID="clear-all-notifs"
+          >
+            <Trash2 color={colors.textMuted} size={14} />
+            <Text style={[styles.notifActionText, { color: colors.textMuted }]}>Clear all</Text>
+          </Pressable>
+        </View>
+      )}
+
       {showDropdown && (
         <Modal transparent animationType="fade" onRequestClose={() => setShowDropdown(false)}>
           <Pressable
@@ -519,9 +540,24 @@ const styles = StyleSheet.create({
   swipeDeleteAction: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+    width: 72,
+    borderRadius: 16,
+    marginLeft: -16,
+  },
+  notifActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    paddingVertical: 10,
+  },
+  notifActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  notifActionText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
 
   nearbyRow: {
