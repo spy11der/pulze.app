@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Image,
   Pressable,
@@ -123,6 +123,9 @@ export default function NearbyScreen() {
 
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
 
+  const isMountedRef = useRef(true);
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+
   const lat = userLocation?.latitude ?? DENVER_COORDS.lat;
   const lng = userLocation?.longitude ?? DENVER_COORDS.lng;
 
@@ -130,7 +133,9 @@ export default function NearbyScreen() {
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
+    setTimeout(() => {
+      if (isMountedRef.current) setIsRefreshing(false);
+    }, 800);
   }, []);
 
   const handleVenuePress = useCallback(
@@ -234,15 +239,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  radiusBadge: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-
   // Cards — compact row layout (matches Discover)
   cardList: {
     paddingHorizontal: 16,
