@@ -80,7 +80,26 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const login = useCallback(async (emailOrUsername: string, password: string): Promise<boolean> => {
     console.log('[Auth] Login attempt for', emailOrUsername);
 
-    const email = emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.pro`;
+    let email = emailOrUsername.trim();
+
+    if (!email.includes('@')) {
+      // Username login — resolve the username to the user's REAL auth email
+      // via the secure SECURITY DEFINER RPC. Never guess an email pattern
+      // (e.g. username@domain) client-side. A null/failed resolution answers
+      // with a generic error so username probing isn't surfaced.
+      // `resolve_login_email` isn't in the generated Supabase types — cast the rpc call.
+      const { data: resolved, error: resolveError } = await (supabase.rpc as any)('resolve_login_email', { p_username: email });
+
+      if (resolveError) {
+        console.log('[Auth] Username resolution failed:', resolveError.message);
+        throw new Error('Invalid username or password');
+      }
+      if (!resolved) {
+        console.log('[Auth] Unknown username');
+        throw new Error('Invalid username or password');
+      }
+      email = resolved;
+    }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -118,6 +137,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     if (data.user && !data.session) {
       console.log('[Auth] Email confirmation required');
+      // The DB trigger (on_auth_user_created) already created the profile row
+      // at user insert, so confirmation does NOT delay profile creation. The
+      // best-effort upsert below only succeeds if RLS allows anon inserts —
+      // it's a fallback, not the guarantee.
+      void createProfile(data.user, name, username);
       throw new Error('Check your email to confirm your account, then log in.');
     }
 
