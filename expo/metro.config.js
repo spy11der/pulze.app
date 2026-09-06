@@ -18,4 +18,37 @@ resolved.resolver.emptyModulePath = require.resolve(
 // watch limit on large node_modules (ENOSPC) and Metro never becomes ready.
 resolved.resolver.useWatchman = true;
 
+// Native prebuild trees are never imported by JS but contain tens of
+// thousands of files/directories. Excluding them keeps the file-map crawl
+// (and any filesystem watcher) far below the kernel's inotify limits even
+// if the fs.watch fallback watcher is ever selected again. Built as a plain
+// RegExp because metro-config does not export exclusionList via its
+// package "exports" map.
+const nativeExclusions = [
+  "\\.xcframework/",
+  "\\.framework/",
+  "/prebuilds/",
+  "node_modules/(?:@[^/]+/)?[^/]+/android/src/",
+  "node_modules/(?:@[^/]+/)?[^/]+/ios/",
+];
+const baseBlockList = resolved.resolver.blockList;
+const baseSource =
+  baseBlockList instanceof RegExp
+    ? baseBlockList.source
+    : typeof baseBlockList === "string"
+      ? baseBlockList
+      : "";
+resolved.resolver.blockList = new RegExp(
+  [...(baseSource ? [baseSource] : []), ...nativeExclusions]
+    .map((source) => `(${source})`)
+    .join("|"),
+);
+
+// Canary: if this line is missing from launch logs, the template
+// metro.config.js was restored and this customization is not active.
+console.log(
+  "[pulze-metro] custom metro.config.js active — useWatchman =",
+  resolved.resolver.useWatchman,
+);
+
 module.exports = resolved;
