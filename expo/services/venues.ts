@@ -125,3 +125,37 @@ export async function searchLiveVenues(query: string, maxResults = 15): Promise<
     .map((row) => mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score))
     .filter((v): v is PulzeVenue => v !== null);
 }
+
+export interface VenueActivitySummary {
+  checkInCount: number;
+  lastActivityIso: string | null;
+}
+
+// Real per-venue check-in count + most recent check-in timestamp, derived
+// directly from check_ins (RLS-filtered, same as everywhere else — no new
+// backend object needed for this).
+export async function getVenueActivitySummaries(venueIds: string[]): Promise<Record<string, VenueActivitySummary>> {
+  if (venueIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('venue_id, created_at')
+    .in('venue_id', venueIds)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    console.log('[Venues] getVenueActivitySummaries error:', error?.message);
+    return {};
+  }
+
+  const summary: Record<string, VenueActivitySummary> = {};
+  for (const row of data as any[]) {
+    const existing = summary[row.venue_id];
+    if (!existing) {
+      summary[row.venue_id] = { checkInCount: 1, lastActivityIso: row.created_at };
+    } else {
+      existing.checkInCount += 1;
+    }
+  }
+  return summary;
+}

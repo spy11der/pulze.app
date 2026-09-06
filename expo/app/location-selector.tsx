@@ -22,8 +22,8 @@ import {
 import { useTheme } from '@/providers/ThemeProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
-  getNearbyVenues,
-  searchVenues,
+  getNearbyVenuesLive,
+  searchVenuesLive,
   type NearbyVenue,
   type SelectedLocation,
 } from '@/hooks/useNearbyVenues';
@@ -40,17 +40,22 @@ export default function LocationSelectorScreen() {
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (userLocation) {
-      const nearby = getNearbyVenues(userLocation.latitude, userLocation.longitude, 10);
-      setNearbyVenues(nearby);
-    }
+    if (!userLocation) return;
+    getNearbyVenuesLive(userLocation.latitude, userLocation.longitude, 10).then(setNearbyVenues);
   }, [userLocation]);
 
   useEffect(() => {
-    if (query.trim().length > 0) {
-      const results = searchVenues(query);
+    if (query.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      const results = await searchVenuesLive(query);
+      if (cancelled) return;
       if (userLocation) {
-        const nearbyResults = getNearbyVenues(userLocation.latitude, userLocation.longitude, 50);
+        const nearbyResults = await getNearbyVenuesLive(userLocation.latitude, userLocation.longitude, 50);
+        if (cancelled) return;
         const filtered = nearbyResults.filter(
           (v) =>
             v.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -62,9 +67,9 @@ export default function LocationSelectorScreen() {
       } else {
         setSearchResults(results.slice(0, 15));
       }
-    } else {
-      setSearchResults([]);
-    }
+    };
+    void run();
+    return () => { cancelled = true; };
   }, [query, userLocation]);
 
   const displayList = useMemo(() => {
