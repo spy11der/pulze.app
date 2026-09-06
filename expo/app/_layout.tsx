@@ -97,7 +97,7 @@ function AppContent() {
           const venueName = data.venueName as string;
           const neighborhood = data.neighborhood as string;
           if (venueId && user) {
-            await insertCheckIn({
+            const result = await insertCheckIn({
               userId: user.id,
               venueId,
               venueName: venueName ?? '',
@@ -107,6 +107,7 @@ function AppContent() {
               capturedAt: new Date().toISOString(),
               quip: null,
             });
+            console.log('[App] Skip check-in result:', result.status);
           }
         },
       );

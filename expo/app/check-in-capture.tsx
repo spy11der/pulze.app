@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -257,7 +258,7 @@ export default function CheckInCaptureScreen() {
     const photoUri = stampedPhoto ?? capturedPhoto;
     const userId = user?.id ?? 'unknown';
 
-    await insertCheckIn({
+    const result = await insertCheckIn({
       userId,
       venueId: params.venueId ?? '',
       venueName,
@@ -267,6 +268,9 @@ export default function CheckInCaptureScreen() {
       capturedAt: new Date().toISOString(),
       quip: caption || quip,
     });
+    if (result.status === 'failed') {
+      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
+    }
 
     // Dismiss camera and go back
     router.back();
@@ -276,7 +280,7 @@ export default function CheckInCaptureScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const userId = user?.id ?? 'unknown';
-    await insertCheckIn({
+    const result = await insertCheckIn({
       userId,
       venueId: params.venueId ?? '',
       venueName,
@@ -286,6 +290,9 @@ export default function CheckInCaptureScreen() {
       capturedAt: new Date().toISOString(),
       quip: null,
     });
+    if (result.status === 'failed') {
+      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
+    }
 
     router.back();
   }, [user, params.venueId, venueName, neighborhood, router]);
@@ -294,7 +301,7 @@ export default function CheckInCaptureScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const userId = user?.id ?? 'unknown';
-    await insertCheckIn({
+    const result = await insertCheckIn({
       userId,
       venueId: params.venueId ?? '',
       venueName,
@@ -304,6 +311,9 @@ export default function CheckInCaptureScreen() {
       capturedAt: new Date().toISOString(),
       quip: null,
     });
+    if (result.status === 'failed') {
+      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
+    }
 
     router.back();
   }, [user, params.venueId, venueName, neighborhood, router]);

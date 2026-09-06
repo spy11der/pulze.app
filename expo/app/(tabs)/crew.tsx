@@ -26,7 +26,7 @@ import {
   mockProximityHint,
 } from '@/mocks/friends';
 import { pulzeVenues } from '@/mocks/venues';
-import { getLocalCheckIns, type CheckInRecord } from '@/services/checkInDatabase';
+import { getLocalCheckIns, retryPendingCheckIns, type CheckInRecord } from '@/services/checkInDatabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_PADDING = 16;
@@ -146,7 +146,7 @@ export default function CrewScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadLocal();
+      void retryPendingCheckIns().then(() => loadLocal());
     }, [loadLocal]),
   );
 

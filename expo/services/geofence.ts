@@ -69,7 +69,7 @@ async function checkProximityAndNotify(lat: number, lng: number): Promise<void> 
 
       console.log(`[Geofence] TRIGGER: ${venue.name} (${distance.toFixed(0)}m)`);
       await recordGeofenceTrigger(userId, venue.id);
-      await scheduleCheckInNotification(venue);
+      await scheduleCheckInNotification({ id: venue.id, name: venue.name });
     }
   }
 }

@@ -1,6 +1,5 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import type { PulzeVenue } from '@/types/venue';
 
 const CHECK_IN_CATEGORY = 'PULZE_CHECK_IN';
 
@@ -39,7 +38,15 @@ export async function setupNotificationCategories(): Promise<void> {
   }
 }
 
-export async function scheduleCheckInNotification(venue: PulzeVenue): Promise<void> {
+export interface CheckInNotificationVenue {
+  id: string;
+  name: string;
+  neighborhood?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export async function scheduleCheckInNotification(venue: CheckInNotificationVenue): Promise<void> {
   // scheduleNotificationAsync is native-only — skip on web
   if (Platform.OS === 'web') {
     console.log('[Notifications] Web: would notify for', venue.name);
