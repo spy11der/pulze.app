@@ -12,4 +12,10 @@ resolved.resolver.emptyModulePath = require.resolve(
   "metro-runtime/src/modules/empty-module.js",
 );
 
+// Use watchman when available: @expo/metro-config forces
+// resolver.useWatchman = null, which disables watchman and pushes Metro onto
+// the fs.watch FallbackWatcher — that watcher exhausts the kernel's inotify
+// watch limit on large node_modules (ENOSPC) and Metro never becomes ready.
+resolved.resolver.useWatchman = true;
+
 module.exports = resolved;
