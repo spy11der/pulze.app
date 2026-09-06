@@ -82,36 +82,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     const email = emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.pro`;
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (!error && data.session) {
-        console.log('[Auth] Login successful via Supabase');
-        setSession(data.session);
-        setUser(mapSessionUser(data.session));
-        setIsAuthenticated(true);
-        return true;
-      }
-
-      console.log('[Auth] Supabase login failed, using local login:', error?.message);
-    } catch (e) {
-      console.log('[Auth] Supabase unreachable, using local login:', e);
+    if (error || !data.session) {
+      console.log('[Auth] Login failed:', error?.message);
+      throw new Error(error?.message ?? 'Invalid email/username or password');
     }
 
-    const displayName = emailOrUsername.split('@')[0] || emailOrUsername;
-    const mockUser: AuthUser = {
-      id: 'local-' + Date.now(),
-      displayName,
-      username: displayName.toLowerCase().replace(/\s+/g, ''),
-      email: emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@pulze.pro`,
-      phone: '',
-    };
-    console.log('[Auth] Local login as', mockUser.displayName);
-    setSession(null);
-    setUser(mockUser);
+    console.log('[Auth] Login successful');
+    setSession(data.session);
+    setUser(mapSessionUser(data.session));
     setIsAuthenticated(true);
     return true;
   }, []);
@@ -125,48 +105,31 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   ): Promise<boolean> => {
     console.log('[Auth] Signup attempt for', username);
 
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: name,
-            username,
-            phone,
-          },
-        },
-      });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: name, username, phone } },
+    });
 
-      if (!error && data.session) {
-        console.log('[Auth] Signup successful with session');
-        setSession(data.session);
-        setUser(mapSessionUser(data.session));
-        setIsAuthenticated(true);
-        void createProfile(data.user!, name, username, phone);
-        return true;
-      }
-
-      if (!error && data.user && !data.session) {
-        console.log('[Auth] Email confirmation required, using local signup');
-      } else {
-        console.log('[Auth] Supabase signup failed, using local signup:', error?.message);
-      }
-    } catch (e) {
-      console.log('[Auth] Supabase unreachable, using local signup:', e);
+    if (error) {
+      console.log('[Auth] Signup failed:', error.message);
+      throw new Error(error.message);
     }
 
-    const mockUser: AuthUser = {
-      id: 'local-' + Date.now(),
-      displayName: name || username,
-      username: username.toLowerCase().replace(/\s+/g, ''),
-      email: email || `${username}@pulze.pro`,
-      phone: phone || '',
-    };
-    console.log('[Auth] Local signup as', mockUser.displayName);
-    setSession(null);
-    setUser(mockUser);
+    if (data.user && !data.session) {
+      console.log('[Auth] Email confirmation required');
+      throw new Error('Check your email to confirm your account, then log in.');
+    }
+
+    if (!data.session) {
+      throw new Error('Signup failed. Please try again.');
+    }
+
+    console.log('[Auth] Signup successful with session');
+    setSession(data.session);
+    setUser(mapSessionUser(data.session));
     setIsAuthenticated(true);
+    void createProfile(data.user!, name, username);
     return true;
   }, []);
 
@@ -192,22 +155,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }), [isAuthenticated, isLoading, user, session, login, signup, logout]);
 });
 
-async function createProfile(user: User, displayName: string, username: string, phone: string) {
+async function createProfile(user: User, displayName: string, username: string) {
   try {
-    console.log('[Auth] Creating profile for', user.id);
-    const profileData = {
+    console.log('[Auth] Ensuring profile exists for', user.id);
+
+    const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       username,
       display_name: displayName,
-      email: user.email ?? '',
-      phone,
-    };
-    const { error } = await supabase.from('profiles').upsert(profileData as any);
+    } as any);
 
     if (error) {
-      console.log('[Auth] Profile creation error:', error.message);
+      console.log('[Auth] Profile upsert error:', error.message);
     } else {
-      console.log('[Auth] Profile created successfully');
+      console.log('[Auth] Profile confirmed');
     }
   } catch (e) {
     console.log('[Auth] Profile creation exception:', e);
