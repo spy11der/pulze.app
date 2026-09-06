@@ -5,6 +5,22 @@ const config = getDefaultConfig(__dirname);
 
 const resolved = withRorkMetro(config);
 
+// The Rork toolkit's Metro transformer injects its dev inspector via
+// '@rork-ai/toolkit-sdk/v53' for every Expo SDK except "54" — including 57.
+// The v53 inspector requires react-native/src/private/inspector/*, which was
+// removed in React Native 0.86, breaking every bundle at resolution time.
+// The v54 entry requires react-native/src/private/devsupport/devmenu/
+// elementinspector/*, which still exists in RN 0.86, so remap v53 -> v54.
+const rorkResolveRequest = resolved.resolver.resolveRequest;
+resolved.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "@rork-ai/toolkit-sdk/v53") {
+    moduleName = "@rork-ai/toolkit-sdk/v54";
+  }
+  return rorkResolveRequest
+    ? rorkResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
+};
+
 // Pin the empty-module path explicitly: metro-config's default require.resolve
 // can land in a bun-nested copy (metro-config/node_modules/metro-runtime) that
 // disappears on reinstall, leaving Metro with a dead absolute path.
