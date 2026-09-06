@@ -4,7 +4,6 @@ import { Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSegments, useRouter } from 'expo-router';
 import { Compass, Radio, UserRound, Users } from 'lucide-react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -18,7 +17,27 @@ const TABS = [
 
 const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture', 'venue-detail']);
 
-export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+// SDK 57's expo-router forks react-navigation and no longer exposes its
+// types to app code — the tab-bar props shape is defined locally here.
+interface FloatingTabBarProps {
+  state: { index: number; routes: { key: string; name: string }[] };
+  descriptors: Record<
+    string,
+    {
+      options: {
+        tabBarIcon?: (props: { focused: boolean; color: string; size: number }) => React.ReactNode;
+      };
+    }
+  >;
+  navigation: {
+    emit: (event: { type: string; target?: string; canPreventDefault?: boolean }) => {
+      defaultPrevented: boolean;
+    };
+    navigate: (name: string) => void;
+  };
+}
+
+export function FloatingTabBar({ state, descriptors, navigation }: FloatingTabBarProps) {
   const { scrollAnim } = useTabScroll();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();

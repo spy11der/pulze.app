@@ -318,7 +318,11 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

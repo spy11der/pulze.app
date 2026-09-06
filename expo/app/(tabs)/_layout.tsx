@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import type { ColorValue } from 'react-native';
 import { Compass, Radio, UserRound, Users } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -8,7 +9,7 @@ export default function TabLayout() {
   const { colors } = useTheme();
 
   const tabIcon =
-    (Icon: typeof Compass, focused: boolean, color: string) =>
+    (Icon: typeof Compass, focused: boolean, color: ColorValue) =>
     () => (
       <Icon
         color={color}

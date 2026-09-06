@@ -595,7 +595,11 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   camera: { flex: 1 },
   cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   topRightBtn: {
@@ -610,10 +614,13 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   countdownContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: -60,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    top: -60,
   },
   countdownCircleWrap: {
     width: CIRCLE_SIZE,
@@ -652,7 +659,11 @@ const styles = StyleSheet.create({
     width: '100%' as const,
   },
   stampImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     resizeMode: 'cover' as const,
   },
   stampOverlay: {

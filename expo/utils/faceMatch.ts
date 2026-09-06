@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system';
+// SDK 57: the classic getInfoAsync API lives in the 'legacy' entry point.
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface FaceMatchResult {
   score: number;

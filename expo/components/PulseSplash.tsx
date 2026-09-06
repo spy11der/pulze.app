@@ -164,7 +164,11 @@ export function PulseSplash({ onComplete }: PulseSplashProps) {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#041318',
     alignItems: 'center',
     justifyContent: 'center',
