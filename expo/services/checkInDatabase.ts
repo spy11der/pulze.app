@@ -202,8 +202,22 @@ export async function retryPendingCheckIns(): Promise<void> {
       quip: entry.quip,
     });
     console.log('[CheckIn DB] Retry result for', entry.id, ':', result.status);
-    // insertCheckIn stores its own new entry under a new id on retry; the
-    // stale original entry is left in place as history. Acceptable for MVP
-    // — a future pass can prune fully-synced duplicates from local storage.
+
+    if (result.status === 'synced') {
+      // insertCheckIn wrote a new entry under result.id; remove the stale
+      // pre-retry entry so it doesn't linger forever in local storage.
+      await removeLocalCheckIn(entry.id);
+    }
+  }
+}
+
+async function removeLocalCheckIn(id: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(LOCAL_CHECKINS_KEY);
+    const checkins: LocalCheckInEntry[] = raw ? JSON.parse(raw) : [];
+    const filtered = checkins.filter((c) => c.id !== id);
+    await AsyncStorage.setItem(LOCAL_CHECKINS_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.log('[CheckIn DB] Failed to remove stale local check-in:', e);
   }
 }

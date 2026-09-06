@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -16,13 +16,12 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
-import { getNearbyVenues, type NearbyVenue } from '@/hooks/useNearbyVenues';
-import { pulzeVenues } from '@/mocks/venues';
+import { getNearbyVenuesLive, type NearbyVenue } from '@/hooks/useNearbyVenues';
 
 const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
 
 function metersToWalkMinutes(meters: number): string {
-  const mins = Math.ceil(meters / 84); // ~5 km/h walking pace
+  const mins = Math.ceil(meters / 84);
   if (mins < 1) return '1 min';
   return `${mins} min`;
 }
@@ -35,14 +34,10 @@ function NearbyCard({
   onPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
-  const pulzeVenue = useMemo(
-    () => pulzeVenues.find((v) => v.id === venue.id),
-    [venue.id],
-  );
 
-  const busynessPercent = pulzeVenue?.busynessPercent ?? 0;
-  const photoUri = pulzeVenue?.photo;
-  const displayTags = (pulzeVenue?.tags ?? []).slice(0, 2);
+  const busynessPercent = venue.busynessPercent;
+  const photoUri = venue.photoUri;
+  const displayTags = (venue.tags ?? []).slice(0, 2);
   const walkMins = metersToWalkMinutes(venue.distanceMeters);
 
   return (
@@ -54,7 +49,6 @@ function NearbyCard({
         pressed && { opacity: 0.8 },
       ]}
     >
-      {/* Small square thumbnail on the left */}
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={styles.thumbnail} />
       ) : (
@@ -63,9 +57,7 @@ function NearbyCard({
         </View>
       )}
 
-      {/* Info on the right */}
       <View style={styles.cardBody}>
-        {/* Row 1: venue name + minutes away + type chip */}
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
             {venue.name}
@@ -80,7 +72,6 @@ function NearbyCard({
           </View>
         </View>
 
-        {/* Row 2: neighborhood only */}
         <View style={styles.cardRow2}>
           <MapPin color={colors.textMuted} size={10} />
           <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
@@ -88,12 +79,10 @@ function NearbyCard({
           </Text>
         </View>
 
-        {/* Row 3: busyness percentage — plain white, no bar, no color */}
         <Text style={[styles.busynessPercent, { color: colors.text }]}>
           {busynessPercent}%
         </Text>
 
-        {/* Row 4: vibe tags */}
         {displayTags.length > 0 && (
           <View style={styles.tagsRow}>
             {displayTags.map((tag) => (
@@ -122,6 +111,8 @@ export default function NearbyScreen() {
   const { onScroll } = useTabScroll();
 
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
+  const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
+  const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(true);
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -129,14 +120,25 @@ export default function NearbyScreen() {
   const lat = userLocation?.latitude ?? DENVER_COORDS.lat;
   const lng = userLocation?.longitude ?? DENVER_COORDS.lng;
 
-  const nearbyVenues = useMemo(() => getNearbyVenues(lat, lng, 12), [lat, lng]);
+  const loadVenues = useCallback(() => {
+    setIsLoadingVenues(true);
+    getNearbyVenuesLive(lat, lng, 12).then((venues) => {
+      if (isMountedRef.current) {
+        setNearbyVenues(venues);
+        setIsLoadingVenues(false);
+      }
+    });
+  }, [lat, lng]);
+
+  useEffect(() => { loadVenues(); }, [loadVenues]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
+    loadVenues();
     setTimeout(() => {
       if (isMountedRef.current) setIsRefreshing(false);
     }, 800);
-  }, []);
+  }, [loadVenues]);
 
   const handleVenuePress = useCallback(
     (venueId: string) => {
@@ -148,7 +150,6 @@ export default function NearbyScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View>
@@ -167,7 +168,6 @@ export default function NearbyScreen() {
         </View>
       </View>
 
-      {/* Venue list */}
       <ScrollView
         contentContainerStyle={styles.cardList}
         showsVerticalScrollIndicator={false}
@@ -182,7 +182,7 @@ export default function NearbyScreen() {
           />
         }
       >
-        {nearbyVenues.length === 0 ? (
+        {!isLoadingVenues && nearbyVenues.length === 0 ? (
           <View style={styles.emptyState}>
             <MapPin color={colors.textSoft} size={32} />
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -208,145 +208,30 @@ const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-
-  // Header
-  headerWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  brand: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    letterSpacing: 2,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  timeLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  // Cards — compact row layout (matches Discover)
-  cardList: {
-    paddingHorizontal: 16,
-    gap: 8,
-    paddingTop: 4,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 10,
-  },
-
-  // Thumbnail
-  thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  thumbnailPlaceholder: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 10,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-
-  // Card body (right side of thumbnail)
-  cardBody: {
-    flex: 1,
-    gap: 3,
-    justifyContent: 'center' as const,
-  },
-  cardRow1: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  cardRow1Right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  walkMins: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-  },
-  cardName: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    flex: 1,
-  },
-  typeChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  typeChipText: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-  },
-  cardRow2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  metaDot: {
-    fontSize: 11,
-  },
-
-  // Busyness percentage — plain text, no bar
-  busynessPercent: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-
-  // Tags
-  tagsRow: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  tagChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    paddingTop: 80,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: '500' as const,
-  },
+  headerWrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { fontSize: 22, fontWeight: '800' as const, letterSpacing: 2 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  timeLabel: { fontSize: 13, fontWeight: '600' as const },
+  cardList: { paddingHorizontal: 16, gap: 8, paddingTop: 4 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 10 },
+  thumbnail: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)' },
+  thumbnailPlaceholder: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE, borderRadius: 10, alignItems: 'center' as const, justifyContent: 'center' as const },
+  cardBody: { flex: 1, gap: 3, justifyContent: 'center' as const },
+  cardRow1: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  cardRow1Right: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  walkMins: { fontSize: 10, fontWeight: '600' as const },
+  cardName: { fontSize: 14, fontWeight: '700' as const, flex: 1 },
+  typeChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
+  typeChipText: { fontSize: 10, fontWeight: '600' as const },
+  cardRow2: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 11, fontWeight: '500' as const },
+  metaDot: { fontSize: 11 },
+  busynessPercent: { fontSize: 12, fontWeight: '600' as const },
+  tagsRow: { flexDirection: 'row', gap: 5 },
+  tagChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
+  tagText: { fontSize: 10, fontWeight: '500' as const },
+  emptyState: { alignItems: 'center' as const, justifyContent: 'center' as const, paddingTop: 80, gap: 12 },
+  emptyText: { fontSize: 15, fontWeight: '500' as const },
 });

@@ -13,13 +13,11 @@ import { useRouter } from 'expo-router';
 import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-import { getVenuesSortedByBusyness } from '@/mocks/venues';
+import { getAllLiveVenues } from '@/services/venues';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 
 import type { PulzeVenue } from '@/types/venue';
-
-const allVenues = getVenuesSortedByBusyness();
 
 type FilterCategory = 'busyness' | 'neighborhood' | 'type';
 
@@ -82,18 +80,26 @@ export default function HomeScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [allVenues, setAllVenues] = useState<PulzeVenue[]>([]);
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const timeContext = useMemo(() => getTimeContext(), []);
 
+  const loadVenues = useCallback(() => {
+    getAllLiveVenues().then((v) => { if (isMountedRef.current) setAllVenues(v); });
+  }, []);
+
+  useEffect(() => { loadVenues(); }, [loadVenues]);
+
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
+    loadVenues();
     setTimeout(() => {
       if (isMountedRef.current) setIsRefreshing(false);
     }, 800);
-  }, []);
+  }, [loadVenues]);
 
   const handleVenuePress = useCallback(
     (venueId: string) => {
@@ -107,11 +113,7 @@ export default function HomeScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveFilters((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }, []);
@@ -119,33 +121,20 @@ export default function HomeScreen() {
   const filteredVenues = useMemo(() => {
     if (activeFilters.size === 0) return allVenues;
 
-    const busynessKeys = FILTER_PILLS.filter(
-      (f) => f.category === 'busyness' && activeFilters.has(f.key),
-    ).map((f) => f.key);
-    const neighborhoodKeys = FILTER_PILLS.filter(
-      (f) => f.category === 'neighborhood' && activeFilters.has(f.key),
-    ).map((f) => f.key);
-    const typeKeys = FILTER_PILLS.filter(
-      (f) => f.category === 'type' && activeFilters.has(f.key),
-    ).map((f) => f.key);
+    const busynessKeys = FILTER_PILLS.filter((f) => f.category === 'busyness' && activeFilters.has(f.key)).map((f) => f.key);
+    const neighborhoodKeys = FILTER_PILLS.filter((f) => f.category === 'neighborhood' && activeFilters.has(f.key)).map((f) => f.key);
+    const typeKeys = FILTER_PILLS.filter((f) => f.category === 'type' && activeFilters.has(f.key)).map((f) => f.key);
 
     return allVenues.filter((v) => {
-      if (busynessKeys.length > 0) {
-        if (!busynessKeys.some((k) => venueMatchesBusynessFilter(v, k))) return false;
-      }
-      if (neighborhoodKeys.length > 0) {
-        if (!neighborhoodKeys.includes(v.neighborhood)) return false;
-      }
-      if (typeKeys.length > 0) {
-        if (!typeKeys.some((k) => venueMatchesTypeFilter(v, k))) return false;
-      }
+      if (busynessKeys.length > 0 && !busynessKeys.some((k) => venueMatchesBusynessFilter(v, k))) return false;
+      if (neighborhoodKeys.length > 0 && !neighborhoodKeys.includes(v.neighborhood)) return false;
+      if (typeKeys.length > 0 && !typeKeys.some((k) => venueMatchesTypeFilter(v, k))) return false;
       return true;
     });
-  }, [activeFilters]);
+  }, [activeFilters, allVenues]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      {/* Fixed header */}
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View style={styles.brandBlock}>
@@ -163,7 +152,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Filter pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -184,12 +172,7 @@ export default function HomeScreen() {
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    { color: isActive ? '#060C10' : colors.textMuted },
-                  ]}
-                >
+                <Text style={[styles.filterPillText, { color: isActive ? '#060C10' : colors.textMuted }]}>
                   {pill.label}
                 </Text>
               </Pressable>
@@ -198,41 +181,26 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Venue cards */}
       <ScrollView
         contentContainerStyle={styles.cardList}
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={16}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.aqua}
-            colors={[colors.aqua]}
-          />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.aqua} colors={[colors.aqua]} />
         }
       >
         {filteredVenues.length === 0 ? (
           <View style={styles.emptyState}>
             <MapPin color={colors.textSoft} size={32} />
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              Nothing matching right now
-            </Text>
-            <Pressable
-              onPress={() => setActiveFilters(new Set())}
-              style={[styles.clearFiltersBtn, { borderColor: colors.borderStrong }]}
-            >
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>Nothing matching right now</Text>
+            <Pressable onPress={() => setActiveFilters(new Set())} style={[styles.clearFiltersBtn, { borderColor: colors.borderStrong }]}>
               <Text style={[styles.clearFiltersText, { color: colors.aqua }]}>Clear filters</Text>
             </Pressable>
           </View>
         ) : (
           filteredVenues.map((venue) => (
-            <VenueCard
-              key={venue.id}
-              venue={venue}
-              onPress={() => handleVenuePress(venue.id)}
-            />
+            <VenueCard key={venue.id} venue={venue} onPress={() => handleVenuePress(venue.id)} />
           ))
         )}
         <View style={{ height: 100 }} />
@@ -255,13 +223,8 @@ const VenueCard = React.memo(function VenueCard({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.border },
-        pressed && { opacity: 0.8 },
-      ]}
+      style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.8 }]}
     >
-      {/* Small square thumbnail on the left */}
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={styles.thumbnail} />
       ) : (
@@ -270,13 +233,9 @@ const VenueCard = React.memo(function VenueCard({
         </View>
       )}
 
-      {/* Info on the right */}
       <View style={styles.cardBody}>
-        {/* Row 1: venue name + minutes away + type chip */}
         <View style={styles.cardRow1}>
-          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
-            {venue.name}
-          </Text>
+          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
           <View style={styles.cardRow1Right}>
             <Text style={[styles.walkMins, { color: colors.textMuted }]}>{venue.eta}</Text>
             <View style={[styles.typeChip, { backgroundColor: colors.aqua + '14' }]}>
@@ -285,20 +244,13 @@ const VenueCard = React.memo(function VenueCard({
           </View>
         </View>
 
-        {/* Row 2: neighborhood only */}
         <View style={styles.cardRow2}>
           <MapPin color={colors.textMuted} size={10} />
-          <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
-            {venue.neighborhood}
-          </Text>
+          <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{venue.neighborhood}</Text>
         </View>
 
-        {/* Row 3: busyness percentage — plain white, no bar, no color */}
-        <Text style={[styles.busynessPercent, { color: colors.text }]}>
-          {venue.busynessPercent}%
-        </Text>
+        <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}%</Text>
 
-        {/* Row 4: vibe tags */}
         {displayTags.length > 0 && (
           <View style={styles.tagsRow}>
             {displayTags.map((tag) => (
@@ -317,177 +269,37 @@ const THUMBNAIL_SIZE = 56;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-
-  // Header
-  headerWrap: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  brandBlock: {
-    gap: 2,
-  },
-  brand: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    letterSpacing: 2,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  timeLabel: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-
-  // Filter row
-  filterScroll: {
-    marginTop: 10,
-    marginBottom: 2,
-  },
-  filterRow: {
-    gap: 8,
-    paddingRight: 16,
-  },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterPillText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-
-  // Cards — compact row layout (Crew-style)
-  cardList: {
-    paddingHorizontal: 16,
-    gap: 8,
-    paddingTop: 4,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 10,
-  },
-  thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  thumbnailPlaceholder: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 10,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-
-  // Card body (right side of thumbnail)
-  cardBody: {
-    flex: 1,
-    gap: 3,
-    justifyContent: 'center' as const,
-  },
-  cardRow1: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-  },
-  cardRow1Right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  walkMins: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-  },
-  cardName: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    flex: 1,
-  },
-  typeChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  typeChipText: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-  },
-  cardRow2: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  metaDot: {
-    fontSize: 11,
-  },
-
-  // Busyness percentage — plain text, no bar
-  busynessPercent: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-
-  // Tags
-  tagsRow: {
-    flexDirection: 'row',
-    gap: 5,
-  },
-  tagChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    paddingTop: 80,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: '500' as const,
-  },
-  clearFiltersBtn: {
-    marginTop: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  clearFiltersText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
+  headerWrap: { paddingHorizontal: 16, paddingBottom: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandBlock: { gap: 2 },
+  brand: { fontSize: 22, fontWeight: '800' as const, letterSpacing: 2 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  timeLabel: { fontSize: 13, fontWeight: '600' as const },
+  filterScroll: { marginTop: 10, marginBottom: 2 },
+  filterRow: { gap: 8, paddingRight: 16 },
+  filterPill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  filterPillText: { fontSize: 13, fontWeight: '600' as const },
+  cardList: { paddingHorizontal: 16, gap: 8, paddingTop: 4 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 10 },
+  thumbnail: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)' },
+  thumbnailPlaceholder: { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE, borderRadius: 10, alignItems: 'center' as const, justifyContent: 'center' as const },
+  cardBody: { flex: 1, gap: 3, justifyContent: 'center' as const },
+  cardRow1: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  cardRow1Right: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  walkMins: { fontSize: 10, fontWeight: '600' as const },
+  cardName: { fontSize: 14, fontWeight: '700' as const, flex: 1 },
+  typeChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
+  typeChipText: { fontSize: 10, fontWeight: '600' as const },
+  cardRow2: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 11, fontWeight: '500' as const },
+  metaDot: { fontSize: 11 },
+  busynessPercent: { fontSize: 12, fontWeight: '600' as const },
+  tagsRow: { flexDirection: 'row', gap: 5 },
+  tagChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
+  tagText: { fontSize: 10, fontWeight: '500' as const },
+  emptyState: { alignItems: 'center' as const, justifyContent: 'center' as const, paddingTop: 80, gap: 12 },
+  emptyText: { fontSize: 15, fontWeight: '500' as const },
+  clearFiltersBtn: { marginTop: 4, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  clearFiltersText: { fontSize: 14, fontWeight: '600' as const },
 });

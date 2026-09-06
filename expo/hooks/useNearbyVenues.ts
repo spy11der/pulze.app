@@ -1,4 +1,5 @@
 import { pulzeVenues } from '@/mocks/venues';
+import { getNearbyLiveVenues, searchLiveVenues } from '@/services/venues';
 
 export interface NearbyVenue {
   id: string;
@@ -9,6 +10,9 @@ export interface NearbyVenue {
   distanceMeters: number;
   distanceLabel: string;
   categoryLabel: string;
+  busynessPercent: number;
+  photoUri?: string;
+  tags: string[];
 }
 
 export interface SelectedLocation {
@@ -59,9 +63,14 @@ function toNearbyVenue(
     distanceMeters,
     distanceLabel: formatDistance(distanceMeters),
     categoryLabel: v.typeLabel ?? v.type,
+    busynessPercent: v.busynessPercent,
+    photoUri: v.photo,
+    tags: v.tags,
   };
 }
 
+// Kept for location-selector.tsx, which still uses this synchronous,
+// mock-only version. Not touched this round.
 export function getNearbyVenues(
   lat: number,
   lng: number,
@@ -73,6 +82,7 @@ export function getNearbyVenues(
     .slice(0, maxResults);
 }
 
+// Kept for location-selector.tsx. Not touched this round.
 export function searchVenues(query: string): NearbyVenue[] {
   const q = query.toLowerCase();
   return pulzeVenues
@@ -91,6 +101,47 @@ export function searchVenues(query: string): NearbyVenue[] {
       distanceMeters: 0,
       distanceLabel: '',
       categoryLabel: v.typeLabel ?? v.type,
+      busynessPercent: v.busynessPercent,
+      photoUri: v.photo,
+      tags: v.tags,
     }))
     .slice(0, 15);
+}
+
+// Real, Supabase-backed nearby venues — used by app/(tabs)/nearby.tsx.
+export async function getNearbyVenuesLive(lat: number, lng: number, maxResults = 12): Promise<NearbyVenue[]> {
+  const venues = await getNearbyLiveVenues(lat, lng, maxResults);
+  return venues.map((v) => ({
+    id: v.id,
+    name: v.name,
+    neighborhood: v.neighborhood,
+    latitude: v.latitude,
+    longitude: v.longitude,
+    distanceMeters: v.distanceMeters,
+    distanceLabel: formatDistance(v.distanceMeters),
+    categoryLabel: v.typeLabel ?? v.type,
+    busynessPercent: v.busynessPercent,
+    photoUri: v.photo,
+    tags: v.tags,
+  }));
+}
+
+// Real, Supabase-backed venue search. Not yet wired into any screen this
+// round (location-selector.tsx, the only current caller of `searchVenues`,
+// is out of scope for this pass) — available for that follow-up.
+export async function searchVenuesLive(query: string): Promise<NearbyVenue[]> {
+  const venues = await searchLiveVenues(query);
+  return venues.map((v) => ({
+    id: v.id,
+    name: v.name,
+    neighborhood: v.neighborhood,
+    latitude: v.latitude,
+    longitude: v.longitude,
+    distanceMeters: 0,
+    distanceLabel: '',
+    categoryLabel: v.typeLabel ?? v.type,
+    busynessPercent: v.busynessPercent,
+    photoUri: v.photo,
+    tags: v.tags,
+  }));
 }

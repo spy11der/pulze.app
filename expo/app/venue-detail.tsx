@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -21,7 +21,7 @@ import {
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
-import { pulzeVenues } from '@/mocks/venues';
+import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
 import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
 import { getVenueCheckInCount } from '@/services/checkInCounts';
 
@@ -39,14 +39,25 @@ export default function VenueDetailScreen() {
   const params = useLocalSearchParams<{ venueId: string }>();
   const { isFavorited, toggleFavorite } = useFavorites();
 
-  const venue = pulzeVenues.find((v) => v.id === params.venueId);
+  const [venue, setVenue] = useState<PulzeVenue | null | undefined>(undefined); // undefined = loading
+  const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
   const [localCheckins, setLocalCheckins] = useState<number>(0);
+
+  useEffect(() => {
+    if (!params.venueId) return;
+    let cancelled = false;
+    resolveVenueById(params.venueId).then((v) => { if (!cancelled) setVenue(v); });
+    return () => { cancelled = true; };
+  }, [params.venueId]);
 
   useFocusEffect(
     useCallback(() => {
       if (!params.venueId) return;
       void getVenueCheckInCount(params.venueId).then(setLocalCheckins);
-    }, [params.venueId])
+      if (venue?.id) {
+        void getRealCheckInCount(venue.id).then(setRealCheckInCount);
+      }
+    }, [params.venueId, venue?.id])
   );
 
   const handleBack = useCallback(() => {
@@ -69,9 +80,18 @@ export default function VenueDetailScreen() {
     [router],
   );
 
-  const pillBg = isDark ? 'rgba(8, 20, 26, 0.94)' : 'rgba(250, 252, 254, 0.94)';
+  const pillBg = isDark ? 'rgba(8, 20, 26, 0.94)' : 'rgba(250, 252, 54, 0.94)';
   const pillBorder = isDark ? 'rgba(100, 180, 180, 0.12)' : 'rgba(0, 0, 0, 0.06)';
   const tabInactive = isDark ? '#3D5C66' : '#94ACB6';
+
+  if (venue === undefined) {
+    // Loading — real fetch in flight, no flash of "not found"
+    return (
+      <View style={[styles.flex, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+      </View>
+    );
+  }
 
   if (!venue) {
     return (
@@ -93,38 +113,14 @@ export default function VenueDetailScreen() {
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
-        {/* ── Dark header row ── */}
-        <View
-          style={[
-            styles.headerRow,
-            {
-              paddingTop: insets.top + 6,
-              backgroundColor: colors.background,
-            },
-          ]}
-        >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={[styles.headerRow, { paddingTop: insets.top + 6, backgroundColor: colors.background }]}>
           <View style={{ flex: 1 }} />
-          <Pressable
-            onPress={handleBookmark}
-            style={({ pressed }) => [
-              styles.headerBtn,
-              pressed && styles.headerBtnPressed,
-            ]}
-            hitSlop={8}
-          >
-            <Bookmark
-              color={bookmarked ? colors.aqua : colors.textMuted}
-              size={20}
-              fill={bookmarked ? colors.aqua : 'transparent'}
-            />
+          <Pressable onPress={handleBookmark} style={({ pressed }) => [styles.headerBtn, pressed && styles.headerBtnPressed]} hitSlop={8}>
+            <Bookmark color={bookmarked ? colors.aqua : colors.textMuted} size={20} fill={bookmarked ? colors.aqua : 'transparent'} />
           </Pressable>
         </View>
 
-        {/* ── Venue photo ── */}
         {venue.photo ? (
           <Image source={{ uri: venue.photo }} style={styles.photo} />
         ) : (
@@ -133,14 +129,9 @@ export default function VenueDetailScreen() {
           </View>
         )}
 
-        {/* ── Content body ── */}
         <View style={styles.body}>
-          {/* Venue name */}
-          <Text style={[styles.venueName, { color: colors.text }]} numberOfLines={2}>
-            {venue.name}
-          </Text>
+          <Text style={[styles.venueName, { color: colors.text }]} numberOfLines={2}>{venue.name}</Text>
 
-          {/* Type + neighborhood tags */}
           <View style={styles.tagRow}>
             <View style={[styles.tagChip, { backgroundColor: colors.aqua + '20' }]}>
               <Text style={[styles.tagText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
@@ -151,16 +142,14 @@ export default function VenueDetailScreen() {
             </View>
           </View>
 
-          {/* Busyness */}
           <Text style={[styles.busynessText, { color: colors.text }]}>
             {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
           </Text>
 
-          {/* Stats */}
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Users color={colors.aqua} size={16} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{venue.checkins + localCheckins}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{realCheckInCount + localCheckins}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Checked in</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -175,35 +164,22 @@ export default function VenueDetailScreen() {
             </View>
           </View>
 
-          {/* Vibe */}
           <View style={[styles.vibeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.vibeLabel, { color: colors.textMuted }]}>THE VIBE</Text>
             <Text style={[styles.vibeText, { color: colors.text }]}>{venue.vibe}</Text>
           </View>
 
-          {/* Address */}
           <View style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color={colors.aqua} size={16} />
-            <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>
-              {venue.address}
-            </Text>
+            <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>{venue.address}</Text>
           </View>
 
-          {/* Photos */}
           {venue.photos.length > 1 && (
             <View>
               <Text style={[styles.photosHeading, { color: colors.text }]}>Photos</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.photosRow}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photosRow}>
                 {venue.photos.map((uri, idx) => (
-                  <Image
-                    key={idx}
-                    source={{ uri }}
-                    style={[styles.thumb, { borderColor: colors.border }]}
-                  />
+                  <Image key={idx} source={{ uri }} style={[styles.thumb, { borderColor: colors.border }]} />
                 ))}
               </ScrollView>
             </View>
@@ -211,30 +187,10 @@ export default function VenueDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* ── Floating tab bar ── */}
-      <View
-        style={[styles.tabOuter, { paddingBottom: insets.bottom + 8 }]}
-        pointerEvents="box-none"
-      >
-        <View
-          style={[
-            styles.tabPill,
-            {
-              backgroundColor: pillBg,
-              borderColor: pillBorder,
-              shadowColor: isDark ? '#000' : 'rgba(0,0,0,0.15)',
-            },
-          ]}
-        >
+      <View style={[styles.tabOuter, { paddingBottom: insets.bottom + 8 }]} pointerEvents="box-none">
+        <View style={[styles.tabPill, { backgroundColor: pillBg, borderColor: pillBorder, shadowColor: isDark ? '#000' : 'rgba(0,0,0,0.15)' }]}>
           {TABS.map((tab, i) => (
-            <Pressable
-              key={i}
-              onPress={() => handleTabPress(tab.route)}
-              style={({ pressed }) => [
-                styles.tabItem,
-                pressed && { opacity: 0.6 },
-              ]}
-            >
+            <Pressable key={i} onPress={() => handleTabPress(tab.route)} style={({ pressed }) => [styles.tabItem, pressed && { opacity: 0.6 }]}>
               <tab.icon color={tabInactive} size={24} strokeWidth={1.6} />
             </Pressable>
           ))}
@@ -245,183 +201,35 @@ export default function VenueDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-
-  /* ── Header row ── */
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerBtnPressed: {
-    opacity: 0.5,
-  },
-
-  /* ── Photo ── */
-  photo: {
-    width: '100%',
-    height: 280,
-    resizeMode: 'cover',
-  },
-  photoPlaceholder: {
-    width: '100%',
-    height: 280,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* ── Body ── */
-  body: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 14,
-  },
-  venueName: {
-    fontSize: 22,
-    fontWeight: '700' as const,
-    letterSpacing: -0.3,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  tagChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-  busynessText: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  vibeCard: {
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    gap: 6,
-  },
-  vibeLabel: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 1,
-  },
-  vibeText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  addressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-  },
-  addressText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  photosHeading: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    letterSpacing: -0.2,
-    marginBottom: 8,
-  },
-  photosRow: {
-    gap: 10,
-    paddingRight: 4,
-  },
-  thumb: {
-    width: 110,
-    height: 78,
-    borderRadius: 12,
-    borderWidth: 1,
-    resizeMode: 'cover',
-  },
-
-  /* ── Floating tab bar ── */
-  tabOuter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  tabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 36,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 2,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  tabItem: {
-    width: 52,
-    height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* ── Error / fallback ── */
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 20,
-  },
-  errorText: {
-    fontSize: 16,
-  },
-  backBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  backBtnText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
+  flex: { flex: 1 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 6 },
+  headerBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerBtnPressed: { opacity: 0.5 },
+  photo: { width: '100%', height: 280, resizeMode: 'cover' },
+  photoPlaceholder: { width: '100%', height: 280, alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: 16, paddingTop: 14, gap: 14 },
+  venueName: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.3 },
+  tagRow: { flexDirection: 'row', gap: 6 },
+  tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  tagText: { fontSize: 12, fontWeight: '600' as const },
+  busynessText: { fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.2 },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, gap: 4 },
+  statValue: { fontSize: 17, fontWeight: '700' as const },
+  statLabel: { fontSize: 11, fontWeight: '500' as const },
+  vibeCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 6 },
+  vibeLabel: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1 },
+  vibeText: { fontSize: 14, lineHeight: 20 },
+  addressCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, borderWidth: 1 },
+  addressText: { fontSize: 14, flex: 1 },
+  photosHeading: { fontSize: 16, fontWeight: '700' as const, letterSpacing: -0.2, marginBottom: 8 },
+  photosRow: { gap: 10, paddingRight: 4 },
+  thumb: { width: 110, height: 78, borderRadius: 12, borderWidth: 1, resizeMode: 'cover' },
+  tabOuter: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center' },
+  tabPill: { flexDirection: 'row', alignItems: 'center', borderRadius: 36, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 8, gap: 2, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 10, elevation: 10 },
+  tabItem: { width: 52, height: 46, alignItems: 'center', justifyContent: 'center' },
+  errorContainer: { flex: 1, alignItems: 'center', gap: 20 },
+  errorText: { fontSize: 16 },
+  backBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  backBtnText: { fontSize: 14, fontWeight: '700' as const },
 });
