@@ -24,6 +24,12 @@ import { useFavorites } from '@/providers/FavoritesProvider';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
 import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
 import { getVenueCheckInCount } from '@/services/checkInCounts';
+import { useMapLocation } from '@/hooks/useMapLocation';
+import {
+  DENVER_COORDS,
+  haversineMeters,
+  metersToWalkMinutes,
+} from '@/hooks/useNearbyVenues';
 
 const TABS = [
   { icon: Compass, route: '/(tabs)' },
@@ -38,6 +44,7 @@ export default function VenueDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ venueId: string }>();
   const { isFavorited, toggleFavorite } = useFavorites();
+  const { userLocation } = useMapLocation();
 
   const [venue, setVenue] = useState<PulzeVenue | null | undefined>(undefined); // undefined = loading
   const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
@@ -109,6 +116,17 @@ export default function VenueDetailScreen() {
 
   const bookmarked = isFavorited(venue.id);
 
+  // Real location-based walk time (shared helper + same Denver fallback as
+  // Nearby and Home) instead of the static mock venue.eta.
+  const walkMins = metersToWalkMinutes(
+    haversineMeters(
+      userLocation?.latitude ?? DENVER_COORDS.lat,
+      userLocation?.longitude ?? DENVER_COORDS.lng,
+      venue.latitude,
+      venue.longitude,
+    ),
+  );
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -159,7 +177,7 @@ export default function VenueDetailScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <MapPin color={colors.aqua} size={16} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{venue.eta}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{walkMins}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Away</Text>
             </View>
           </View>

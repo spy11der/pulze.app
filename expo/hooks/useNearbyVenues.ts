@@ -24,7 +24,7 @@ export interface SelectedLocation {
   longitude: number;
 }
 
-function haversineMeters(
+export function haversineMeters(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -43,9 +43,20 @@ function haversineMeters(
   return R * c;
 }
 
-function formatDistance(meters: number): string {
+export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)}m`;
   return `${(meters / 1000).toFixed(1)}km`;
+}
+
+// Shared fallback when the user's location is unavailable — used by Nearby,
+// Home, and Venue Detail so all screens show the same estimates.
+export const DENVER_COORDS = { lat: 39.756, lng: -104.99 } as const;
+
+// Walking-time estimate (~84 m/min pace), matching the Nearby card.
+export function metersToWalkMinutes(meters: number): string {
+  const mins = Math.ceil(meters / 84);
+  if (mins < 1) return '1 min';
+  return `${mins} min`;
 }
 
 function toNearbyVenue(

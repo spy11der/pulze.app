@@ -16,15 +16,12 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
-import { getNearbyVenuesLive, type NearbyVenue } from '@/hooks/useNearbyVenues';
-
-const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
-
-function metersToWalkMinutes(meters: number): string {
-  const mins = Math.ceil(meters / 84);
-  if (mins < 1) return '1 min';
-  return `${mins} min`;
-}
+import {
+  DENVER_COORDS,
+  getNearbyVenuesLive,
+  metersToWalkMinutes,
+  type NearbyVenue,
+} from '@/hooks/useNearbyVenues';
 
 function NearbyCard({
   venue,

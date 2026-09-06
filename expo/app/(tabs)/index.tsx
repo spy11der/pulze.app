@@ -16,6 +16,12 @@ import * as Haptics from 'expo-haptics';
 import { getAllLiveVenues } from '@/services/venues';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
+import { useMapLocation } from '@/hooks/useMapLocation';
+import {
+  DENVER_COORDS,
+  haversineMeters,
+  metersToWalkMinutes,
+} from '@/hooks/useNearbyVenues';
 
 import type { PulzeVenue } from '@/types/venue';
 
@@ -77,6 +83,12 @@ export default function HomeScreen() {
   const { onScroll } = useTabScroll();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { userLocation } = useMapLocation();
+
+  // Real location with the same Denver fallback Nearby uses, so walk-time
+  // estimates match across Home, Nearby, and Venue Detail.
+  const userLat = userLocation?.latitude ?? DENVER_COORDS.lat;
+  const userLng = userLocation?.longitude ?? DENVER_COORDS.lng;
 
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -200,7 +212,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           filteredVenues.map((venue) => (
-            <VenueCard key={venue.id} venue={venue} onPress={() => handleVenuePress(venue.id)} />
+            <VenueCard key={venue.id} venue={venue} userLat={userLat} userLng={userLng} onPress={() => handleVenuePress(venue.id)} />
           ))
         )}
         <View style={{ height: 100 }} />
@@ -211,14 +223,19 @@ export default function HomeScreen() {
 
 const VenueCard = React.memo(function VenueCard({
   venue,
+  userLat,
+  userLng,
   onPress,
 }: {
   venue: PulzeVenue;
+  userLat: number;
+  userLng: number;
   onPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
   const photoUri = venue.photo ?? venue.photos[0];
   const displayTags = venue.tags.slice(0, 2);
+  const walkMins = metersToWalkMinutes(haversineMeters(userLat, userLng, venue.latitude, venue.longitude));
 
   return (
     <Pressable
@@ -237,7 +254,7 @@ const VenueCard = React.memo(function VenueCard({
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
           <View style={styles.cardRow1Right}>
-            <Text style={[styles.walkMins, { color: colors.textMuted }]}>{venue.eta}</Text>
+            <Text style={[styles.walkMins, { color: colors.textMuted }]}>{walkMins}</Text>
             <View style={[styles.typeChip, { backgroundColor: colors.aqua + '14' }]}>
               <Text style={[styles.typeChipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
             </View>
