@@ -63,3 +63,22 @@ export async function getCheckInById(checkInId: string): Promise<FriendCheckInFe
   if (error || !data) return null;
   return rowToFeedItem(data);
 }
+
+// The authenticated user's own check-in history — no friendship lookup
+// needed (RLS already lets a user see all of their own rows regardless of
+// visibility), reuses the same row shape and mapping as the crew feed.
+export async function getMyCheckIns(userId: string): Promise<FriendCheckInFeedItem[]> {
+  const { data: rows, error } = await supabase
+    .from('check_ins')
+    .select(CHECKIN_SELECT)
+    .eq('user_id', userId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error || !rows) {
+    console.log('[CrewFeed] getMyCheckIns error:', error?.message);
+    return [];
+  }
+  return (rows as any[]).map(rowToFeedItem);
+}

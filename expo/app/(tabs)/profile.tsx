@@ -172,10 +172,17 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/checkin-history');
+            }}
+            style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            testID="stat-checkins"
+          >
             <Text style={[styles.statValue, { color: colors.text }]}>{vibeCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Check-ins</Text>
-          </View>
+          </Pressable>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{savedCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Saved</Text>
