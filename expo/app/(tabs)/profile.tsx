@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import {
@@ -18,7 +18,7 @@ import {
 
 import { tierDefinitions } from '@/mocks/friends';
 import { getFriendsAndRequests } from '@/services/friends';
-import { useData } from '@/providers/DataProvider';
+import { getMyCheckIns } from '@/services/crewFeed';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
@@ -68,8 +68,22 @@ export default function ProfileScreen() {
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { onScroll } = useTabScroll();
   const { user, logout } = useAuth();
-  const { vibeCount } = useData();
   const { favoriteVenues } = useFavorites();
+
+  const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setRealCheckInCount(0);
+        return;
+      }
+
+      getMyCheckIns(user.id).then((items) => {
+        setRealCheckInCount(items.length);
+      });
+    }, [user?.id]),
+  );
 
   const [friendStats, setFriendStats] = useState({ innerCircleCount: 0, friendsCount: 0, requestsCount: 0 });
 
@@ -180,7 +194,7 @@ export default function ProfileScreen() {
             style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
             testID="stat-checkins"
           >
-            <Text style={[styles.statValue, { color: colors.text }]}>{vibeCount}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{realCheckInCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Check-ins</Text>
           </Pressable>
           <Pressable
