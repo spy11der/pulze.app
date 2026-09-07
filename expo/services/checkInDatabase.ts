@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
 import { incrementVenueCheckInCount } from '@/services/checkInCounts';
 
@@ -74,12 +75,16 @@ async function resolveRealVenueId(venueId: string): Promise<string | null> {
 }
 
 async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ url: string; path: string }> {
-  const response = await fetch(localUri);
-  const arrayBuffer = await response.arrayBuffer();
+  const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
   const path = `${userId}/${Date.now()}.jpg`;
   const { error } = await supabase.storage
     .from('check-in-photos')
-    .upload(path, arrayBuffer, { contentType: 'image/jpeg' });
+    .upload(path, bytes, { contentType: 'image/jpeg' });
   if (error) throw error;
   const { data } = supabase.storage.from('check-in-photos').getPublicUrl(path);
   return { url: data.publicUrl, path };
