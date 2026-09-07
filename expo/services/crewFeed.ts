@@ -60,6 +60,12 @@ export async function getCrewFeed(currentUserId: string): Promise<FriendCheckInF
 
 export async function getCheckInById(checkInId: string): Promise<FriendCheckInFeedItem | null> {
   const { data, error } = await supabase.from('check_ins').select(CHECKIN_SELECT).eq('id', checkInId).maybeSingle();
+  // Log failures explicitly — a silently swallowed error here (e.g. the
+  // missing profiles foreign key) renders as a blank detail screen and is
+  // near-impossible to diagnose from the UI alone.
+  if (error) {
+    console.log('[CrewFeed] getCheckInById error:', error.message);
+  }
   if (error || !data) return null;
   return rowToFeedItem(data);
 }
