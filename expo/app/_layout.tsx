@@ -44,6 +44,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="friends" options={{ presentation: 'card' }} />
       <Stack.Screen name="checkin-history" options={{ presentation: 'card' }} />
+      <Stack.Screen name="saved-venues" options={{ presentation: 'card' }} />
       <Stack.Screen name="settings" options={{ presentation: 'card' }} />
       <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       <Stack.Screen name="privacy-policy" options={{ presentation: 'card' }} />

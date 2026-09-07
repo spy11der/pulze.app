@@ -183,10 +183,17 @@ export default function ProfileScreen() {
             <Text style={[styles.statValue, { color: colors.text }]}>{vibeCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Check-ins</Text>
           </Pressable>
-          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/saved-venues');
+            }}
+            style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            testID="stat-saved"
+          >
             <Text style={[styles.statValue, { color: colors.text }]}>{savedCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Saved</Text>
-          </View>
+          </Pressable>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.text }]}>{friendsCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
