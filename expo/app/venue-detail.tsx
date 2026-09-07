@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-rou
 import * as Haptics from 'expo-haptics';
 import {
   Bookmark,
+  Camera,
   Compass,
   MapPin,
   Radio,
@@ -21,15 +22,14 @@ import {
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
+import { useMapLocation } from '@/hooks/useMapLocation';
+import { haversineMeters, metersToWalkMinutes } from '@/hooks/useNearbyVenues';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
 import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
 import { getVenueCheckInCount } from '@/services/checkInCounts';
-import { useMapLocation } from '@/hooks/useMapLocation';
-import {
-  DENVER_COORDS,
-  haversineMeters,
-  metersToWalkMinutes,
-} from '@/hooks/useNearbyVenues';
+
+// Same fallback used by Nearby/Home when device location isn't available yet
+const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
 
 const TABS = [
   { icon: Compass, route: '/(tabs)' },
@@ -87,7 +87,16 @@ export default function VenueDetailScreen() {
     [router],
   );
 
-  const pillBg = isDark ? 'rgba(8, 20, 26, 0.94)' : 'rgba(250, 252, 54, 0.94)';
+  const handleCheckIn = useCallback(() => {
+    if (!venue) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({
+      pathname: '/check-in-capture',
+      params: { venueId: venue.id, venueName: venue.name, neighborhood: venue.neighborhood },
+    });
+  }, [venue, router]);
+
+  const pillBg = isDark ? 'rgba(8, 20, 26, 0.94)' : 'rgba(250, 252, 254, 0.94)';
   const pillBorder = isDark ? 'rgba(100, 180, 180, 0.12)' : 'rgba(0, 0, 0, 0.06)';
   const tabInactive = isDark ? '#3D5C66' : '#94ACB6';
 
@@ -115,16 +124,10 @@ export default function VenueDetailScreen() {
   }
 
   const bookmarked = isFavorited(venue.id);
-
-  // Real location-based walk time (shared helper + same Denver fallback as
-  // Nearby and Home) instead of the static mock venue.eta.
-  const walkMins = metersToWalkMinutes(
-    haversineMeters(
-      userLocation?.latitude ?? DENVER_COORDS.lat,
-      userLocation?.longitude ?? DENVER_COORDS.lng,
-      venue.latitude,
-      venue.longitude,
-    ),
+  const lat = userLocation?.latitude ?? DENVER_COORDS.lat;
+  const lng = userLocation?.longitude ?? DENVER_COORDS.lng;
+  const walkEstimate = metersToWalkMinutes(
+    haversineMeters(lat, lng, venue.latitude, venue.longitude),
   );
 
   return (
@@ -164,6 +167,14 @@ export default function VenueDetailScreen() {
             {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
           </Text>
 
+          <Pressable
+            onPress={handleCheckIn}
+            style={({ pressed }) => [styles.checkInBtn, { backgroundColor: colors.aqua, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Camera color={isDark ? colors.background : '#fff'} size={17} />
+            <Text style={[styles.checkInBtnText, { color: isDark ? colors.background : '#fff' }]}>Check In Here</Text>
+          </Pressable>
+
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Users color={colors.aqua} size={16} />
@@ -177,7 +188,7 @@ export default function VenueDetailScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <MapPin color={colors.aqua} size={16} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{walkMins}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{walkEstimate}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Away</Text>
             </View>
           </View>
@@ -231,6 +242,8 @@ const styles = StyleSheet.create({
   tagChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   tagText: { fontSize: 12, fontWeight: '600' as const },
   busynessText: { fontSize: 18, fontWeight: '700' as const, letterSpacing: -0.2 },
+  checkInBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13 },
+  checkInBtnText: { fontSize: 15, fontWeight: '700' as const },
   statsRow: { flexDirection: 'row', gap: 8 },
   statCard: { flex: 1, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, gap: 4 },
   statValue: { fontSize: 17, fontWeight: '700' as const },
