@@ -74,14 +74,29 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // TEMP DIAGNOSTIC (remove once check-in count is root-caused)
+      console.log('[PROFILE_CHECKINS] FOCUS', {
+        userId: user?.id ?? null,
+      });
       if (!user?.id) {
         setRealCheckInCount(0);
         return;
       }
 
-      getMyCheckIns(user.id).then((items) => {
-        setRealCheckInCount(items.length);
-      });
+      getMyCheckIns(user.id)
+        .then((items) => {
+          // TEMP DIAGNOSTIC
+          console.log('[PROFILE_CHECKINS] RESULT', {
+            userId: user.id,
+            count: items.length,
+            ids: items.map((item) => item.id),
+          });
+          setRealCheckInCount(items.length);
+        })
+        .catch((error) => {
+          // TEMP DIAGNOSTIC
+          console.error('[PROFILE_CHECKINS] ERROR', error);
+        });
     }, [user?.id]),
   );
 
@@ -140,6 +155,9 @@ export default function ProfileScreen() {
 
   const themeLabel = mode === 'dark' ? 'Dark' : mode === 'light' ? 'Light' : 'System';
   const ThemeIcon = isDark ? Moon : Sun;
+
+  // TEMP DIAGNOSTIC — fires on every render, immediately before the stat renders
+  console.log('[PROFILE_CHECKINS] RENDER', realCheckInCount);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
