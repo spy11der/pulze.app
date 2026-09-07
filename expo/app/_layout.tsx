@@ -22,6 +22,7 @@ import { PersistentFloatingTabBar } from '@/components/FloatingTabBar';
 import { setupNotificationCategories, registerNotificationResponseHandler } from '@/services/checkInNotifications';
 import { startGeofenceMonitoring, stopGeofenceMonitoring, setCurrentUserId } from '@/services/geofence';
 import { insertCheckIn } from '@/services/checkInDatabase';
+
 SplashScreen.preventAutoHideAsync().catch(() => {
   console.log('[SplashScreen] preventAutoHideAsync failed');
 });
@@ -115,7 +116,7 @@ function AppContent() {
       // Start geofence monitoring
       setCurrentUserId(user.id);
       if (!geofenceStartedRef.current) {
-        const started = await startGeofenceMonitoring();
+        const started = await startGeofenceMonitoring(user.id);
         if (started) {
           geofenceStartedRef.current = true;
           console.log('[App] Geofence monitoring started');

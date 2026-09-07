@@ -49,6 +49,7 @@ import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
 import { useData } from '@/providers/DataProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import type { UserPreferences } from '@/providers/DataProvider';
+import { getLocationConsent, setLocationConsent } from '@/services/consent';
 
 const NOTIF_KEY = 'pulze_notification_prefs';
 
@@ -89,10 +90,30 @@ export default function SettingsScreen() {
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { biometricEnabled, biometricAvailable, biometricType, toggleBiometric } = useBiometricAuth();
   const { preferences, updatePreference } = useData();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const router = useRouter();
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIF_PREFS);
+  const [locationConsent, setLocationConsentState] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    getLocationConsent(user.id).then((granted) => { if (!cancelled) setLocationConsentState(granted); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const toggleLocationConsent = useCallback(async () => {
+    if (!user?.id) return;
+    void Haptics.selectionAsync();
+    const next = !locationConsent;
+    setLocationConsentState(next); // optimistic
+    const ok = await setLocationConsent(user.id, next);
+    if (!ok) {
+      setLocationConsentState(!next); // revert on failure
+      Alert.alert('Could not update', 'Please try again.');
+    }
+  }, [user?.id, locationConsent]);
 
   useEffect(() => {
     (async () => {
@@ -352,6 +373,25 @@ export default function SettingsScreen() {
                 </Pressable>
               );
             })}
+          </View>
+          <View style={styles.preferenceList}>
+            <View style={[styles.radioRow, { backgroundColor: colors.card, borderColor: 'transparent' }]} testID="pref-location-consent">
+              <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                <MapPin color={colors.aqua} size={18} />
+              </View>
+              <View style={styles.settingBody}>
+                <Text style={[styles.settingValue, { color: colors.text }]}>Location-based check-ins</Text>
+                <Text style={[styles.settingLabel, { color: colors.textMuted }]}>
+                  Lets Pulze detect when you're near a venue to suggest a check-in. Off by default.
+                </Text>
+              </View>
+              <Switch
+                value={locationConsent}
+                onValueChange={toggleLocationConsent}
+                trackColor={{ false: colors.border, true: colors.aqua }}
+                testID="switch-location-consent"
+              />
+            </View>
           </View>
           <View style={styles.preferenceList}>
             <Pressable onPress={cycleLocation} testID="pref-location">
