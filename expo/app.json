@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Pulze",
-    "slug": "cmdj1v6lzdnu5omh92zbm",
+    "slug": "pulze",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -61,6 +61,13 @@
         }
       ],
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6a11847f-103b-47c0-95cb-0536284f8efb"
+      }
+    },
+    "owner": "spy11der"
   }
 }
