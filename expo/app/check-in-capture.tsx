@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   Animated,
   Dimensions,
   Image,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -60,7 +62,6 @@ export default function CheckInCaptureScreen() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [stampedPhoto, setStampedPhoto] = useState<string | null>(null);
   const [quip, setQuip] = useState<string>('');
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [showCaption, setShowCaption] = useState<boolean>(false);
@@ -147,19 +148,31 @@ export default function CheckInCaptureScreen() {
   const neighborhood = params.neighborhood ?? venue?.neighborhood ?? 'Denver';
   const venueType: VenueType = venue?.type ?? 'bar';
 
-  // Request camera permission
-  const [camPermission, requestCamPermission] = useCameraPermissions();
-  useEffect(() => {
-    if (camPermission) {
-      setHasCameraPermission(camPermission.granted);
-    }
-  }, [camPermission]);
+  // Camera permission: always call the real request API on first open so iOS
+  // shows the system prompt. (The previous code guarded on `camPermission`,
+  // which is null at mount, so the request never fired and iOS never prompted —
+  // leaving Expo Go with no Camera toggle in Settings.)
+  const [camPermission, requestCamPermission, getCamPermission] = useCameraPermissions();
+  const didRequestCameraPermission = useRef(false);
 
   useEffect(() => {
-    if (camPermission && !camPermission.granted) {
-      void requestCamPermission();
-    }
-  }, []);
+    if (didRequestCameraPermission.current) return;
+    didRequestCameraPermission.current = true;
+    void requestCamPermission();
+  }, [requestCamPermission]);
+
+  const hasCameraPermission = camPermission?.granted ?? null;
+  const isPermissionUndetermined =
+    hasCameraPermission === null || camPermission?.status === 'undetermined';
+
+  // If permission was denied and the user goes to Settings, re-check on return.
+  useEffect(() => {
+    if (hasCameraPermission !== false) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void getCamPermission();
+    });
+    return () => subscription.remove();
+  }, [hasCameraPermission, getCamPermission]);
 
   // Countdown animation
   useEffect(() => {
@@ -318,26 +331,41 @@ export default function CheckInCaptureScreen() {
     router.back();
   }, [user, params.venueId, venueName, neighborhood, router]);
 
-  // Permission not yet checked
-  if (hasCameraPermission === null) {
+  // Permission check in flight / iOS system prompt showing
+  if (hasCameraPermission === null || isPermissionUndetermined) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
-        <Text style={styles.permissionText}>Checking camera...</Text>
+        <Text style={styles.permissionText}>Requesting camera access…</Text>
       </View>
     );
   }
 
   // Permission denied
   if (!hasCameraPermission) {
+    const canAskAgain = camPermission?.canAskAgain ?? true;
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: '#000' }]}>
         <Text style={styles.permissionText}>Camera access is required</Text>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.skipBtn}
-        >
-          <Text style={styles.skipBtnText}>Go back</Text>
-        </Pressable>
+        <View style={styles.permissionActions}>
+          {canAskAgain ? (
+            <Pressable
+              onPress={() => void requestCamPermission()}
+              style={styles.skipBtn}
+            >
+              <Text style={styles.skipBtnText}>Try again</Text>
+            </Pressable>
+          ) : Platform.OS !== 'web' ? (
+            <Pressable
+              onPress={() => void Linking.openSettings()}
+              style={styles.skipBtn}
+            >
+              <Text style={styles.skipBtnText}>Open Settings</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => router.back()} style={styles.skipBtn}>
+            <Text style={styles.skipBtnText}>Go back</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -841,6 +869,10 @@ const styles = StyleSheet.create({
   },
 
   // Permission
+  permissionActions: {
+    gap: 12,
+    alignItems: 'center' as const,
+  },
   permissionText: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
