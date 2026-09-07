@@ -137,6 +137,17 @@ export default function CheckInCaptureScreen() {
     }
   }, []);
 
+  // Dedicated tap recognizer for edit mode. The pan above requires ~10px of
+  // travel before activating (minDist={0} is treated as unspecified by RNGH),
+  // so a clean stationary tap ends in State.FAILED and never reaches the
+  // State.END focus call. Taps are handled natively here with no travel
+  // requirement; pan/pinch behavior is untouched.
+  const onCaptionTap = useCallback((event: any) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      captionInputRef.current?.focus();
+    }
+  }, []);
+
   const handlePhotoTap = useCallback((event: any) => {
     if (event.nativeEvent.state === State.ACTIVE) {
       setShowCaption(true);
@@ -544,13 +555,20 @@ export default function CheckInCaptureScreen() {
                   onGestureEvent={onCaptionPinchGesture}
                   onHandlerStateChange={onCaptionPinchState}
                 >
-                  <Animated.View
-                    style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                  <TapGestureHandler
+                    simultaneousHandlers={[captionPanRef, captionPinchRef]}
+                    onHandlerStateChange={onCaptionTap}
+                    maxDist={20}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   >
-                    <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
-                      {caption || 'Add a caption...'}
-                    </Text>
-                  </Animated.View>
+                    <Animated.View
+                      style={{ position: 'absolute', top: 340, left: 20, minWidth: 120, minHeight: 44, padding: 12, transform: [{ translateX: captionPos.x }, { translateY: captionPos.y }, { scale: captionScale }] }}
+                    >
+                      <Text style={{ color: caption ? '#fff' : 'rgba(255,255,255,0.4)', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>
+                        {caption || 'Add a caption...'}
+                      </Text>
+                    </Animated.View>
+                  </TapGestureHandler>
                 </PinchGestureHandler>
               </PanGestureHandler>
             )}
