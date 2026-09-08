@@ -26,7 +26,6 @@ export default function EditProfileScreen() {
 
   const [displayName, setDisplayName] = useState<string>(user?.displayName ?? 'Jordan Pulze');
   const [username, setUsername] = useState<string>(user?.username ?? 'jordan.pulze');
-  const [bio, setBio] = useState<string>('Always looking for something good happening tonight.');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
 
@@ -40,7 +39,7 @@ export default function EditProfileScreen() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('display_name, username, bio')
+          .select('display_name, username')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -50,12 +49,11 @@ export default function EditProfileScreen() {
           return;
         }
         const profile = data as
-          | { display_name: string | null; username: string | null; bio: string | null }
+          | { display_name: string | null; username: string | null }
           | null;
         if (profile) {
           if (profile.display_name) setDisplayName(profile.display_name);
           if (profile.username) setUsername(profile.username);
-          if (profile.bio !== null && profile.bio !== undefined) setBio(profile.bio);
         }
       } catch (e) {
         console.log('[EditProfile] Load exception:', e);
@@ -75,18 +73,33 @@ export default function EditProfileScreen() {
       return;
     }
     setIsSaving(true);
-    console.log('[EditProfile] Saving profile:', { displayName, username, bio });
+    console.log('[EditProfile] Saving profile:', { displayName, username });
     try {
       const { error } = await supabase
         .from('profiles')
         // @ts-expect-error supabase types not configured for profiles table
-        .update({ display_name: displayName, username, bio })
+        .update({ display_name: displayName, username })
         .eq('id', user.id);
 
       if (error) {
         console.log('[EditProfile] Save error:', error.message);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Could not save', error.message);
+        setIsSaving(false);
+        return;
+      }
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          display_name: displayName,
+          username,
+        },
+      });
+
+      if (authError) {
+        console.log('[EditProfile] Auth update error:', authError.message);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Could not save', authError.message);
         setIsSaving(false);
         return;
       }
@@ -102,7 +115,7 @@ export default function EditProfileScreen() {
       Alert.alert('Could not save', message);
       setIsSaving(false);
     }
-  }, [displayName, username, bio, router, user, isSaving]);
+  }, [displayName, username, router, user, isSaving]);
 
   const handleCancel = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -186,20 +199,6 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Bio</Text>
-            <TextInput
-              style={[styles.fieldInputMulti, { backgroundColor: colors.card, color: colors.text }]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Tell people about yourself"
-              placeholderTextColor={colors.textSoft}
-              multiline
-              numberOfLines={4}
-              testID="edit-bio"
-            />
-            <Text style={[styles.charCount, { color: colors.textSoft }]}>{bio.length}/160</Text>
-          </View>
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: isDark ? '#102E38' : '#E0F0F5' }]}>
@@ -289,21 +288,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
   },
-  fieldInputMulti: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    textAlign: 'right',
-    paddingRight: 4,
-  },
+
   infoCard: {
     borderRadius: 18,
     padding: 16,
