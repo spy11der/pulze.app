@@ -159,6 +159,17 @@ export async function upsertExternalVenue(
   return { venueId, providerVenueId: ev.providerVenueId, name: ev.name, created };
 }
 
+// Constant-time byte comparison. A plain `a !== b` would return as soon
+// as the first byte differs, which leaks the length of the common prefix
+// to a caller who can measure response latency accurately. This variant
+// walks the full length in every call.
+function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 // Shared admin-secret check. This — not Supabase's own JWT verification —
 // is what actually prevents a normal authenticated app user from triggering
 // ingestion: a valid user session token is NOT the same as knowing this
@@ -169,7 +180,8 @@ export function requireAdminSecret(req: Request): Response | null {
   if (!expected) {
     return new Response(JSON.stringify({ error: 'ADMIN_INGEST_SECRET not configured' }), { status: 500 });
   }
-  if (!provided || provided !== expected) {
+  const enc = new TextEncoder();
+  if (!provided || !timingSafeEqualBytes(enc.encode(provided), enc.encode(expected))) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
   return null;

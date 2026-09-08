@@ -1,0 +1,18 @@
+# Supabase project config.
+#
+# Scope is deliberately narrow: this file exists so Edge Functions with
+# custom auth (below) get the right verify_jwt setting at deploy time.
+# It does not configure the local dev stack (`supabase start`) — the
+# project uses the hosted Supabase instance directly.
+
+# foursquare-search performs its own server-side authorization by comparing
+# the caller-supplied `x-admin-secret` header (constant-time) against the
+# ADMIN_INGEST_SECRET env secret. That's stronger than gateway JWT
+# verification for this use case — a valid app user session is not
+# sufficient to trigger provider ingestion.
+#
+# Leaving Supabase's default `verify_jwt = true` on would cause the gateway
+# to reject the call before the function's own auth check ever runs, so
+# it's disabled specifically for this function (and only this one).
+[functions.foursquare-search]
+verify_jwt = false
