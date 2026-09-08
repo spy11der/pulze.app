@@ -193,10 +193,12 @@ export default function VenueDetailScreen() {
             </View>
           </View>
 
-          <View style={[styles.vibeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.vibeLabel, { color: colors.textMuted }]}>THE VIBE</Text>
-            <Text style={[styles.vibeText, { color: colors.text }]}>{venue.vibe}</Text>
-          </View>
+          {venue.vibe ? (
+            <View style={[styles.vibeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.vibeLabel, { color: colors.textMuted }]}>THE VIBE</Text>
+              <Text style={[styles.vibeText, { color: colors.text }]}>{venue.vibe}</Text>
+            </View>
+          ) : null}
 
           <View style={[styles.addressCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color={colors.aqua} size={16} />

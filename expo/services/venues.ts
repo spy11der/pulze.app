@@ -1,6 +1,6 @@
 import { supabase } from '@/services/supabase';
 import { pulzeVenues } from '@/mocks/venues';
-import type { PulzeVenue, BusynessLevel } from '@/types/venue';
+import type { PulzeVenue, VenueType, BusynessLevel } from '@/types/venue';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,27 +10,110 @@ function busynessLevelFromScore(score: number): BusynessLevel {
   return 'quiet';
 }
 
+// Normalizes whatever's in venues.category (currently the mock-era values
+// like 'club'/'dive'/'speakeasy', or a provider-imported 'bar'/'nightclub')
+// into the existing VenueType union and a display label. Safe default is
+// 'bar' — matches the same choice already made server-side for imported
+// venues, not a new invented category.
+const CATEGORY_LABELS: Record<VenueType, string> = {
+  bar: 'Bar',
+  club: 'Club',
+  lounge: 'Lounge',
+  brewery: 'Brewery',
+  dive: 'Dive Bar',
+  rooftop: 'Rooftop',
+  speakeasy: 'Speakeasy',
+};
+
+function normalizeVenueType(rawCategory: string | null | undefined): { type: VenueType; typeLabel: string } {
+  const key = (rawCategory ?? '').toLowerCase().trim();
+  const known: VenueType[] = ['bar', 'club', 'lounge', 'brewery', 'dive', 'rooftop', 'speakeasy'];
+  const match = known.find((t) => t === key) ?? (key === 'nightclub' ? 'club' : undefined);
+  const type = match ?? 'bar';
+  return { type, typeLabel: CATEGORY_LABELS[type] };
+}
+
+interface ExtraVenueFields {
+  category?: string | null;
+  city?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  phone?: string | null;
+  rating?: number | null;
+  price_level?: number | null;
+}
+
 // Merges a real Supabase venue (identity + live score) with its mock's
 // presentational content (photos/tags/vibe copy/address — not yet migrated
-// into Supabase). The real id/name/busyness always win; only display
-// flavor comes from the mock. If no mock match exists, the venue is
-// skipped for now rather than shown with placeholder content.
+// into Supabase) when a mock match exists. When no mock match exists (e.g.
+// a provider-imported venue), builds a real-data-only fallback instead of
+// dropping the venue — using only actual Supabase fields, never invented
+// photos/tags/vibe/activity.
 function mergeWithMock(
   realId: string,
   legacyMockId: string | null,
   name: string,
   pulzeScore: number,
-): PulzeVenue | null {
+  extra?: ExtraVenueFields,
+): PulzeVenue {
   const mock = pulzeVenues.find((v) => v.id === legacyMockId);
-  if (!mock) return null;
   const busynessPercent = Math.round(pulzeScore);
+  const busyness = busynessLevelFromScore(busynessPercent);
+
+  if (mock) {
+    return {
+      ...mock,
+      id: realId,
+      name,
+      busynessPercent,
+      busyness,
+    };
+  }
+
+  // Real-data fallback — every field here comes from an actual Supabase
+  // column, never fabricated content.
+  const { type, typeLabel } = normalizeVenueType(extra?.category);
   return {
-    ...mock,
     id: realId,
     name,
+    latitude: extra?.latitude ?? 0,
+    longitude: extra?.longitude ?? 0,
+    type,
+    typeLabel,
+    busyness,
     busynessPercent,
-    busyness: busynessLevelFromScore(busynessPercent),
+    neighborhood: extra?.city ?? '',
+    address: extra?.address ?? '',
+    vibe: '', // intentionally empty — no invented copy; UI hides the vibe block when empty
+    tags: [],
+    photo: undefined, // UI already falls back to its existing icon placeholder
+    photos: [],
+    phone: extra?.phone ?? undefined,
+    rating: extra?.rating ?? undefined,
+    priceLevel: extra?.price_level ?? undefined,
   };
+}
+
+// venues_with_scores (existing view, unchanged) already exposes
+// category/city, but not address/latitude/longitude/phone/rating/price_level
+// — rather than modify that view, fetch those extra real columns from the
+// base venues table and merge client-side by id.
+async function fetchExtraVenueFields(venueIds: string[]): Promise<Record<string, ExtraVenueFields>> {
+  if (venueIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('venues')
+    .select('id, category, city, address, latitude, longitude, phone, rating, price_level')
+    .in('id', venueIds);
+  if (error || !data) {
+    console.log('[Venues] fetchExtraVenueFields error:', error?.message);
+    return {};
+  }
+  const byId: Record<string, ExtraVenueFields> = {};
+  for (const row of data as any[]) {
+    byId[row.id] = row;
+  }
+  return byId;
 }
 
 export async function getAllLiveVenues(): Promise<PulzeVenue[]> {
@@ -43,9 +126,12 @@ export async function getAllLiveVenues(): Promise<PulzeVenue[]> {
     return [];
   }
 
-  return (data as any[])
-    .map((row) => mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score))
-    .filter((v): v is PulzeVenue => v !== null);
+  const rows = data as any[];
+  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
+
+  return rows.map((row) =>
+    mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]),
+  );
 }
 
 export async function getNearbyLiveVenues(
@@ -66,14 +152,13 @@ export async function getNearbyLiveVenues(
     return [];
   }
 
-  return (data as any[])
-    .slice(0, maxResults)
-    .map((row) => {
-      const merged = mergeWithMock(row.venue_id, row.legacy_mock_id, row.venue_name, row.pulze_score);
-      if (!merged) return null;
-      return { ...merged, distanceMeters: Number(row.distance_m) };
-    })
-    .filter((v): v is PulzeVenue & { distanceMeters: number } => v !== null);
+  const rows = (data as any[]).slice(0, maxResults);
+  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
+
+  return rows.map((row) => {
+    const merged = mergeWithMock(row.venue_id, row.legacy_mock_id, row.venue_name, row.pulze_score, extraById[row.venue_id]);
+    return { ...merged, distanceMeters: Number(row.distance_m) };
+  });
 }
 
 export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue | null> {
@@ -84,7 +169,9 @@ export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue
     .eq(column, idOrLegacyId)
     .maybeSingle();
   if (error || !data) return null;
-  return mergeWithMock((data as any).venue_id, (data as any).legacy_mock_id, (data as any).name, (data as any).pulze_score);
+  const row = data as any;
+  const extraById = await fetchExtraVenueFields([row.venue_id]);
+  return mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]);
 }
 
 // Real cross-user check-in count for a venue. `realVenueId` must already be
@@ -121,9 +208,11 @@ export async function searchLiveVenues(query: string, maxResults = 15): Promise<
     console.log('[Venues] searchLiveVenues error:', error?.message);
     return [];
   }
-  return (data as any[])
-    .map((row) => mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score))
-    .filter((v): v is PulzeVenue => v !== null);
+  const rows = data as any[];
+  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
+  return rows.map((row) =>
+    mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]),
+  );
 }
 
 export interface VenueActivitySummary {

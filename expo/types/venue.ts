@@ -1,6 +1,5 @@
 export type VenueType = 'bar' | 'club' | 'lounge' | 'brewery' | 'dive' | 'rooftop' | 'speakeasy';
 export type BusynessLevel = 'quiet' | 'getting_busy' | 'packed';
-export type Neighborhood = 'RiNo' | 'LoDo' | 'Cap Hill' | 'South Broadway' | 'LoHi' | 'Five Points' | 'Uptown' | 'Baker' | 'Downtown' | 'Colfax';
 
 export interface PulzeVenue {
   id: string;
@@ -11,16 +10,22 @@ export interface PulzeVenue {
   typeLabel: string;
   busyness: BusynessLevel;
   busynessPercent: number;
-  neighborhood: Neighborhood;
+  neighborhood: string;
   address: string;
   vibe: string;
   tags: string[];
   photo?: string;
   photos: string[];
-  eta: string;
-  isOpen: boolean;
-  checkins: number;
-  views: number;
+  eta?: string;
+  isOpen?: boolean;
+  checkins?: number;
+  views?: number;
+  // Real Supabase fields — only present for venues that have them (imported
+  // or otherwise). Not required by any current UI path; added here so
+  // mergeWithMock()'s real-data fallback has somewhere to put them.
+  phone?: string;
+  rating?: number;
+  priceLevel?: number;
 }
 
 export interface CheckIn {
