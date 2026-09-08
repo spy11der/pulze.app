@@ -10,6 +10,7 @@ export interface AuthUser {
   username: string;
   email: string;
   phone: string;
+  avatarUrl: string | null;
 }
 
 function mapSessionUser(session: Session | null): AuthUser | null {
@@ -22,6 +23,7 @@ function mapSessionUser(session: Session | null): AuthUser | null {
     username: meta.username ?? u.email?.split('@')[0] ?? '',
     email: u.email ?? '',
     phone: u.phone ?? '',
+    avatarUrl: typeof meta.avatar_url === 'string' ? meta.avatar_url : null,
   };
 }
 

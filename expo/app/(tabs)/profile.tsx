@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -180,7 +180,11 @@ export default function ProfileScreen() {
         <View style={[styles.identityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.identityTop}>
             <View style={[styles.avatar, { backgroundColor: colors.aqua + '18', borderColor: colors.aqua + '30' }]}>
-              <Text style={[styles.avatarText, { color: colors.aqua }]}>{initials.toUpperCase()}</Text>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: colors.aqua }]}>{initials.toUpperCase()}</Text>
+              )}
             </View>
             <View style={styles.identityInfo}>
               <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>{displayName}</Text>
@@ -300,6 +304,7 @@ const styles = StyleSheet.create({
   identityTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   avatarText: { fontSize: 22, fontWeight: '800' as const },
+  avatarImage: { width: 64, height: 64, borderRadius: 22 },
   identityInfo: { flex: 1, gap: 2 },
   displayName: { fontSize: 20, fontWeight: '800' as const, letterSpacing: -0.3, flexShrink: 1 },
   username: { fontSize: 13, fontWeight: '600' as const },

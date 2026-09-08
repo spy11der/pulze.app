@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Alert,
   Pressable,
   ScrollView,
@@ -17,6 +18,9 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { supabase } from '@/services/supabase';
+import { uploadAvatar, deletePreviousAvatar } from '@/services/avatar';
+
+import * as ImagePicker from 'expo-image-picker';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -28,6 +32,8 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState<string>(user?.username ?? 'jordan.pulze');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -122,6 +128,76 @@ export default function EditProfileScreen() {
     router.back();
   }, [router]);
 
+  const initials = useMemo(() => {
+    const parts = displayName.trim().split(/\s+/);
+    const computed = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+    return computed || displayName[0] || 'P';
+  }, [displayName]);
+
+  const handleChangePhoto = useCallback(async () => {
+    if (isUploadingAvatar) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'You must be signed in to update your profile photo.');
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to choose a profile photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const { url } = await uploadAvatar(user.id, asset.uri);
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        // @ts-expect-error supabase types not configured for profiles table
+        .update({ avatar_url: url })
+        .eq('id', user.id);
+      if (profileError) {
+        console.log('[EditProfile] Avatar profile update error:', profileError.message);
+        void deletePreviousAvatar(user.id, url);
+        Alert.alert('Could not save', profileError.message);
+        return;
+      }
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { avatar_url: url },
+      });
+      if (authError) {
+        console.log('[EditProfile] Avatar auth update error:', authError.message);
+        Alert.alert('Could not save', authError.message);
+        return;
+      }
+
+      const previous = avatarUrl;
+      setAvatarUrl(url);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (previous && previous !== url) {
+        void deletePreviousAvatar(user.id, previous);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Something went wrong.';
+      console.log('[EditProfile] Avatar upload exception:', message);
+      Alert.alert('Could not save', message);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  }, [avatarUrl, isUploadingAvatar, user]);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen
@@ -159,17 +235,21 @@ export default function EditProfileScreen() {
       >
         <View style={styles.avatarSection}>
           <View style={[styles.avatarLarge, { backgroundColor: isDark ? 'rgba(165, 240, 92, 0.18)' : 'rgba(92, 168, 48, 0.12)' }]}>
-            <Text style={[styles.avatarLargeText, { color: colors.lime }]}>JP</Text>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarLargeText, { color: colors.lime }]}>{initials.toUpperCase()}</Text>
+            )}
           </View>
           <Pressable
-            onPress={() => {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert('Coming soon', 'Profile photo uploads will be available in a future update.');
-            }}
+            onPress={() => { void handleChangePhoto(); }}
+            disabled={isUploadingAvatar}
             style={({ pressed }) => [styles.changePhotoBtn, { backgroundColor: colors.card, borderColor: colors.border }, pressed && styles.btnPressed]}
           >
             <Camera color={colors.aqua} size={16} />
-            <Text style={[styles.changePhotoText, { color: colors.aqua }]}>Change photo</Text>
+            <Text style={[styles.changePhotoText, { color: colors.aqua }]}>
+              {isUploadingAvatar ? 'Uploading…' : 'Change photo'}
+            </Text>
           </Pressable>
         </View>
 
@@ -252,6 +332,11 @@ const styles = StyleSheet.create({
   avatarLargeText: {
     fontSize: 32,
     fontWeight: '800' as const,
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 32,
   },
   changePhotoBtn: {
     flexDirection: 'row',
