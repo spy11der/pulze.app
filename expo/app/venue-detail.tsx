@@ -25,7 +25,7 @@ import { useFavorites } from '@/providers/FavoritesProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { haversineMeters, metersToWalkMinutes } from '@/hooks/useNearbyVenues';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
-import { getBusynessLabel, type PulzeVenue } from '@/types/venue';
+import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 import { getVenueCheckInCount } from '@/services/checkInCounts';
 
 // Same fallback used by Nearby/Home when device location isn't available yet
@@ -163,9 +163,15 @@ export default function VenueDetailScreen() {
             </View>
           </View>
 
-          <Text style={[styles.busynessText, { color: colors.text }]}>
-            {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
-          </Text>
+          {hasReliableBusyness(venue) ? (
+            <Text style={[styles.busynessText, { color: colors.text }]}>
+              {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
+            </Text>
+          ) : (
+            <Text style={[styles.busynessText, { color: colors.textMuted }]}>
+              Live activity data unavailable
+            </Text>
+          )}
 
           <Pressable
             onPress={handleCheckIn}

@@ -55,11 +55,18 @@ function mergeWithMock(
   legacyMockId: string | null,
   name: string,
   pulzeScore: number,
+  confidence: number | null | undefined,
   extra?: ExtraVenueFields,
 ): PulzeVenue {
   const mock = pulzeVenues.find((v) => v.id === legacyMockId);
   const busynessPercent = Math.round(pulzeScore);
   const busyness = busynessLevelFromScore(busynessPercent);
+  // Real per-venue confidence from live_venue_scores. Undefined here means
+  // we didn't fetch it; the UI treats undefined as insufficient signal and
+  // renders the neutral "no live data" state, which is what we want.
+  const confidenceNum = confidence === null || confidence === undefined
+    ? undefined
+    : Number(confidence);
 
   if (mock) {
     return {
@@ -68,6 +75,7 @@ function mergeWithMock(
       name,
       busynessPercent,
       busyness,
+      confidence: confidenceNum,
     };
   }
 
@@ -92,7 +100,28 @@ function mergeWithMock(
     phone: extra?.phone ?? undefined,
     rating: extra?.rating ?? undefined,
     priceLevel: extra?.price_level ?? undefined,
+    confidence: confidenceNum,
   };
+}
+
+// venues_with_scores exposes pulze_score but not confidence_score. Rather
+// than modify the view, batch-fetch confidence from live_venue_scores by
+// venue id — same additive pattern as fetchExtraVenueFields.
+async function fetchConfidenceByVenueId(venueIds: string[]): Promise<Record<string, number>> {
+  if (venueIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('live_venue_scores')
+    .select('venue_id, confidence_score')
+    .in('venue_id', venueIds);
+  if (error || !data) {
+    console.log('[Venues] fetchConfidenceByVenueId error:', error?.message);
+    return {};
+  }
+  const byId: Record<string, number> = {};
+  for (const row of data as any[]) {
+    byId[row.venue_id] = Number(row.confidence_score);
+  }
+  return byId;
 }
 
 // venues_with_scores (existing view, unchanged) already exposes
@@ -127,10 +156,21 @@ export async function getAllLiveVenues(): Promise<PulzeVenue[]> {
   }
 
   const rows = data as any[];
-  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
+  const ids = rows.map((r) => r.venue_id);
+  const [extraById, confidenceById] = await Promise.all([
+    fetchExtraVenueFields(ids),
+    fetchConfidenceByVenueId(ids),
+  ]);
 
   return rows.map((row) =>
-    mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]),
+    mergeWithMock(
+      row.venue_id,
+      row.legacy_mock_id,
+      row.name,
+      row.pulze_score,
+      confidenceById[row.venue_id],
+      extraById[row.venue_id],
+    ),
   );
 }
 
@@ -156,7 +196,16 @@ export async function getNearbyLiveVenues(
   const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
 
   return rows.map((row) => {
-    const merged = mergeWithMock(row.venue_id, row.legacy_mock_id, row.venue_name, row.pulze_score, extraById[row.venue_id]);
+    // rank_nearby_venues already returns confidence_score — no supplementary
+    // fetch needed for the Nearby path.
+    const merged = mergeWithMock(
+      row.venue_id,
+      row.legacy_mock_id,
+      row.venue_name,
+      row.pulze_score,
+      row.confidence_score,
+      extraById[row.venue_id],
+    );
     return { ...merged, distanceMeters: Number(row.distance_m) };
   });
 }
@@ -170,8 +219,18 @@ export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue
     .maybeSingle();
   if (error || !data) return null;
   const row = data as any;
-  const extraById = await fetchExtraVenueFields([row.venue_id]);
-  return mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]);
+  const [extraById, confidenceById] = await Promise.all([
+    fetchExtraVenueFields([row.venue_id]),
+    fetchConfidenceByVenueId([row.venue_id]),
+  ]);
+  return mergeWithMock(
+    row.venue_id,
+    row.legacy_mock_id,
+    row.name,
+    row.pulze_score,
+    confidenceById[row.venue_id],
+    extraById[row.venue_id],
+  );
 }
 
 // Real cross-user check-in count for a venue. `realVenueId` must already be
@@ -209,9 +268,20 @@ export async function searchLiveVenues(query: string, maxResults = 15): Promise<
     return [];
   }
   const rows = data as any[];
-  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
+  const ids = rows.map((r) => r.venue_id);
+  const [extraById, confidenceById] = await Promise.all([
+    fetchExtraVenueFields(ids),
+    fetchConfidenceByVenueId(ids),
+  ]);
   return rows.map((row) =>
-    mergeWithMock(row.venue_id, row.legacy_mock_id, row.name, row.pulze_score, extraById[row.venue_id]),
+    mergeWithMock(
+      row.venue_id,
+      row.legacy_mock_id,
+      row.name,
+      row.pulze_score,
+      confidenceById[row.venue_id],
+      extraById[row.venue_id],
+    ),
   );
 }
 

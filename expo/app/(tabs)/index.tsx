@@ -23,7 +23,7 @@ import {
   metersToWalkMinutes,
 } from '@/hooks/useNearbyVenues';
 
-import type { PulzeVenue } from '@/types/venue';
+import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 type FilterCategory = 'busyness' | 'neighborhood' | 'type';
 
@@ -68,6 +68,10 @@ function venueMatchesTypeFilter(venue: PulzeVenue, filterKey: string): boolean {
 }
 
 function venueMatchesBusynessFilter(venue: PulzeVenue, filterKey: string): boolean {
+  // Both busyness filters are claims about live crowd state, so require
+  // reliable confidence — a venue with no signal isn't defensibly "low wait"
+  // OR "popping now"; it's unknown, and shouldn't appear under either pill.
+  if (!hasReliableBusyness(venue)) return false;
   switch (filterKey) {
     case 'popping':
       return venue.busynessPercent >= 80;
@@ -266,7 +270,11 @@ const VenueCard = React.memo(function VenueCard({
           <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{venue.neighborhood}</Text>
         </View>
 
-        <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}%</Text>
+        {hasReliableBusyness(venue) ? (
+          <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}%</Text>
+        ) : (
+          <Text style={[styles.busynessPercent, { color: colors.textMuted }]}>No live data</Text>
+        )}
 
         {displayTags.length > 0 && (
           <View style={styles.tagsRow}>

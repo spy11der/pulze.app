@@ -43,3 +43,6 @@ yarn-error.*
 core
 node_modules
 .expo
+
+# Supabase CLI cache
+supabase/.temp/

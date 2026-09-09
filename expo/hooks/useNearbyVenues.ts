@@ -11,6 +11,9 @@ export interface NearbyVenue {
   distanceLabel: string;
   categoryLabel: string;
   busynessPercent: number;
+  // Mirrors PulzeVenue.confidence — 0-100 from live_venue_scores. Absent
+  // means "not fetched"; the UI treats absent as insufficient signal.
+  confidence?: number;
   photoUri?: string;
   tags: string[];
 }
@@ -132,6 +135,7 @@ export async function getNearbyVenuesLive(lat: number, lng: number, maxResults =
     distanceLabel: formatDistance(v.distanceMeters),
     categoryLabel: v.typeLabel ?? v.type,
     busynessPercent: v.busynessPercent,
+    confidence: v.confidence,
     photoUri: v.photo,
     tags: v.tags,
   }));
@@ -152,6 +156,7 @@ export async function searchVenuesLive(query: string): Promise<NearbyVenue[]> {
     distanceLabel: '',
     categoryLabel: v.typeLabel ?? v.type,
     busynessPercent: v.busynessPercent,
+    confidence: v.confidence,
     photoUri: v.photo,
     tags: v.tags,
   }));

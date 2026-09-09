@@ -26,6 +26,23 @@ export interface PulzeVenue {
   phone?: string;
   rating?: number;
   priceLevel?: number;
+  // 0-100 from live_venue_scores.confidence_score. Absent (undefined) means
+  // "not fetched" — treated as insufficient by `hasReliableBusyness` so we
+  // never surface a busyness figure derived from no signal.
+  confidence?: number;
+}
+
+// Threshold below which pulze_score is treated as insufficient live data.
+// The scoring view derives `confidence_score = LEAST(100, active_visitors * 10)`,
+// so this maps to "at least 2 concurrent presence signals for the venue" —
+// the minimum where a Quiet/Getting-Busy/Packed claim is defensible.
+export const MIN_BUSYNESS_CONFIDENCE = 20;
+
+// True only when we can defensibly show a real busyness figure. UI code
+// should render the neutral "no live data" state when this returns false,
+// including for busyness-based filters (Popping now / Low wait).
+export function hasReliableBusyness(v: { confidence?: number }): boolean {
+  return typeof v.confidence === 'number' && v.confidence >= MIN_BUSYNESS_CONFIDENCE;
 }
 
 export interface CheckIn {

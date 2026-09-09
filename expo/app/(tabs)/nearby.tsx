@@ -22,6 +22,7 @@ import {
   metersToWalkMinutes,
   type NearbyVenue,
 } from '@/hooks/useNearbyVenues';
+import { hasReliableBusyness } from '@/types/venue';
 
 function NearbyCard({
   venue,
@@ -76,9 +77,15 @@ function NearbyCard({
           </Text>
         </View>
 
-        <Text style={[styles.busynessPercent, { color: colors.text }]}>
-          {busynessPercent}%
-        </Text>
+        {hasReliableBusyness(venue) ? (
+          <Text style={[styles.busynessPercent, { color: colors.text }]}>
+            {busynessPercent}%
+          </Text>
+        ) : (
+          <Text style={[styles.busynessPercent, { color: colors.textMuted }]}>
+            No live data
+          </Text>
+        )}
 
         {displayTags.length > 0 && (
           <View style={styles.tagsRow}>
