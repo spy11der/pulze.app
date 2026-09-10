@@ -7,6 +7,7 @@ import { supabase } from '@/services/supabase';
 import { scheduleCheckInNotification } from '@/services/checkInNotifications';
 import { shouldTriggerCheckIn, recordGeofenceTrigger } from '@/services/checkInDatabase';
 import { getLocationConsent } from '@/services/consent';
+import { getNotificationPrefs } from '@/services/notificationPrefs';
 
 const GEOFENCE_TASK = 'PULZE_GEOFENCE_CHECK';
 const GEOFENCE_INTERVAL_MS = 60_000; // Check every 60 seconds
@@ -77,6 +78,15 @@ async function checkProximityAndNotify(lat: number, lng: number, velocityMph: nu
 
     console.log(`[Geofence] TRIGGER: ${venueName}`);
     await recordGeofenceTrigger(userId, venueId);
+
+    // Gate the local notification on the user's Settings preference.
+    // Geofence processing (visit_sessions, dedup, RPC call) is unchanged
+    // — the toggle suppresses only the OS-level ping.
+    const prefs = await getNotificationPrefs();
+    if (!prefs.checkInPrompt) {
+      console.log(`[Geofence] Notification suppressed by pref: ${venueName}`);
+      return;
+    }
     // Real venue id + name straight from Supabase — no mock lookup needed.
     await scheduleCheckInNotification({ id: venueId, name: venueName });
   }

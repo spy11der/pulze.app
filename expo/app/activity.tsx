@@ -11,19 +11,11 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Swipeable } from 'react-native-gesture-handler';
 import {
-  Bell,
-  Calendar,
   Camera,
-  CheckCheck,
   ChevronDown,
-  Flame,
-  Heart,
-  Inbox,
   MapPin,
   Navigation,
-  Trash2,
   UserPlus,
 } from 'lucide-react-native';
 
@@ -33,32 +25,9 @@ import { getAllLiveVenues, getVenueActivitySummaries } from '@/services/venues';
 import { getFriendsAndRequests, acceptFriendRequest, declineFriendRequest, type RealFriendRequest } from '@/services/friends';
 import type { PulzeVenue } from '@/types/venue';
 
-type TabKey = 'notifications' | 'nearby' | 'friendRequests';
-type NotifType = 'checkin' | 'busy' | 'like' | 'event';
-
-interface NotifItem {
-  id: string;
-  type: NotifType;
-  title: string;
-  time: string;
-  unread: boolean;
-}
-
-// No notifications backend exists yet (no history table) — this remains
-// placeholder content, not live data. See REMAINING MOCKS in the handoff.
-const MOCK_NOTIFS: NotifItem[] = [
-  { id: 'n1', type: 'checkin', title: 'Maya checked into Mica Rooftop', time: '2 min ago', unread: true },
-  { id: 'n2', type: 'busy', title: 'Fillmore Auditorium is getting busy', time: '8 min ago', unread: true },
-  { id: 'n4', type: 'checkin', title: 'Sasha checked into Cervantes Masterpiece', time: '52 min ago', unread: false },
-  { id: 'n5', type: 'like', title: 'Jordan liked your vibe at Bluebird Theater', time: '1 hr ago', unread: false },
-  { id: 'n6', type: 'event', title: 'Khruangbin at Red Rocks starts in 2 hours', time: '2 hrs ago', unread: false },
-  { id: 'n7', type: 'busy', title: 'Comedy Works Downtown is getting busy', time: '2 hrs ago', unread: false },
-  { id: 'n8', type: 'like', title: 'Avery liked your vibe at Gothic Theatre', time: '3 hrs ago', unread: false },
-  { id: 'n10', type: 'checkin', title: 'Theo checked into Meow Wolf Denver', time: '5 hrs ago', unread: false },
-];
+type TabKey = 'nearby' | 'friendRequests';
 
 const TAB_LABELS: Record<TabKey, string> = {
-  notifications: 'Notifications',
   nearby: 'Nearby',
   friendRequests: 'Friend requests',
 };
@@ -67,16 +36,6 @@ function getVibeDotColor(score: number): string {
   if (score >= 61) return '#2BBFBA';
   if (score >= 31) return '#FFB800';
   return '#FF4444';
-}
-
-function getNotifIcon(type: NotifType, color: string, warning: string) {
-  const size = 18;
-  switch (type) {
-    case 'checkin': return <MapPin color={color} size={size} />;
-    case 'busy': return <Flame color={warning} size={size} />;
-    case 'like': return <Heart color={color} size={size} />;
-    case 'event': return <Calendar color={color} size={size} />;
-  }
 }
 
 function getTimeAgo(dateStr: string): string {
@@ -101,8 +60,7 @@ export default function ActivityScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
 
-  const [tab, setTab] = useState<TabKey>('notifications');
-  const [notifs, setNotifs] = useState<NotifItem[]>(MOCK_NOTIFS);
+  const [tab, setTab] = useState<TabKey>('nearby');
   const [friendReqs, setFriendReqs] = useState<RealFriendRequest[]>([]);
   const [nearby, setNearby] = useState<NearbyRow[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -138,30 +96,13 @@ export default function ActivityScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  const unreadByTab = useMemo<Record<TabKey, number>>(() => {
-    const notifUnread = notifs.filter((n) => n.unread).length;
-    const friendUnread = friendReqs.length;
-    const nearbyUnread = 0;
-    return { notifications: notifUnread, nearby: nearbyUnread, friendRequests: friendUnread };
-  }, [notifs, friendReqs]);
+  const unreadByTab = useMemo<Record<TabKey, number>>(() => ({
+    nearby: 0,
+    friendRequests: friendReqs.length,
+  }), [friendReqs]);
 
   const hasAnyUnread = useMemo(() => Object.values(unreadByTab).some((v) => v > 0), [unreadByTab]);
   const chevronColor = hasAnyUnread ? colors.aqua : colors.textMuted;
-
-  const handleDismissNotif = useCallback((id: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setNotifs((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  const handleClearAllNotifs = useCallback(() => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setNotifs([]);
-  }, []);
-
-  const handleMarkAllRead = useCallback(() => {
-    void Haptics.selectionAsync();
-    setNotifs((prev) => prev.map((n) => ({ ...n, unread: false })));
-  }, []);
 
   const handleOpenDropdown = useCallback(() => {
     triggerRef.current?.measure((_x, _y, _w, h, _pageX, pageY) => {
@@ -187,30 +128,6 @@ export default function ActivityScreen() {
     const ok = await declineFriendRequest(request.friendshipId);
     if (ok) void loadFriendRequests();
   }, [loadFriendRequests]);
-
-  const renderRightActions = useCallback(
-    (id: string) => (
-      <Pressable onPress={() => handleDismissNotif(id)} style={[styles.swipeDeleteAction, { backgroundColor: colors.danger }]} testID={`dismiss-notif-${id}`}>
-        <Trash2 color="#fff" size={20} />
-      </Pressable>
-    ),
-    [colors, handleDismissNotif],
-  );
-
-  const renderNotif: ListRenderItem<NotifItem> = useCallback(({ item }) => {
-    const unreadBg = item.unread ? colors.aqua + '0F' : colors.surface;
-    return (
-      <Swipeable renderRightActions={() => renderRightActions(item.id)} overshootRight={false} rightThreshold={40} onSwipeableOpen={() => handleDismissNotif(item.id)}>
-        <View style={[styles.notifRow, { backgroundColor: unreadBg, borderColor: colors.border, borderLeftWidth: item.unread ? 2 : 0, borderLeftColor: colors.aqua }]} testID={`notif-${item.id}`}>
-          <View style={[styles.iconWrap, { backgroundColor: colors.aqua + '14' }]}>{getNotifIcon(item.type, colors.aqua, colors.amber)}</View>
-          <View style={styles.notifBody}>
-            <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-            <Text style={[styles.notifTime, { color: colors.textSoft }]}>{item.time}</Text>
-          </View>
-        </View>
-      </Swipeable>
-    );
-  }, [colors, renderRightActions, handleDismissNotif]);
 
   const renderNearby: ListRenderItem<NearbyRow> = useCallback(({ item }) => {
     const dotColor = getVibeDotColor(item.venue.busynessPercent);
@@ -257,13 +174,13 @@ export default function ActivityScreen() {
   const empty = (
     <View style={styles.emptyWrap}>
       <View style={[styles.emptyIcon, { backgroundColor: colors.aqua + '14' }]}>
-        {tab === 'notifications' ? <Inbox color={colors.aqua} size={32} /> : tab === 'nearby' ? <MapPin color={colors.aqua} size={32} /> : <UserPlus color={colors.aqua} size={32} />}
+        {tab === 'nearby' ? <MapPin color={colors.aqua} size={32} /> : <UserPlus color={colors.aqua} size={32} />}
       </View>
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        {tab === 'notifications' ? 'No activity yet' : tab === 'nearby' ? 'Nothing nearby' : 'No friend requests'}
+        {tab === 'nearby' ? 'Nothing nearby' : 'No friend requests'}
       </Text>
       <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-        {tab === 'notifications' ? 'Friend check-ins and event alerts will appear here' : tab === 'nearby' ? 'Move around to discover venues with live activity' : "When someone wants to connect, they'll appear here"}
+        {tab === 'nearby' ? 'Move around to discover venues with live activity' : "When someone wants to connect, they'll appear here"}
       </Text>
     </View>
   );
@@ -278,19 +195,6 @@ export default function ActivityScreen() {
         </Pressable>
       </View>
 
-      {tab === 'notifications' && notifs.length > 0 && (
-        <View style={styles.notifActionsRow}>
-          <Pressable onPress={handleMarkAllRead} style={({ pressed }) => [styles.notifActionBtn, { opacity: pressed ? 0.6 : 1 }]} testID="mark-all-read">
-            <CheckCheck color={colors.aqua} size={14} />
-            <Text style={[styles.notifActionText, { color: colors.aqua }]}>Mark all read</Text>
-          </Pressable>
-          <Pressable onPress={handleClearAllNotifs} style={({ pressed }) => [styles.notifActionBtn, { opacity: pressed ? 0.6 : 1 }]} testID="clear-all-notifs">
-            <Trash2 color={colors.textMuted} size={14} />
-            <Text style={[styles.notifActionText, { color: colors.textMuted }]}>Clear all</Text>
-          </Pressable>
-        </View>
-      )}
-
       {showDropdown && (
         <Modal transparent animationType="fade" onRequestClose={() => setShowDropdown(false)}>
           <Pressable style={styles.backdrop} onPress={() => setShowDropdown(false)} testID="dropdown-backdrop">
@@ -301,7 +205,6 @@ export default function ActivityScreen() {
                   const hasUnread = unreadByTab[t] > 0;
                   const iconColor = hasUnread ? colors.aqua : colors.textMuted;
                   const tabIcons: Record<TabKey, React.ReactNode> = {
-                    notifications: <Bell color={iconColor} size={16} />,
                     nearby: <Navigation color={iconColor} size={16} />,
                     friendRequests: <UserPlus color={iconColor} size={16} />,
                   };
@@ -334,9 +237,7 @@ export default function ActivityScreen() {
         <Text style={[styles.manualCheckinText, { color: colors.aqua }]}>Check in manually</Text>
       </Pressable>
 
-      {tab === 'notifications' ? (
-        <FlatList data={notifs} keyExtractor={(it) => it.id} renderItem={renderNotif} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />
-      ) : tab === 'nearby' ? (
+      {tab === 'nearby' ? (
         <FlatList data={nearby} keyExtractor={(it) => it.venue.id} renderItem={renderNearby} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />
       ) : (
         <FlatList data={friendReqs} keyExtractor={(it) => it.friendshipId} renderItem={renderFriendReq} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />
@@ -358,15 +259,6 @@ const styles = StyleSheet.create({
   dropdownItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 10 },
   dropdownItemText: { fontSize: 15 },
   listContent: { paddingHorizontal: 16, paddingTop: 16 },
-  notifRow: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
-  iconWrap: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  notifBody: { flex: 1, gap: 4 },
-  notifTitle: { fontSize: 14, fontWeight: '600' as const, lineHeight: 19 },
-  notifTime: { fontSize: 12, fontWeight: '500' as const },
-  swipeDeleteAction: { justifyContent: 'center', alignItems: 'center', width: 72, borderRadius: 16, marginLeft: -16 },
-  notifActionsRow: { flexDirection: 'row', justifyContent: 'center', gap: 20, paddingVertical: 10 },
-  notifActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  notifActionText: { fontSize: 12, fontWeight: '600' as const },
   nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   dot: { width: 10, height: 10, borderRadius: 5 },
   nearbyBody: { flex: 1, gap: 2 },

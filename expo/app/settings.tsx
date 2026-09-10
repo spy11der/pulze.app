@@ -51,22 +51,11 @@ import { useAuth } from '@/providers/AuthProvider';
 import type { UserPreferences } from '@/providers/DataProvider';
 import { getLocationConsent, setLocationConsent } from '@/services/consent';
 import { supabase } from '@/services/supabase';
-
-const NOTIF_KEY = 'pulze_notification_prefs';
-
-type NotificationPrefs = {
-  friendsCheckIn: boolean;
-  venuesBusy: boolean;
-  eventReminders: boolean;
-  friendRequests: boolean;
-};
-
-const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
-  friendsCheckIn: true,
-  venuesBusy: true,
-  eventReminders: true,
-  friendRequests: true,
-};
+import {
+  getNotificationPrefs,
+  setNotificationPref,
+  type NotificationPrefs,
+} from '@/services/notificationPrefs';
 
 const privacyOptions: { id: UserPreferences['defaultPrivacy']; label: string; sub: string }[] = [
   { id: 'public', label: 'Public', sub: 'Anyone on Pulze can see your vibes' },
@@ -94,7 +83,7 @@ export default function SettingsScreen() {
   const { logout, user } = useAuth();
   const router = useRouter();
 
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIF_PREFS);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ checkInPrompt: true });
   const [locationConsent, setLocationConsentState] = useState<boolean>(false);
 
   useEffect(() => {
@@ -117,27 +106,24 @@ export default function SettingsScreen() {
   }, [user?.id, locationConsent]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(NOTIF_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as Partial<NotificationPrefs>;
-          setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...parsed });
-        }
-      } catch (e) {
-        console.log('[Settings] notif prefs load error', e);
-      }
-    })();
+    let cancelled = false;
+    void getNotificationPrefs().then((prefs) => {
+      if (!cancelled) setNotifPrefs(prefs);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const updateNotif = useCallback(async (key: keyof NotificationPrefs) => {
     void Haptics.selectionAsync();
-    setNotifPrefs((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      AsyncStorage.setItem(NOTIF_KEY, JSON.stringify(next)).catch((e) => console.log('[Settings] notif save error', e));
-      return next;
-    });
-  }, []);
+    // Optimistic — the shared helper is the write-through source of truth.
+    setNotifPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    try {
+      const next = await setNotificationPref(key, !notifPrefs[key]);
+      setNotifPrefs(next);
+    } catch (e) {
+      console.log('[Settings] notif save error', e);
+    }
+  }, [notifPrefs]);
 
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -333,34 +319,16 @@ export default function SettingsScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>
+            When you arrive at a venue, Pulze can ping you to snap a check-in photo.
+          </Text>
           <View style={styles.preferenceList}>
             <NotifToggleRow
-              icon={MapPin}
-              label="Friends check in nearby"
-              value={notifPrefs.friendsCheckIn}
-              onToggle={() => updateNotif('friendsCheckIn')}
-              testID="notif-friends-checkin"
-            />
-            <NotifToggleRow
-              icon={Flame}
-              label="Venues getting busy"
-              value={notifPrefs.venuesBusy}
-              onToggle={() => updateNotif('venuesBusy')}
-              testID="notif-venues-busy"
-            />
-            <NotifToggleRow
-              icon={Calendar}
-              label="Event reminders"
-              value={notifPrefs.eventReminders}
-              onToggle={() => updateNotif('eventReminders')}
-              testID="notif-event-reminders"
-            />
-            <NotifToggleRow
-              icon={UserPlus}
-              label="Friend requests"
-              value={notifPrefs.friendRequests}
-              onToggle={() => updateNotif('friendRequests')}
-              testID="notif-friend-requests"
+              icon={BellRing}
+              label="Venue check-in prompts"
+              value={notifPrefs.checkInPrompt}
+              onToggle={() => updateNotif('checkInPrompt')}
+              testID="notif-checkin-prompt"
             />
           </View>
         </View>
