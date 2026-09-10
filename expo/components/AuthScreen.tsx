@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -313,35 +312,6 @@ export function AuthScreen() {
               </Animated.View>
             </Animated.View>
 
-            <View style={styles.dividerRow}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              <Text style={[styles.dividerText, { color: colors.textSoft }]}>or continue with</Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            </View>
-
-            <View style={styles.socialRow}>
-              <SocialButton
-                label="Apple"
-                icon="🍎"
-                bg={isDark ? colors.surface : '#000'}
-                textColor={isDark ? colors.text : '#fff'}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert('Coming Soon', 'Sign in with Apple will be available soon.');
-                }}
-              />
-              <SocialButton
-                label="Google"
-                icon="G"
-                bg={isDark ? colors.surface : '#fff'}
-                textColor={isDark ? colors.text : '#333'}
-                borderColor={isDark ? colors.border : '#ddd'}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Alert.alert('Coming Soon', 'Sign in with Google will be available soon.');
-                }}
-              />
-            </View>
           </Animated.View>
 
           <View style={styles.footer}>
@@ -428,33 +398,6 @@ function InputField({
       />
       {rightIcon && <View style={styles.inputRight}>{rightIcon}</View>}
     </View>
-  );
-}
-
-interface SocialButtonProps {
-  label: string;
-  icon: string;
-  bg: string;
-  textColor: string;
-  borderColor?: string;
-  onPress?: () => void;
-}
-
-function SocialButton({ label, icon, bg, textColor, borderColor, onPress }: SocialButtonProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.socialButton,
-        { backgroundColor: bg, borderColor: borderColor ?? 'transparent' },
-        borderColor ? { borderWidth: 1 } : undefined,
-        pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] },
-      ]}
-      testID={`social-${label.toLowerCase()}`}
-    >
-      <Text style={styles.socialIcon}>{icon}</Text>
-      <Text style={[styles.socialLabel, { color: textColor }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -576,40 +519,6 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     fontWeight: '800' as const,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    borderRadius: 14,
-  },
-  socialIcon: {
-    fontSize: 18,
-  },
-  socialLabel: {
-    fontSize: 15,
-    fontWeight: '700' as const,
   },
   footer: {
     flexDirection: 'row',

@@ -74,29 +74,12 @@ async function resolveRealVenueId(venueId: string): Promise<string | null> {
 }
 
 async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ url: string; path: string }> {
-  // TEMP DIAGNOSTIC (remove once 13-byte upload is root-caused): prove which
-  // code path runs and what it receives, without logging full base64 contents.
-  console.log('[PHOTO_UPLOAD_V2_RUNNING] marker hit');
-  const uriKind = localUri.startsWith('file://')
-    ? 'file://'
-    : localUri.startsWith('content://')
-      ? 'content://'
-      : localUri.startsWith('data:')
-        ? 'data:'
-        : localUri.startsWith('blob:')
-          ? 'blob:'
-          : 'other';
-  // Truncate: a data: URI *is* the full base64, so never log it whole.
-  console.log('[PHOTO_UPLOAD_V2] localUri (truncated):', localUri.slice(0, 80), `| kind: ${uriKind}`);
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
   }
-  console.log(
-    `[PHOTO_UPLOAD_V2] base64.length: ${base64.length} | bytes.byteLength: ${bytes.byteLength} | first 4 decoded bytes: [${Array.from(bytes.slice(0, 4)).join(', ')}]`
-  );
   const path = `${userId}/${Date.now()}.jpg`;
   const { error } = await supabase.storage
     .from('check-in-photos')

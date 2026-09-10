@@ -2,14 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import {
   ChevronRight,
-  Copy,
   Edit3,
   LogOut,
-  MapPin,
   Moon,
   Settings,
   Sun,
@@ -23,7 +20,6 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
-import { currentUser } from '@/constants/identity';
 
 interface MenuRowProps {
   icon: React.ReactNode;
@@ -74,29 +70,13 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // TEMP DIAGNOSTIC (remove once check-in count is root-caused)
-      console.log('[PROFILE_CHECKINS] FOCUS', {
-        userId: user?.id ?? null,
-      });
       if (!user?.id) {
         setRealCheckInCount(0);
         return;
       }
-
       getMyCheckIns(user.id)
-        .then((items) => {
-          // TEMP DIAGNOSTIC
-          console.log('[PROFILE_CHECKINS] RESULT', {
-            userId: user.id,
-            count: items.length,
-            ids: items.map((item) => item.id),
-          });
-          setRealCheckInCount(items.length);
-        })
-        .catch((error) => {
-          // TEMP DIAGNOSTIC
-          console.error('[PROFILE_CHECKINS] ERROR', error);
-        });
+        .then((items) => setRealCheckInCount(items.length))
+        .catch(() => {});
     }, [user?.id]),
   );
 
@@ -116,8 +96,11 @@ export default function ProfileScreen() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const displayName = user?.displayName || currentUser.displayName;
-  const username = user?.username || currentUser.username;
+  // No fabricated fallbacks — if the auth-derived record is briefly
+  // unavailable, the row renders empty until it lands. Empty strings
+  // are honest; pretending the user is someone else is not.
+  const displayName = user?.displayName ?? '';
+  const username = user?.username ?? '';
   const initials = useMemo(() => {
     const parts = displayName.trim().split(/\s+/);
     return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
@@ -126,12 +109,6 @@ export default function ProfileScreen() {
   const innerCircleTier = tierDefinitions.find((t) => t.id === 'inner_circle');
   const savedCount = favoriteVenues.length;
   const { innerCircleCount, friendsCount, requestsCount } = friendStats;
-
-  const handleCopyId = useCallback(async () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await Clipboard.setStringAsync(currentUser.pulzeId);
-    Alert.alert('Copied', `${currentUser.pulzeId} copied to clipboard`);
-  }, []);
 
   const handleToggleTheme = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -155,9 +132,6 @@ export default function ProfileScreen() {
 
   const themeLabel = mode === 'dark' ? 'Dark' : mode === 'light' ? 'Light' : 'System';
   const ThemeIcon = isDark ? Moon : Sun;
-
-  // TEMP DIAGNOSTIC — fires on every render, immediately before the stat renders
-  console.log('[PROFILE_CHECKINS] RENDER', realCheckInCount);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -189,10 +163,6 @@ export default function ProfileScreen() {
             <View style={styles.identityInfo}>
               <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>{displayName}</Text>
               <Text style={[styles.username, { color: colors.textMuted }]} numberOfLines={1}>@{username}</Text>
-              <View style={styles.metaRow}>
-                <MapPin color={colors.textSoft} size={12} />
-                <Text style={[styles.metaText, { color: colors.textSoft }]}>{currentUser.location}</Text>
-              </View>
             </View>
           </View>
 
@@ -235,15 +205,6 @@ export default function ProfileScreen() {
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
           </View>
         </View>
-
-        <Pressable
-          onPress={handleCopyId}
-          style={({ pressed }) => [styles.idChip, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text style={[styles.idChipLabel, { color: colors.textMuted }]}>Pulze ID</Text>
-          <Text style={[styles.idChipValue, { color: colors.text }]}>{currentUser.pulzeId}</Text>
-          <Copy color={colors.aqua} size={14} />
-        </Pressable>
 
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Friends</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -308,15 +269,10 @@ const styles = StyleSheet.create({
   identityInfo: { flex: 1, gap: 2 },
   displayName: { fontSize: 20, fontWeight: '800' as const, letterSpacing: -0.3, flexShrink: 1 },
   username: { fontSize: 13, fontWeight: '600' as const },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  metaText: { fontSize: 12, fontWeight: '500' as const },
   bio: { fontSize: 14, lineHeight: 20 },
   identityActions: { flexDirection: 'row', gap: 8 },
   identityBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 14 },
   identityBtnText: { fontSize: 14, fontWeight: '700' as const },
-  idChip: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
-  idChipLabel: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1 },
-  idChipValue: { fontSize: 13, fontWeight: '700' as const, flex: 1, letterSpacing: 0.5 },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: { flex: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center', borderWidth: 1, gap: 2 },
   statValue: { fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.5 },

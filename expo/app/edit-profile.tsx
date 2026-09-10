@@ -28,8 +28,8 @@ export default function EditProfileScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
 
-  const [displayName, setDisplayName] = useState<string>(user?.displayName ?? 'Jordan Pulze');
-  const [username, setUsername] = useState<string>(user?.username ?? 'jordan.pulze');
+  const [displayName, setDisplayName] = useState<string>(user?.displayName ?? '');
+  const [username, setUsername] = useState<string>(user?.username ?? '');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);

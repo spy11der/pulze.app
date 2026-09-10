@@ -15,13 +15,10 @@ import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BellRing,
-  Bookmark,
   Bug,
-  Calendar,
   ChevronDown,
   FileText,
   Fingerprint,
-  Flame,
   Info,
   Lock,
   Mail,
@@ -33,11 +30,8 @@ import {
   Share2,
   Shield,
   ShieldAlert,
-  Star,
   Sun,
   Trash2,
-  UserPlus,
-  Users,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -46,9 +40,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
 import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
-import { useData } from '@/providers/DataProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import type { UserPreferences } from '@/providers/DataProvider';
 import { getLocationConsent, setLocationConsent } from '@/services/consent';
 import { supabase } from '@/services/supabase';
 import {
@@ -57,29 +49,10 @@ import {
   type NotificationPrefs,
 } from '@/services/notificationPrefs';
 
-const privacyOptions: { id: UserPreferences['defaultPrivacy']; label: string; sub: string }[] = [
-  { id: 'public', label: 'Public', sub: 'Anyone on Pulze can see your vibes' },
-  { id: 'friends', label: 'Friends Only', sub: 'Only your friends see details' },
-  { id: 'private', label: 'Private', sub: 'Saved for you only' },
-];
-
-const locationLabels: Record<UserPreferences['locationVisibility'], string> = {
-  precise: 'Precise location',
-  area: 'Area only',
-  hidden: 'Hidden',
-};
-
-const paceLabels: Record<UserPreferences['savedPaceMix'], string> = {
-  quiet: 'Quiet spots only',
-  busy: 'Busy spots only',
-  mixed: 'Quiet and busy mix',
-};
-
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { biometricEnabled, biometricAvailable, biometricType, toggleBiometric } = useBiometricAuth();
-  const { preferences, updatePreference } = useData();
   const { logout, user } = useAuth();
   const router = useRouter();
 
@@ -130,32 +103,6 @@ export default function SettingsScreen() {
     await toggleBiometric();
   }, [toggleBiometric]);
 
-  const selectPrivacy = useCallback((p: UserPreferences['defaultPrivacy']) => {
-    void Haptics.selectionAsync();
-    updatePreference('defaultPrivacy', p);
-  }, [updatePreference]);
-
-  const cycleLocation = useCallback(() => {
-    void Haptics.selectionAsync();
-    const order: UserPreferences['locationVisibility'][] = ['precise', 'area', 'hidden'];
-    const idx = order.indexOf(preferences.locationVisibility);
-    const next = order[(idx + 1) % order.length];
-    updatePreference('locationVisibility', next);
-  }, [preferences.locationVisibility, updatePreference]);
-
-  const toggleAlerts = useCallback(() => {
-    void Haptics.selectionAsync();
-    updatePreference('nearbyAlerts', !preferences.nearbyAlerts);
-  }, [preferences.nearbyAlerts, updatePreference]);
-
-  const cyclePace = useCallback(() => {
-    void Haptics.selectionAsync();
-    const order: UserPreferences['savedPaceMix'][] = ['quiet', 'busy', 'mixed'];
-    const idx = order.indexOf(preferences.savedPaceMix);
-    const next = order[(idx + 1) % order.length];
-    updatePreference('savedPaceMix', next);
-  }, [preferences.savedPaceMix, updatePreference]);
-
   const handleThemeSelect = useCallback((t: ThemeMode) => {
     void Haptics.selectionAsync();
     void setThemeMode(t);
@@ -170,11 +117,6 @@ export default function SettingsScreen() {
     } catch (e) {
       console.log('[Settings] share error', e);
     }
-  }, []);
-
-  const handleRate = useCallback(() => {
-    void Haptics.selectionAsync();
-    Alert.alert('Rate Pulze', 'Coming soon');
   }, []);
 
   const openMail = useCallback((subject: string) => {
@@ -334,32 +276,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Privacy & Sharing</Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>Default visibility for new vibes</Text>
-          <View style={styles.preferenceList}>
-            {privacyOptions.map((opt) => {
-              const active = preferences.defaultPrivacy === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => selectPrivacy(opt.id)}
-                  style={[styles.radioRow, { backgroundColor: colors.card, borderColor: active ? colors.aqua : 'transparent' }]}
-                  testID={`privacy-${opt.id}`}
-                >
-                  <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-                    <Lock color={colors.aqua} size={18} />
-                  </View>
-                  <View style={styles.settingBody}>
-                    <Text style={[styles.settingValue, { color: colors.text }]}>{opt.label}</Text>
-                    <Text style={[styles.settingLabel, { color: colors.textMuted }]}>{opt.sub}</Text>
-                  </View>
-                  <View style={[styles.radio, { borderColor: active ? colors.aqua : colors.border }]}>
-                    {active ? <View style={[styles.radioDot, { backgroundColor: colors.aqua }]} /> : null}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Privacy</Text>
           <View style={styles.preferenceList}>
             <View style={[styles.radioRow, { backgroundColor: colors.card, borderColor: 'transparent' }]} testID="pref-location-consent">
               <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
@@ -378,17 +295,6 @@ export default function SettingsScreen() {
                 testID="switch-location-consent"
               />
             </View>
-          </View>
-          <View style={styles.preferenceList}>
-            <Pressable onPress={cycleLocation} testID="pref-location">
-              <SettingRow icon={MapPin} label="Location visibility" value={locationLabels[preferences.locationVisibility]} />
-            </Pressable>
-            <Pressable onPress={toggleAlerts} testID="pref-alerts">
-              <SettingRow icon={BellRing} label="Nearby alerts" value={preferences.nearbyAlerts ? 'On' : 'Off'} />
-            </Pressable>
-            <Pressable onPress={cyclePace} testID="pref-pace">
-              <SettingRow icon={Bookmark} label="Saved pace" value={paceLabels[preferences.savedPaceMix]} />
-            </Pressable>
           </View>
         </View>
 
@@ -503,19 +409,6 @@ export default function SettingsScreen() {
             </View>
             <Text style={[styles.settingLabel, { color: colors.textMuted }]}>1.0.0 (beta)</Text>
           </View>
-          <Pressable
-            onPress={handleRate}
-            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
-            testID="rate-pulze-btn"
-          >
-            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <Star color={colors.aqua} size={18} />
-            </View>
-            <View style={styles.settingBody}>
-              <Text style={[styles.settingValue, { color: colors.text }]}>Rate Pulze</Text>
-            </View>
-            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
-          </Pressable>
           <Pressable
             onPress={handleSharePulze}
             style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}

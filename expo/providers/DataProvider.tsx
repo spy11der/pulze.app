@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as SecureStore from 'expo-secure-store';
 import createContextHook from '@nkzw/create-context-hook';
 
 import {
@@ -15,41 +14,6 @@ import {
   getVibeCount,
   getSavedSpotCount,
 } from '@/services/database';
-
-const PREFS_KEY = 'pulze_user_prefs';
-
-export interface UserPreferences {
-  defaultPrivacy: 'public' | 'friends' | 'private';
-  locationVisibility: 'precise' | 'area' | 'hidden';
-  nearbyAlerts: boolean;
-  savedPaceMix: 'quiet' | 'busy' | 'mixed';
-}
-
-const DEFAULT_PREFS: UserPreferences = {
-  defaultPrivacy: 'friends',
-  locationVisibility: 'area',
-  nearbyAlerts: true,
-  savedPaceMix: 'mixed',
-};
-
-async function loadPreferences(): Promise<UserPreferences> {
-  try {
-    const stored = await SecureStore.getItemAsync(PREFS_KEY);
-    if (stored) {
-      console.log('[SecureStore] Loaded user preferences');
-      return { ...DEFAULT_PREFS, ...JSON.parse(stored) };
-    }
-  } catch (e) {
-    console.log('[SecureStore] Error loading preferences:', e);
-  }
-  return DEFAULT_PREFS;
-}
-
-async function savePreferences(prefs: UserPreferences): Promise<UserPreferences> {
-  console.log('[SecureStore] Saving user preferences:', prefs);
-  await SecureStore.setItemAsync(PREFS_KEY, JSON.stringify(prefs));
-  return prefs;
-}
 
 export const [DataProvider, useData] = createContextHook(() => {
   const queryClient = useQueryClient();
@@ -66,11 +30,6 @@ export const [DataProvider, useData] = createContextHook(() => {
     queryKey: ['savedSpots'],
     queryFn: getAllSavedSpots,
     enabled: !isWeb,
-  });
-
-  const prefsQuery = useQuery({
-    queryKey: ['userPrefs'],
-    queryFn: loadPreferences,
   });
 
   const vibeCountQuery = useQuery({
@@ -117,23 +76,6 @@ export const [DataProvider, useData] = createContextHook(() => {
     },
   });
 
-  const updatePrefsMutation = useMutation({
-    mutationFn: savePreferences,
-    onSuccess: (data) => {
-      queryClient.setQueryData(['userPrefs'], data);
-    },
-  });
-
-  const preferences = prefsQuery.data ?? DEFAULT_PREFS;
-
-  const updatePreference = useCallback(
-    <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
-      const updated = { ...preferences, [key]: value };
-      updatePrefsMutation.mutate(updated);
-    },
-    [preferences, updatePrefsMutation]
-  );
-
   const checkSpotSaved = useCallback(async (venueId: string): Promise<boolean> => {
     return isSpotSaved(venueId);
   }, []);
@@ -142,35 +84,30 @@ export const [DataProvider, useData] = createContextHook(() => {
     () => ({
       vibes: vibesQuery.data ?? [],
       savedSpots: savedSpotsQuery.data ?? [],
-      preferences,
       vibeCount: vibeCountQuery.data ?? 0,
       spotCount: spotCountQuery.data ?? 0,
-      isLoading: vibesQuery.isLoading || savedSpotsQuery.isLoading || prefsQuery.isLoading,
+      isLoading: vibesQuery.isLoading || savedSpotsQuery.isLoading,
       addVibe: addVibeMutation.mutate,
       isAddingVibe: addVibeMutation.isPending,
       removeVibe: removeVibeMutation.mutate,
       addSpot: addSpotMutation.mutate,
       isAddingSpot: addSpotMutation.isPending,
       removeSpot: removeSpotMutation.mutate,
-      updatePreference,
       checkSpotSaved,
     }),
     [
       vibesQuery.data,
       savedSpotsQuery.data,
-      preferences,
       vibeCountQuery.data,
       spotCountQuery.data,
       vibesQuery.isLoading,
       savedSpotsQuery.isLoading,
-      prefsQuery.isLoading,
       addVibeMutation.mutate,
       addVibeMutation.isPending,
       removeVibeMutation.mutate,
       addSpotMutation.mutate,
       addSpotMutation.isPending,
       removeSpotMutation.mutate,
-      updatePreference,
       checkSpotSaved,
     ]
   );
