@@ -42,6 +42,10 @@ interface ExtraVenueFields {
   phone?: string | null;
   rating?: number | null;
   price_level?: number | null;
+  // Resolved name from the neighborhoods table (populated by
+  // fetchExtraVenueFields after a follow-up lookup by neighborhood_id).
+  // Preferred over city for the venue card's neighborhood label.
+  neighborhood?: string | null;
 }
 
 // Merges a real Supabase venue (identity + live score) with its mock's
@@ -91,7 +95,10 @@ function mergeWithMock(
     typeLabel,
     busyness,
     busynessPercent,
-    neighborhood: extra?.city ?? '',
+    // Prefer the real neighborhood name (resolved via neighborhoods table).
+    // City is not a neighborhood; if no neighborhood is set on the venue,
+    // show nothing rather than something semantically wrong like "Denver".
+    neighborhood: extra?.neighborhood ?? '',
     address: extra?.address ?? '',
     vibe: '', // intentionally empty — no invented copy; UI hides the vibe block when empty
     tags: [],
@@ -128,19 +135,46 @@ async function fetchConfidenceByVenueId(venueIds: string[]): Promise<Record<stri
 // category/city, but not address/latitude/longitude/phone/rating/price_level
 // — rather than modify that view, fetch those extra real columns from the
 // base venues table and merge client-side by id.
+//
+// Also resolves neighborhood_id → neighborhoods.name in a second batch
+// query. venues.neighborhood_id has no FK constraint in live schema, so
+// PostgREST auto-embed isn't available; explicit lookup is the honest way.
 async function fetchExtraVenueFields(venueIds: string[]): Promise<Record<string, ExtraVenueFields>> {
   if (venueIds.length === 0) return {};
   const { data, error } = await supabase
     .from('venues')
-    .select('id, category, city, address, latitude, longitude, phone, rating, price_level')
+    .select('id, category, city, address, latitude, longitude, phone, rating, price_level, neighborhood_id')
     .in('id', venueIds);
   if (error || !data) {
     console.log('[Venues] fetchExtraVenueFields error:', error?.message);
     return {};
   }
+  const rows = data as any[];
+
+  const neighborhoodIds = Array.from(
+    new Set(rows.map((r) => r.neighborhood_id).filter((v: unknown): v is string => typeof v === 'string')),
+  );
+  const neighborhoodNameById: Record<string, string> = {};
+  if (neighborhoodIds.length > 0) {
+    const { data: nRows, error: nErr } = await supabase
+      .from('neighborhoods')
+      .select('id, name')
+      .in('id', neighborhoodIds);
+    if (nErr) {
+      console.log('[Venues] fetchExtraVenueFields neighborhood lookup error:', nErr.message);
+    } else if (nRows) {
+      for (const row of nRows as any[]) {
+        if (typeof row.name === 'string') neighborhoodNameById[row.id] = row.name;
+      }
+    }
+  }
+
   const byId: Record<string, ExtraVenueFields> = {};
-  for (const row of data as any[]) {
-    byId[row.id] = row;
+  for (const row of rows) {
+    byId[row.id] = {
+      ...row,
+      neighborhood: row.neighborhood_id ? neighborhoodNameById[row.neighborhood_id] ?? null : null,
+    };
   }
   return byId;
 }
