@@ -360,6 +360,41 @@ export interface Database {
           quip?: string | null;
         };
       };
+      user_venue_saves: {
+        Row: {
+          id: string;
+          user_id: string;
+          venue_id: string;
+          save_type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          venue_id: string;
+          save_type?: string;
+          created_at?: string;
+        };
+        Update: {
+          save_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_venue_saves_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_venue_saves_venue_id_fkey';
+            columns: ['venue_id'];
+            isOneToOne: false;
+            referencedRelation: 'venues';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
