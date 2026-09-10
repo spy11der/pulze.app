@@ -118,8 +118,16 @@ export function PersistentFloatingTabBar() {
   const firstSegment = segArr[0] ?? '';
   if (HIDDEN_SEGMENTS.has(firstSegment)) return null;
 
-  const activeTab = segArr[1] || 'index';
+  // expo-router's useSegments() strips the (tabs) route group in this
+  // project, so for /(tabs)/crew segments comes back as ['crew'] — the
+  // previous `segArr[1]` was always undefined and Home stayed lit on every
+  // tab. Also handle the case where the group *is* included, and the case
+  // of a non-tab route (nothing highlighted).
   const tabNames = ['index', 'nearby', 'crew', 'profile'] as const;
+  type TabName = (typeof tabNames)[number];
+  const candidate = firstSegment === '(tabs)' ? (segArr[1] ?? 'index') : (firstSegment || 'index');
+  const activeTab: TabName | null =
+    (tabNames as readonly string[]).includes(candidate) ? (candidate as TabName) : null;
 
   return (
     <Animated.View

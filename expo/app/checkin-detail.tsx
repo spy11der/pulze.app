@@ -54,7 +54,11 @@ export default function CheckinDetailScreen() {
     router.back();
   }, [router]);
 
-  const topPanelHeight = Math.round(screenHeight * 0.23);
+  // Tight to the header content — vertically-centered avatar + name +
+  // sub-row is ~60px, so ~13% of the viewport gives just enough breathing
+  // room around it. The old 0.23 left ~140px of dark surface staring at
+  // the user before the photo.
+  const topPanelHeight = Math.round(screenHeight * 0.13);
 
   if (loading) {
     return (

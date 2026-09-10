@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, fontWeight: '600' as const },
   listContent: { padding: CARD_PADDING, paddingTop: 4 },
   feedCard: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  cardPanel: { paddingHorizontal: 16, paddingVertical: 10, gap: 4 },
+  cardPanel: { paddingHorizontal: 16, paddingVertical: 6, gap: 4 },
   cardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardAvatar: { width: 36, height: 36, borderRadius: 18 },
   cardAvatarPlaceholder: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
