@@ -26,7 +26,6 @@ import { useMapLocation } from '@/hooks/useMapLocation';
 import { haversineMeters, metersToWalkMinutes } from '@/hooks/useNearbyVenues';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
 import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
-import { getVenueCheckInCount } from '@/services/checkInCounts';
 
 // Same fallback used by Nearby/Home when device location isn't available yet
 const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
@@ -48,7 +47,6 @@ export default function VenueDetailScreen() {
 
   const [venue, setVenue] = useState<PulzeVenue | null | undefined>(undefined); // undefined = loading
   const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
-  const [localCheckins, setLocalCheckins] = useState<number>(0);
 
   useEffect(() => {
     if (!params.venueId) return;
@@ -60,7 +58,6 @@ export default function VenueDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!params.venueId) return;
-      void getVenueCheckInCount(params.venueId).then(setLocalCheckins);
       if (venue?.id) {
         void getRealCheckInCount(venue.id).then(setRealCheckInCount);
       }
@@ -184,7 +181,7 @@ export default function VenueDetailScreen() {
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <Users color={colors.aqua} size={16} />
-              <Text style={[styles.statValue, { color: colors.text }]}>{realCheckInCount + localCheckins}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{realCheckInCount}</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>Checked in</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

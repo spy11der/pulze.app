@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
-import { incrementVenueCheckInCount } from '@/services/checkInCounts';
 
 const DEDUP_CACHE_KEY = 'pulze_geofence_dedup';
 const DEDUP_WINDOW_MS = 15 * 60 * 1000;
@@ -169,7 +168,6 @@ export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResul
     // resolves the select result to `never`, so cast the returned row.
     const inserted = data as { id: string };
     await storeLocalCheckIn({ ...record, id: inserted.id, photoUri: photoUrl ?? record.photoUri, syncStatus: 'synced' });
-    if (record.venueId) void incrementVenueCheckInCount(record.venueId);
     return { id: inserted.id, status: 'synced' };
   } catch (e) {
     // Ambiguous — network dropped between request and response, insert may
