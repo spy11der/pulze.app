@@ -50,6 +50,7 @@ import { useData } from '@/providers/DataProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import type { UserPreferences } from '@/providers/DataProvider';
 import { getLocationConsent, setLocationConsent } from '@/services/consent';
+import { supabase } from '@/services/supabase';
 
 const NOTIF_KEY = 'pulze_notification_prefs';
 
@@ -223,16 +224,25 @@ export default function SettingsScreen() {
                       Alert.alert('Not deleted', 'You must type DELETE exactly to confirm.');
                       return;
                     }
-                    console.log('[Settings] Account deletion confirmed');
+                    // Server delete first — the SECURITY DEFINER RPC removes
+                    // the auth row (cascading every user-scoped table) and
+                    // the user's Storage objects in one transaction. Only
+                    // after confirmed success do we clear local state and
+                    // sign the session out, so a failed delete leaves the
+                    // account fully intact and the user still logged in.
+                    const { error } = await supabase.rpc('delete_my_account');
+                    if (error) {
+                      console.log('[Settings] delete_my_account failed:', error.message);
+                      Alert.alert('Delete failed', error.message);
+                      return;
+                    }
                     try {
                       await SecureStore.deleteItemAsync('pulze_user_prefs');
                       await SecureStore.deleteItemAsync('pulze_biometric_enabled');
-                      console.log('[Settings] Local data cleared');
                     } catch (e) {
-                      console.log('[Settings] Error clearing data:', e);
+                      console.log('[Settings] Local cleanup error (non-fatal):', e);
                     }
                     await logout();
-                    console.log('[Settings] Account deleted and logged out');
                   },
                 },
               ],
@@ -249,11 +259,19 @@ export default function SettingsScreen() {
                     text: 'Delete forever',
                     style: 'destructive',
                     onPress: async () => {
+                      // Same order-of-ops as the iOS branch: server delete
+                      // must succeed before we clear local state or log out.
+                      const { error } = await supabase.rpc('delete_my_account');
+                      if (error) {
+                        console.log('[Settings] delete_my_account failed:', error.message);
+                        Alert.alert('Delete failed', error.message);
+                        return;
+                      }
                       try {
                         await SecureStore.deleteItemAsync('pulze_user_prefs');
                         await SecureStore.deleteItemAsync('pulze_biometric_enabled');
                       } catch (e) {
-                        console.log('[Settings] Error clearing data:', e);
+                        console.log('[Settings] Local cleanup error (non-fatal):', e);
                       }
                       await logout();
                     },
