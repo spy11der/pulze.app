@@ -160,22 +160,25 @@ export default function EditProfileScreen() {
 
     setIsUploadingAvatar(true);
     try {
-      const { url } = await uploadAvatar(user.id, asset.uri);
+      // Store the raw object path in the DB / auth metadata (bucket is
+      // private now) and use the freshly-issued signed URL only for the
+      // in-screen preview.
+      const { path, signedUrl } = await uploadAvatar(user.id, asset.uri);
 
       const { error: profileError } = await supabase
         .from('profiles')
         // @ts-expect-error supabase types not configured for profiles table
-        .update({ avatar_url: url })
+        .update({ avatar_url: path })
         .eq('id', user.id);
       if (profileError) {
         console.log('[EditProfile] Avatar profile update error:', profileError.message);
-        void deletePreviousAvatar(user.id, url);
+        void deletePreviousAvatar(user.id, path);
         Alert.alert('Could not save', profileError.message);
         return;
       }
 
       const { error: authError } = await supabase.auth.updateUser({
-        data: { avatar_url: url },
+        data: { avatar_url: path },
       });
       if (authError) {
         console.log('[EditProfile] Avatar auth update error:', authError.message);
@@ -184,9 +187,9 @@ export default function EditProfileScreen() {
       }
 
       const previous = avatarUrl;
-      setAvatarUrl(url);
+      setAvatarUrl(signedUrl);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (previous && previous !== url) {
+      if (previous && previous !== signedUrl) {
         void deletePreviousAvatar(user.id, previous);
       }
     } catch (e) {

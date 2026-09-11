@@ -73,7 +73,7 @@ async function resolveRealVenueId(venueId: string): Promise<string | null> {
   return (data as { id: string }).id;
 }
 
-async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ url: string; path: string }> {
+async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ path: string }> {
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -85,8 +85,10 @@ async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ u
     .from('check-in-photos')
     .upload(path, bytes, { contentType: 'image/jpeg' });
   if (error) throw error;
-  const { data } = supabase.storage.from('check-in-photos').getPublicUrl(path);
-  return { url: data.publicUrl, path };
+  // Store the raw object path in check_ins.photo_url — buckets are
+  // private, so getPublicUrl() would return a URL that 403s. Read-side
+  // code signs the path per-request.
+  return { path };
 }
 
 async function deleteUploadedPhoto(path: string): Promise<void> {
@@ -113,12 +115,10 @@ export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResul
     return { id: localId, status: 'failed', error: 'Venue not recognized' };
   }
 
-  let photoUrl: string | null = null;
   let photoPath: string | undefined;
   if (record.photoUri) {
     try {
       const uploaded = await uploadCheckInPhoto(record.userId, record.photoUri);
-      photoUrl = uploaded.url;
       photoPath = uploaded.path;
     } catch (e) {
       await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending' });
@@ -132,7 +132,7 @@ export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResul
       .insert({
         user_id: record.userId,
         venue_id: realVenueId,
-        photo_url: photoUrl,
+        photo_url: photoPath ?? null,
         caption: record.quip,
         visibility: record.photoVisibility ? 'public' : 'private',
       } as any)
@@ -150,7 +150,7 @@ export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResul
     // The generated Supabase types don't cover this table — `.insert(as any)`
     // resolves the select result to `never`, so cast the returned row.
     const inserted = data as { id: string };
-    await storeLocalCheckIn({ ...record, id: inserted.id, photoUri: photoUrl ?? record.photoUri, syncStatus: 'synced' });
+    await storeLocalCheckIn({ ...record, id: inserted.id, syncStatus: 'synced' });
     return { id: inserted.id, status: 'synced' };
   } catch (e) {
     // Ambiguous — network dropped between request and response, insert may

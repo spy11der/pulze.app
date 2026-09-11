@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { supabase } from '@/services/supabase';
+import { signedUrlFor } from '@/services/storageUrls';
 import type { Session, User } from '@supabase/supabase-js';
 
 
@@ -78,6 +79,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Resolve the avatar path stored in auth metadata to a signed URL.
+  // The `avatars` bucket is private, so a raw `/object/public/...` URL
+  // would 403. We only sign when the current value looks like a path
+  // or a legacy public URL, not when it's already a `/object/sign/...`
+  // token URL — the guard prevents a re-sign loop after setUser lands.
+  useEffect(() => {
+    const raw = user?.avatarUrl;
+    if (!raw) return;
+    if (raw.includes('/object/sign/')) return;
+    let cancelled = false;
+    void signedUrlFor('avatars', raw).then((signed) => {
+      if (cancelled || !signed || signed === raw) return;
+      setUser((prev) => (prev ? { ...prev, avatarUrl: signed } : prev));
+    });
+    return () => { cancelled = true; };
+  }, [user?.avatarUrl]);
 
   const login = useCallback(async (emailOrUsername: string, password: string): Promise<boolean> => {
     console.log('[Auth] Login attempt for', emailOrUsername);

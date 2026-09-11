@@ -1,14 +1,22 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
+import { extractStoragePath, signedUrlFor } from '@/services/storageUrls';
 
 const AVATAR_BUCKET = 'avatars';
 
 /**
- * Uploads a profile avatar to Storage under a versioned path and returns its
- * public URL. Reads the local file as base64 and uploads raw bytes so the
- * stored object is a real JPEG (same byte-upload pattern as check-in photos).
+ * Uploads a profile avatar. Returns:
+ *   path      — the object path to store in DB (profiles.avatar_url +
+ *               auth.users raw_user_meta_data.avatar_url). Buckets are
+ *               private, so a raw path is what read-side code signs.
+ *   signedUrl — a short-lived signed URL for immediate on-screen display
+ *               so the new avatar shows right after upload without a
+ *               round trip through the auth-state effect.
  */
-export async function uploadAvatar(userId: string, localUri: string): Promise<{ url: string; path: string }> {
+export async function uploadAvatar(
+  userId: string,
+  localUri: string,
+): Promise<{ path: string; signedUrl: string | null }> {
   const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -20,23 +28,24 @@ export async function uploadAvatar(userId: string, localUri: string): Promise<{ 
     .from(AVATAR_BUCKET)
     .upload(path, bytes, { contentType: 'image/jpeg' });
   if (error) throw error;
-  const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-  return { url: data.publicUrl, path };
+  const signedUrl = await signedUrlFor(AVATAR_BUCKET, path);
+  return { path, signedUrl };
 }
 
 /**
- * Best-effort deletion of a previous avatar object. Only deletes when the
- * object's Storage path belongs to the same user — foreign or unrecognized
- * URLs are ignored silently.
+ * Best-effort deletion of a previous avatar object. Accepts either a
+ * raw path or a legacy Storage URL — extracts the path via the shared
+ * helper. Only proceeds if the object's folder matches the user, so a
+ * caller passing another user's URL can't nuke it.
  */
-export async function deletePreviousAvatar(userId: string, previousUrl: string | null | undefined): Promise<void> {
-  if (!previousUrl) return;
+export async function deletePreviousAvatar(
+  userId: string,
+  previousValue: string | null | undefined,
+): Promise<void> {
+  if (!previousValue) return;
   try {
-    const marker = `/object/public/${AVATAR_BUCKET}/`;
-    const idx = previousUrl.indexOf(marker);
-    if (idx === -1) return;
-    const path = decodeURIComponent(previousUrl.slice(idx + marker.length));
-    if (!path.startsWith(`${userId}/`)) return;
+    const path = extractStoragePath(AVATAR_BUCKET, previousValue);
+    if (!path || !path.startsWith(`${userId}/`)) return;
     await supabase.storage.from(AVATAR_BUCKET).remove([path]);
   } catch (e) {
     console.log('[Avatar] Best-effort delete of previous avatar failed:', e);

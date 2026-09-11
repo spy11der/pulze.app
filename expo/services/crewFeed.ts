@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase';
 import { pulzeVenues } from '@/mocks/venues';
+import { signedUrlFor } from '@/services/storageUrls';
 import type { FriendCheckInFeedItem } from '@/mocks/friends';
 
 function getTimeAgo(dateStr: string): string {
@@ -14,18 +15,25 @@ function getTimeAgo(dateStr: string): string {
 
 const CHECKIN_SELECT = 'id, user_id, venue_id, photo_url, caption, visibility, created_at, profiles(username, display_name, avatar_url), venues(name, city, legacy_mock_id)';
 
-function rowToFeedItem(row: any): FriendCheckInFeedItem {
+// Storage buckets are private — photo_url and profiles.avatar_url hold
+// raw object paths (or legacy full URLs, which extractStoragePath still
+// handles). Resolve both to signed URLs before handing back to the UI.
+async function rowToFeedItem(row: any): Promise<FriendCheckInFeedItem> {
   const mockVenue = pulzeVenues.find((v) => v.id === row.venues?.legacy_mock_id);
+  const [photoUri, friendAvatar] = await Promise.all([
+    row.photo_url ? signedUrlFor('check-in-photos', row.photo_url) : Promise.resolve(null),
+    row.profiles?.avatar_url ? signedUrlFor('avatars', row.profiles.avatar_url) : Promise.resolve(null),
+  ]);
   return {
     id: row.id,
     friendName: row.profiles?.display_name || row.profiles?.username || 'Someone',
     friendHandle: row.profiles?.username ?? '',
-    friendAvatar: row.profiles?.avatar_url ?? '',
+    friendAvatar: friendAvatar ?? '',
     friendId: row.user_id,
     venueName: row.venues?.name ?? '',
     venueId: row.venue_id,
     neighborhood: mockVenue?.neighborhood ?? row.venues?.city ?? '',
-    photoUri: row.photo_url ?? '',
+    photoUri: photoUri ?? '',
     timeAgo: getTimeAgo(row.created_at),
     caption: row.caption ?? undefined,
   };
@@ -55,7 +63,7 @@ export async function getCrewFeed(currentUserId: string): Promise<FriendCheckInF
     console.log('[CrewFeed] Error:', error?.message);
     return [];
   }
-  return (rows as any[]).map(rowToFeedItem);
+  return Promise.all((rows as any[]).map(rowToFeedItem));
 }
 
 export async function getCheckInById(checkInId: string): Promise<FriendCheckInFeedItem | null> {
@@ -86,5 +94,5 @@ export async function getMyCheckIns(userId: string): Promise<FriendCheckInFeedIt
     console.log('[CrewFeed] getMyCheckIns error:', error?.message);
     return [];
   }
-  return (rows as any[]).map(rowToFeedItem);
+  return Promise.all((rows as any[]).map(rowToFeedItem));
 }
