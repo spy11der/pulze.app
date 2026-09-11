@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -117,18 +116,8 @@ export default function CheckinDetailScreen() {
       </View>
 
       <View style={styles.photoContainer}>
+        {/* Caption is already burned into the photo at capture time. */}
         <Image source={{ uri: checkIn.photoUri }} style={styles.photo} resizeMode="cover" />
-        {checkIn.caption ? (
-          <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.captionOverlay}
-            pointerEvents="none"
-          >
-            <Text style={styles.captionText} numberOfLines={2}>{checkIn.caption}</Text>
-          </LinearGradient>
-        ) : null}
       </View>
     </View>
   );
@@ -151,8 +140,6 @@ const styles = StyleSheet.create({
   timeAgo: { fontSize: 13, fontWeight: '500' as const },
   photoContainer: { flex: 1, width: '100%' },
   photo: { width: '100%', height: '100%' },
-  captionOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 88, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 16 },
-  captionText: { color: '#FFFFFF', fontSize: 15, fontWeight: '500' as const, lineHeight: 21 },
   notFound: { flex: 1, alignItems: 'center', gap: 20 },
   notFoundText: { fontSize: 16 },
   backBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },

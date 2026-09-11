@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Bell } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -86,18 +85,9 @@ export default function CrewScreen() {
           </View>
 
           <View style={styles.cardPhotoContainer}>
+            {/* The caption is already burned into the photo at capture time,
+                positioned where the user dragged it — no second render here. */}
             <Image source={{ uri: item.photoUri }} style={styles.cardPhoto} resizeMode="cover" />
-            {item.caption ? (
-              <LinearGradient
-                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.cardCaptionOverlay}
-                pointerEvents="none"
-              >
-                <Text style={styles.cardCaptionText} numberOfLines={1}>{item.caption}</Text>
-              </LinearGradient>
-            ) : null}
           </View>
         </Pressable>
       );
@@ -162,8 +152,6 @@ const styles = StyleSheet.create({
   cardTime: { fontSize: 12, fontWeight: '500' as const },
   cardPhotoContainer: { width: '100%', height: CARD_PHOTO_HEIGHT },
   cardPhoto: { width: '100%', height: '100%' },
-  cardCaptionOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 72, justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 12 },
-  cardCaptionText: { color: '#FFFFFF', fontSize: 14, fontWeight: '500' as const, lineHeight: 20 },
   emptyState: { alignItems: 'center' as const, justifyContent: 'center' as const, paddingTop: 80 },
   emptyText: { fontSize: 15, fontWeight: '500' as const },
 });

@@ -217,7 +217,11 @@ export default function FriendsScreen() {
         SectionSeparatorComponent={() => <View style={{ height: 16 }} />}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
-        ListHeaderComponent={() => (
+        ListHeaderComponent={
+          // Passed as a React element (not a function) so SectionList
+          // reuses the same subtree across parent re-renders. An inline
+          // `() => (...)` here is a new component type each keystroke,
+          // which unmounted the TextInput and dropped keyboard focus.
           <View style={styles.addFriendRow}>
             <View style={[styles.addFriendInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <TextInput
@@ -234,7 +238,7 @@ export default function FriendsScreen() {
               <UserPlus color="#fff" size={18} />
             </Pressable>
           </View>
-        )}
+        }
         ListFooterComponent={() => {
           if (requests.length === 0) return null;
           return <View style={styles.requestsBlock}>{requests.map(renderRequest)}</View>;
