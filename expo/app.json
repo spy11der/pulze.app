@@ -15,9 +15,6 @@
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
         "NSPhotoLibraryUsageDescription": "Pulze needs photo library access so you can share photos in your posts and update your profile picture.",
         "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app."
-      },
-      "config": {
-        "googleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
       }
     },
     "android": {
@@ -29,15 +26,9 @@
       "versionCode": 1,
       "permissions": [
         "CAMERA",
-        "READ_EXTERNAL_STORAGE",
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
-        }
-      }
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, AtSign, Phone } from 'lucide-react-native';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap, AtSign } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/providers/AuthProvider';
@@ -30,7 +30,6 @@ export function AuthScreen() {
   const [name, setName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -112,7 +111,7 @@ export function AuthScreen() {
       if (mode === 'login') {
         await login(username.trim(), password);
       } else {
-        await signup(name.trim(), username.trim(), email.trim(), phone.trim(), password);
+        await signup(name.trim(), username.trim(), email.trim(), password);
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
@@ -122,7 +121,7 @@ export function AuthScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [mode, name, username, email, phone, password, login, signup, buttonScale]);
+  }, [mode, name, username, email, password, login, signup, buttonScale]);
 
   const accentColor = colors.aqua;
   const inputBg = isDark ? 'rgba(53, 212, 207, 0.06)' : 'rgba(26, 168, 163, 0.05)';
@@ -220,36 +219,20 @@ export function AuthScreen() {
               />
 
               {mode === 'signup' && (
-                <>
-                  <InputField
-                    icon={<Mail color={colors.textMuted} size={18} />}
-                    placeholder="Email address"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    inputBg={inputBg}
-                    inputBorder={inputBorder}
-                    inputFocusBorder={inputFocusBorder}
-                    textColor={colors.text}
-                    placeholderColor={colors.textSoft}
-                    testID="email-input"
-                  />
-                  <InputField
-                    icon={<Phone color={colors.textMuted} size={18} />}
-                    placeholder="Phone number (optional)"
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    autoCapitalize="none"
-                    inputBg={inputBg}
-                    inputBorder={inputBorder}
-                    inputFocusBorder={inputFocusBorder}
-                    textColor={colors.text}
-                    placeholderColor={colors.textSoft}
-                    testID="phone-input"
-                  />
-                </>
+                <InputField
+                  icon={<Mail color={colors.textMuted} size={18} />}
+                  placeholder="Email address"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  inputBg={inputBg}
+                  inputBorder={inputBorder}
+                  inputFocusBorder={inputFocusBorder}
+                  textColor={colors.text}
+                  placeholderColor={colors.textSoft}
+                  testID="email-input"
+                />
               )}
 
               <InputField

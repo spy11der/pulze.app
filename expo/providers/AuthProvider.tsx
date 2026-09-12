@@ -11,7 +11,6 @@ export interface AuthUser {
   displayName: string;
   username: string;
   email: string;
-  phone: string;
   avatarUrl: string | null;
 }
 
@@ -24,7 +23,6 @@ function mapSessionUser(session: Session | null): AuthUser | null {
     displayName: meta.display_name ?? meta.username ?? u.email?.split('@')[0] ?? '',
     username: meta.username ?? u.email?.split('@')[0] ?? '',
     email: u.email ?? '',
-    phone: u.phone ?? '',
     avatarUrl: typeof meta.avatar_url === 'string' ? meta.avatar_url : null,
   };
 }
@@ -140,7 +138,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     name: string,
     username: string,
     email: string,
-    phone: string,
     password: string
   ): Promise<boolean> => {
     console.log('[Auth] Signup attempt for', username);
@@ -148,7 +145,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name, username, phone } },
+      options: { data: { display_name: name, username } },
     });
 
     if (error) {
