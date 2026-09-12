@@ -12,6 +12,23 @@ import { getNotificationPrefs } from '@/services/notificationPrefs';
 const GEOFENCE_TASK = 'PULZE_GEOFENCE_CHECK';
 const GEOFENCE_INTERVAL_MS = 60_000; // Check every 60 seconds
 
+// The Settings toggle needs to know exactly why a start failed so it
+// can (a) leave the persisted consent OFF instead of pretending it's
+// ON, and (b) prompt the user to open OS Settings when the reason is
+// a denied permission rather than an unrelated error.
+export type GeofenceStartResult =
+  | { started: true }
+  | {
+      started: false;
+      reason:
+        | 'unsupported'        // web / no TaskManager
+        | 'no_consent'         // server consent flag is false
+        | 'foreground_denied'  // OS foreground permission denied
+        | 'background_denied'  // OS background permission denied
+        | 'error';             // startLocationUpdatesAsync threw
+      message?: string;
+    };
+
 // TaskManager.defineTask is native-only — only register on iOS/Android
 if (Platform.OS !== 'web') {
   try {
@@ -92,46 +109,53 @@ async function checkProximityAndNotify(lat: number, lng: number, velocityMph: nu
   }
 }
 
-async function getCurrentUserId(): Promise<string | null> {
-  try {
-    const stored = await AsyncStorage.getItem('pulze_current_user_id');
-    return stored;
-  } catch {
-    return null;
-  }
-}
-
 export function setCurrentUserId(userId: string): void {
   AsyncStorage.setItem('pulze_current_user_id', userId).catch((e) =>
     console.log('[Geofence] Error storing userId:', e),
   );
 }
 
-export async function startGeofenceMonitoring(userId: string): Promise<boolean> {
-  // Geofence monitoring is native-only — no-op on web
-  if (Platform.OS === 'web') {
-    console.log('[Geofence] Web: geofence monitoring not supported, skipping');
+export async function isGeofenceMonitoringActive(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    return await TaskManager.isTaskRegisteredAsync(GEOFENCE_TASK);
+  } catch {
     return false;
+  }
+}
+
+export async function startGeofenceMonitoring(userId: string): Promise<GeofenceStartResult> {
+  // Native-only — the TaskManager task isn't defined on web
+  if (Platform.OS === 'web') {
+    return { started: false, reason: 'unsupported' };
   }
 
   const hasConsent = await getLocationConsent(userId);
   if (!hasConsent) {
     console.log('[Geofence] Location consent not granted, skipping monitoring');
-    return false;
+    return { started: false, reason: 'no_consent' };
   }
 
   try {
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
     if (fgStatus !== 'granted') {
       console.log('[Geofence] Foreground permission denied');
-      return false;
+      return { started: false, reason: 'foreground_denied' };
     }
 
     const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
     if (bgStatus !== 'granted') {
-      console.log('[Geofence] Background permission denied — running foreground only');
+      // Background monitoring is the whole point of this toggle — a
+      // foreground-only start would silently deliver zero arrival
+      // prompts once the app is minimized, so refuse rather than lie
+      // to the user's Settings switch.
+      console.log('[Geofence] Background permission denied — refusing to start');
+      return { started: false, reason: 'background_denied' };
     }
 
+    // Idempotency: if the task is already registered (e.g. app relaunch
+    // while previously enabled), tear it down first so options changes
+    // in a future release take effect on next start.
     const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCE_TASK);
     if (isTaskRegistered) {
       await Location.stopLocationUpdatesAsync(GEOFENCE_TASK);
@@ -141,18 +165,22 @@ export async function startGeofenceMonitoring(userId: string): Promise<boolean> 
       accuracy: Location.Accuracy.Balanced,
       timeInterval: GEOFENCE_INTERVAL_MS,
       distanceInterval: 30,
+      // Android foreground service is required when using
+      // startLocationUpdatesAsync so the OS lets us keep receiving
+      // updates while backgrounded. Copy matches the actual behavior.
       foregroundService: {
-        notificationTitle: 'Pulze is nearby',
-        notificationBody: 'Checking what venues are close to you',
+        notificationTitle: 'Pulze is checking for venues nearby',
+        notificationBody: 'Detecting when you arrive at participating spots',
         notificationColor: '#2BBFBA',
       },
     });
 
     console.log('[Geofence] Monitoring started');
-    return true;
+    return { started: true };
   } catch (e) {
-    console.log('[Geofence] Error starting monitoring:', e);
-    return false;
+    const message = e instanceof Error ? e.message : String(e);
+    console.log('[Geofence] Error starting monitoring:', message);
+    return { started: false, reason: 'error', message };
   }
 }
 

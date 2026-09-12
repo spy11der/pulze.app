@@ -21,6 +21,7 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { PersistentFloatingTabBar } from '@/components/FloatingTabBar';
 import { setupNotificationCategories, registerNotificationResponseHandler } from '@/services/checkInNotifications';
 import { startGeofenceMonitoring, stopGeofenceMonitoring, setCurrentUserId } from '@/services/geofence';
+import { getLocationConsent } from '@/services/consent';
 import { insertCheckIn } from '@/services/checkInDatabase';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -115,14 +116,27 @@ function AppContent() {
         },
       );
 
-      // Start geofence monitoring
+      // Reconcile background monitoring with persisted server consent.
+      // If the user had Location-based check-ins ON at last exit and
+      // permissions are still valid, start the task. If they had it
+      // OFF (or turned it off from another device), make sure any
+      // stale registered task on THIS device is torn down — otherwise
+      // reinstalls / migrated code paths could silently keep running.
       setCurrentUserId(user.id);
-      if (!geofenceStartedRef.current) {
-        const started = await startGeofenceMonitoring(user.id);
-        if (started) {
-          geofenceStartedRef.current = true;
-          console.log('[App] Geofence monitoring started');
-        }
+      if (geofenceStartedRef.current) return;
+
+      const consented = await getLocationConsent(user.id);
+      if (!consented) {
+        await stopGeofenceMonitoring();
+        console.log('[App] Location consent OFF at startup — ensured monitoring stopped');
+        return;
+      }
+      const result = await startGeofenceMonitoring(user.id);
+      if (result.started) {
+        geofenceStartedRef.current = true;
+        console.log('[App] Geofence monitoring started');
+      } else {
+        console.log('[App] Geofence monitoring not started:', result.reason);
       }
     })();
 

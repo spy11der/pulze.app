@@ -12,10 +12,9 @@
       "bundleIdentifier": "app.rork.cmdj1v6lzdnu5omh92zbm",
       "buildNumber": "1",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Pulze uses your location to show nearby events, venues, and friends on the map.",
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
         "NSPhotoLibraryUsageDescription": "Pulze needs photo library access so you can share photos in your posts and update your profile picture.",
-        "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app and protect your wallet."
+        "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app."
       },
       "config": {
         "googleMapsApiKey": "AIzaSyBfv1bBYxNacay-5eUmiMhiL8QxoG21vzY"
@@ -29,8 +28,6 @@
       "package": "app.rork.cmdj1v6lzdnu5omh92zbm",
       "versionCode": 1,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "USE_BIOMETRIC",
@@ -52,6 +49,16 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-image",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pulze uses your location to show nearby venues, calculate distance, and support location-based check-ins.",
+          "locationAlwaysAndWhenInUsePermission": "If you enable Location-based check-ins, Pulze uses your location in the background to detect when you arrive at participating venues and prompt you to check in.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
       [
         "expo-splash-screen",
         {

@@ -3,6 +3,22 @@ import { Platform } from 'react-native';
 
 const CHECK_IN_CATEGORY = 'PULZE_CHECK_IN';
 
+// The venue-arrival prompt is a local notification; on iOS and on
+// Android 13+ the OS will silently drop scheduleNotificationAsync
+// calls unless notification permission has been granted. This helper
+// is cheap when already granted (getPermissionsAsync short-circuits)
+// and returns whether the user can actually see prompts.
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  const current = await Notifications.getPermissionsAsync();
+  if (current.granted) return true;
+  if (!current.canAskAgain) return false;
+  const req = await Notifications.requestPermissionsAsync({
+    ios: { allowAlert: true, allowBadge: true, allowSound: true },
+  });
+  return req.granted;
+}
+
 export async function setupNotificationCategories(): Promise<void> {
   // setNotificationCategoryAsync is native-only — skip on web
   if (Platform.OS === 'web') return;
@@ -50,6 +66,16 @@ export async function scheduleCheckInNotification(venue: CheckInNotificationVenu
   // scheduleNotificationAsync is native-only — skip on web
   if (Platform.OS === 'web') {
     console.log('[Notifications] Web: would notify for', venue.name);
+    return;
+  }
+
+  // Without permission the OS silently drops the schedule call, so
+  // the arrival prompt would look broken. Ask once here in case the
+  // toggle path missed it (e.g. re-install after granting location
+  // in prior version). Cheap when already granted.
+  const canNotify = await ensureNotificationPermission();
+  if (!canNotify) {
+    console.log('[Notifications] Permission not granted — skipping venue prompt for', venue.name);
     return;
   }
 

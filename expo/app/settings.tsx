@@ -48,6 +48,8 @@ import {
   setNotificationPref,
   type NotificationPrefs,
 } from '@/services/notificationPrefs';
+import { startGeofenceMonitoring, stopGeofenceMonitoring } from '@/services/geofence';
+import { ensureNotificationPermission } from '@/services/checkInNotifications';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -66,17 +68,76 @@ export default function SettingsScreen() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
+  const [locationBusy, setLocationBusy] = useState<boolean>(false);
+
   const toggleLocationConsent = useCallback(async () => {
     if (!user?.id) return;
+    if (locationBusy) return;
     void Haptics.selectionAsync();
     const next = !locationConsent;
+    setLocationBusy(true);
     setLocationConsentState(next); // optimistic
-    const ok = await setLocationConsent(user.id, next);
-    if (!ok) {
-      setLocationConsentState(!next); // revert on failure
-      Alert.alert('Could not update', 'Please try again.');
+
+    try {
+      if (next) {
+        // Turning ON: consent persist first so getLocationConsent()
+        // (called inside startGeofenceMonitoring) reads the new value,
+        // then request permissions and start the background task. If
+        // any step below fails we roll consent back so the persisted
+        // state never claims monitoring is active when it isn't.
+        const persisted = await setLocationConsent(user.id, true);
+        if (!persisted) {
+          setLocationConsentState(false);
+          Alert.alert('Could not update', 'Please try again.');
+          return;
+        }
+        // Ask for notification permission at the same moment the user
+        // opts in to arrival prompts — if they never grant it, the
+        // location task still runs and visit_sessions still open, they
+        // just won't see the OS ping.
+        await ensureNotificationPermission();
+
+        const result = await startGeofenceMonitoring(user.id);
+        if (!result.started) {
+          // Roll consent back so Settings never displays ON while
+          // monitoring is actually off. Different reasons get
+          // different copy so the user knows what to do.
+          await setLocationConsent(user.id, false);
+          setLocationConsentState(false);
+          if (result.reason === 'foreground_denied' || result.reason === 'background_denied') {
+            Alert.alert(
+              'Location permission needed',
+              result.reason === 'background_denied'
+                ? 'Pulze needs "Always" location access to detect when you arrive at venues in the background. You can enable it in Settings.'
+                : 'Pulze needs location access to detect when you arrive at venues. You can enable it in Settings.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+              ],
+            );
+          } else if (result.reason === 'unsupported') {
+            Alert.alert('Not supported', 'Location-based check-ins aren’t available on this platform.');
+          } else {
+            Alert.alert('Could not enable', result.message ?? 'Please try again.');
+          }
+        }
+      } else {
+        // Turning OFF: stop the task first so background updates halt
+        // immediately, then persist the flip. If the persist fails the
+        // task stays stopped locally and the next app launch's
+        // startup-reconcile will realign — either by re-stopping (if
+        // the server still says ON due to the failure we couldn't
+        // recover from) or by not starting (once the retry succeeds).
+        await stopGeofenceMonitoring();
+        const persisted = await setLocationConsent(user.id, false);
+        if (!persisted) {
+          Alert.alert('Could not save', 'Location monitoring was stopped but the preference didn’t save. Please try again.');
+        }
+      }
+    } finally {
+      setLocationBusy(false);
     }
-  }, [user?.id, locationConsent]);
+  }, [user?.id, locationConsent, locationBusy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -301,6 +362,7 @@ export default function SettingsScreen() {
               <Switch
                 value={locationConsent}
                 onValueChange={toggleLocationConsent}
+                disabled={locationBusy}
                 trackColor={{ false: colors.border, true: colors.aqua }}
                 testID="switch-location-consent"
               />
