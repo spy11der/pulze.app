@@ -35,7 +35,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import { clearLocalCachesForUser, clearDeviceAccountBindings } from '@/services/localCleanup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
@@ -152,6 +152,9 @@ export default function SettingsScreen() {
                       Alert.alert('Not deleted', 'You must type DELETE exactly to confirm.');
                       return;
                     }
+                    // Capture the user id BEFORE the RPC so we can address
+                    // per-user local keys after the auth row is gone.
+                    const uid = user?.id ?? null;
                     // Server delete first — the SECURITY DEFINER RPC removes
                     // the auth row (cascading every user-scoped table) and
                     // the user's Storage objects in one transaction. Only
@@ -164,9 +167,15 @@ export default function SettingsScreen() {
                       Alert.alert('Delete failed', error.message);
                       return;
                     }
+                    // Per-user AsyncStorage (queued check-ins, dedup
+                    // state, saves cache, legacy favorites) + device
+                    // bindings (biometric, notif prefs, legacy SQLite).
+                    // Wrapped so a partial local failure doesn't strand
+                    // the user in a still-authenticated UI after the
+                    // server account is gone.
                     try {
-                      await SecureStore.deleteItemAsync('pulze_user_prefs');
-                      await SecureStore.deleteItemAsync('pulze_biometric_enabled');
+                      await clearLocalCachesForUser(uid);
+                      await clearDeviceAccountBindings();
                     } catch (e) {
                       console.log('[Settings] Local cleanup error (non-fatal):', e);
                     }
@@ -189,6 +198,7 @@ export default function SettingsScreen() {
                     onPress: async () => {
                       // Same order-of-ops as the iOS branch: server delete
                       // must succeed before we clear local state or log out.
+                      const uid = user?.id ?? null;
                       const { error } = await supabase.rpc('delete_my_account');
                       if (error) {
                         console.log('[Settings] delete_my_account failed:', error.message);
@@ -196,8 +206,8 @@ export default function SettingsScreen() {
                         return;
                       }
                       try {
-                        await SecureStore.deleteItemAsync('pulze_user_prefs');
-                        await SecureStore.deleteItemAsync('pulze_biometric_enabled');
+                        await clearLocalCachesForUser(uid);
+                        await clearDeviceAccountBindings();
                       } catch (e) {
                         console.log('[Settings] Local cleanup error (non-fatal):', e);
                       }

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import createContextHook from '@nkzw/create-context-hook';
 import { supabase } from '@/services/supabase';
 import { signedUrlFor } from '@/services/storageUrls';
+import { clearLocalCachesForUser } from '@/services/localCleanup';
 import type { Session, User } from '@supabase/supabase-js';
 
 
@@ -179,14 +180,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const logout = useCallback(async () => {
     console.log('[Auth] Logging out');
+    // Capture the current user id before signOut fires the SIGNED_OUT
+    // event and setUser(null) races the cleanup.
+    const departingUserId = user?.id ?? null;
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.log('[Auth] Logout error:', error.message);
     }
+    // Wipe per-account AsyncStorage entries so the next account on
+    // this device can't see the previous account's queued check-ins,
+    // dedup state, saves cache, or legacy favorites.
+    await clearLocalCachesForUser(departingUserId);
     setSession(null);
     setUser(null);
     setIsAuthenticated(false);
-  }, []);
+  }, [user?.id]);
 
   return useMemo(() => ({
     isAuthenticated,
