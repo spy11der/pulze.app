@@ -40,6 +40,7 @@ export async function clearLocalCachesForUser(userId: string | null | undefined)
     keys.push(
       `pulze_geofence_dedup_${userId}`,  // per-user check-in-prompt dedup window
       `pulze_saves_cache_v1:${userId}`,  // per-user Supabase saves cold-start cache
+      `pulze_analytics_queue_v1:${userId}`, // per-user first-party analytics offline queue
     );
   }
   // Use allSettled so one missing key doesn't skip the rest.

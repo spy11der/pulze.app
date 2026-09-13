@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      app_events: {
+        Row: {
+          client_ts: string | null
+          event_type: string
+          id: number
+          properties: Json
+          purpose: string
+          server_ts: string
+          subject_id: string | null
+          subject_type: string | null
+          user_id: string
+        }
+        Insert: {
+          client_ts?: string | null
+          event_type: string
+          id?: never
+          properties?: Json
+          purpose: string
+          server_ts?: string
+          subject_id?: string | null
+          subject_type?: string | null
+          user_id: string
+        }
+        Update: {
+          client_ts?: string | null
+          event_type?: string
+          id?: never
+          properties?: Json
+          purpose?: string
+          server_ts?: string
+          subject_id?: string | null
+          subject_type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       auth_rate_limits: {
         Row: {
           bucket: string
@@ -1549,6 +1585,7 @@ export type Database = {
         Args: { p_bucket: string; p_max: number; p_window_seconds: number }
         Returns: boolean
       }
+      cleanup_app_events_by_retention: { Args: never; Returns: undefined }
       cleanup_friend_presence_cache: { Args: never; Returns: undefined }
       cleanup_location_data_by_retention: { Args: never; Returns: undefined }
       delete_my_account: { Args: never; Returns: undefined }
@@ -1796,6 +1833,17 @@ export type Database = {
           venue_id: string
           venue_name: string
         }[]
+      }
+      record_app_event: {
+        Args: {
+          p_client_ts: string
+          p_event_type: string
+          p_properties: Json
+          p_purpose: string
+          p_subject_id: string
+          p_subject_type: string
+        }
+        Returns: number
       }
       record_geofence_event: {
         Args: {

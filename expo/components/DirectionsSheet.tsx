@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { analytics } from '@/services/analytics';
 
 interface DirectionsSheetProps {
   visible: boolean;
@@ -30,6 +31,10 @@ interface DirectionsSheetProps {
   longitude: number;
   address: string;
   name: string;
+  // Optional so existing call sites need no change; when a caller
+  // provides it the directions_open analytics event carries a real
+  // canonical venue id.
+  venueId?: string;
 }
 
 interface TransportOption {
@@ -91,6 +96,7 @@ export function DirectionsSheet({
   longitude,
   address,
   name,
+  venueId,
 }: DirectionsSheetProps) {
   const { colors, isDark } = useTheme();
   const slideAnim = useRef(new Animated.Value(500)).current;
@@ -119,6 +125,17 @@ export function DirectionsSheet({
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const url = option.getUrl(latitude, longitude, address);
     console.log('[Directions] Opening:', option.id, url);
+
+    // Operational: user chose a directions/rideshare provider. The
+    // event carries the provider id in properties; raw coordinates
+    // and address text are intentionally omitted per the analytics
+    // no-raw-location and no-caption rules.
+    analytics.operational({
+      eventType: 'directions_open',
+      subjectType: 'venue',
+      subjectId: venueId,
+      properties: { provider: option.id },
+    });
 
     try {
       if (Platform.OS === 'web') {
@@ -154,7 +171,7 @@ export function DirectionsSheet({
       console.log('[Directions] Error opening URL:', e);
     }
     handleClose();
-  }, [latitude, longitude, address, handleClose]);
+  }, [latitude, longitude, address, handleClose, venueId]);
 
   const handleCopyAddress = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

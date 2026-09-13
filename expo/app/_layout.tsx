@@ -26,6 +26,7 @@ import { insertCheckIn } from '@/services/checkInDatabase';
 import { hasCompletedAgeGate, hasSeenOptionalDemographicsStep } from '@/services/demographics';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { DemographicsOnboardingScreen } from '@/components/DemographicsOnboardingScreen';
+import { drainAnalyticsQueue } from '@/services/analytics';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   console.log('[SplashScreen] preventAutoHideAsync failed');
@@ -187,6 +188,14 @@ function AppContent() {
       // stale registered task on THIS device is torn down — otherwise
       // reinstalls / migrated code paths could silently keep running.
       setCurrentUserId(user.id);
+
+      // Best-effort drain of any first-party analytics events that
+      // were queued while offline. Runs once per session behind
+      // the same gates as the geofence startup so no orphan events
+      // fire before onboarding completes. Fire-and-forget — an
+      // error here never affects app startup.
+      void drainAnalyticsQueue();
+
       if (geofenceStartedRef.current) return;
 
       const consented = await getLocationConsent(user.id);

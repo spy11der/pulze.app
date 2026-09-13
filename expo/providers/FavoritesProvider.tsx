@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
 import { supabase } from '@/services/supabase';
+import { analytics } from '@/services/analytics';
 import { useAuth } from '@/providers/AuthProvider';
 
 export interface FavoriteItem {
@@ -270,6 +271,13 @@ export const [FavoritesProvider, useFavorites] = createContextHook(() => {
       if (type !== 'venue') return;
       const wasSaved = favorites.some((f) => f.id === id);
       toggleMutation.mutate({ venueId: id, wasSaved, venueName: name });
+      // Operational: track the save/unsave. Fire-and-forget so the
+      // optimistic UI update never waits.
+      analytics.operational({
+        eventType: wasSaved ? 'venue_unsave' : 'venue_save',
+        subjectType: 'venue',
+        subjectId: id,
+      });
     },
     [favorites, toggleMutation]
   );

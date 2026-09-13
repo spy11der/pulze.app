@@ -25,6 +25,7 @@ import { useFavorites } from '@/providers/FavoritesProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { haversineMeters, metersToWalkMinutes } from '@/hooks/useNearbyVenues';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
+import { analytics } from '@/services/analytics';
 import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 // Same fallback used by Nearby/Home when device location isn't available yet
@@ -51,7 +52,24 @@ export default function VenueDetailScreen() {
   useEffect(() => {
     if (!params.venueId) return;
     let cancelled = false;
-    resolveVenueById(params.venueId).then((v) => { if (!cancelled) setVenue(v); });
+    resolveVenueById(params.venueId).then((v) => {
+      if (cancelled) return;
+      setVenue(v);
+      if (v) {
+        // Operational: track that this venue detail was opened. Uses
+        // the resolved venue's real id (some entry points pass a
+        // mock id like `v-001`, so we log the canonical id).
+        analytics.operational({
+          eventType: 'venue_view',
+          subjectType: 'venue',
+          subjectId: v.id,
+          properties: {
+            neighborhood: v.neighborhood || undefined,
+            category: v.type,
+          },
+        });
+      }
+    });
     return () => { cancelled = true; };
   }, [params.venueId]);
 

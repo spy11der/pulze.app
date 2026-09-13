@@ -27,6 +27,7 @@ import {
   type NearbyVenue,
   type SelectedLocation,
 } from '@/hooks/useNearbyVenues';
+import { analytics } from '@/services/analytics';
 
 export default function LocationSelectorScreen() {
   const insets = useSafeAreaInsets();
@@ -45,7 +46,8 @@ export default function LocationSelectorScreen() {
   }, [userLocation]);
 
   useEffect(() => {
-    if (query.trim().length === 0) {
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
       setSearchResults([]);
       return;
     }
@@ -53,6 +55,7 @@ export default function LocationSelectorScreen() {
     const run = async () => {
       const results = await searchVenuesLive(query);
       if (cancelled) return;
+      let finalResults: NearbyVenue[];
       if (userLocation) {
         const nearbyResults = await getNearbyVenuesLive(userLocation.latitude, userLocation.longitude, 50);
         if (cancelled) return;
@@ -63,10 +66,25 @@ export default function LocationSelectorScreen() {
         );
         const ids = new Set(filtered.map((v) => v.id));
         const extra = results.filter((v) => !ids.has(v.id));
-        setSearchResults([...filtered, ...extra].slice(0, 15));
+        finalResults = [...filtered, ...extra].slice(0, 15);
       } else {
-        setSearchResults(results.slice(0, 15));
+        finalResults = results.slice(0, 15);
       }
+      setSearchResults(finalResults);
+      // Operational: record that a search ran. The query text is
+      // stored in properties.query (truncated to 200 chars) rather
+      // than in subject_id so a future retention rule can purge
+      // just the text without discarding the aggregate count of
+      // searches. Raw coordinates are never included.
+      analytics.operational({
+        eventType: 'search_query',
+        subjectType: 'search',
+        properties: {
+          query: trimmed.slice(0, 200),
+          query_length: trimmed.length,
+          result_count: finalResults.length,
+        },
+      });
     };
     void run();
     return () => { cancelled = true; };
@@ -88,12 +106,29 @@ export default function LocationSelectorScreen() {
         latitude: venue.latitude,
         longitude: venue.longitude,
       };
+      // Operational: only fires when this tap came from a search
+      // result list — the same handler is called for both the
+      // nearby list (query empty) and the search list (query
+      // non-empty). Recording only the search-list case keeps the
+      // event meaningful.
+      const q = query.trim();
+      if (q.length > 0) {
+        analytics.operational({
+          eventType: 'search_result_clicked',
+          subjectType: 'venue',
+          subjectId: venue.id,
+          properties: {
+            query: q.slice(0, 200),
+            position: searchResults.findIndex((v) => v.id === venue.id),
+          },
+        });
+      }
       router.back();
       setTimeout(() => {
         router.setParams({ selectedLocation: JSON.stringify(location) });
       }, 50);
     },
-    [router]
+    [router, query, searchResults]
   );
 
   const handleUseCurrentLocation = useCallback(() => {
