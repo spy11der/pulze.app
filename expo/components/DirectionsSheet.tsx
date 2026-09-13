@@ -126,16 +126,19 @@ export function DirectionsSheet({
     const url = option.getUrl(latitude, longitude, address);
     console.log('[Directions] Opening:', option.id, url);
 
-    // Operational: user chose a directions/rideshare provider. The
-    // event carries the provider id in properties; raw coordinates
-    // and address text are intentionally omitted per the analytics
-    // no-raw-location and no-caption rules.
-    analytics.operational({
-      eventType: 'directions_open',
-      subjectType: 'venue',
+    // Two rows: unconditional operational + personalization
+    // (server drops if consent is off). Raw coordinates and address
+    // text are intentionally omitted per the analytics
+    // no-raw-location and no-caption rules — only the provider id
+    // travels in properties.
+    const payload = {
+      eventType: 'directions_open' as const,
+      subjectType: 'venue' as const,
       subjectId: venueId,
       properties: { provider: option.id },
-    });
+    };
+    analytics.operational(payload);
+    analytics.personalization(payload);
 
     try {
       if (Platform.OS === 'web') {

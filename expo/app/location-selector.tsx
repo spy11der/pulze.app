@@ -82,15 +82,16 @@ export default function LocationSelectorScreen() {
           finalResults = results.slice(0, 15);
         }
         setSearchResults(finalResults);
-        // Operational: record that a MEANINGFUL debounced search ran.
+        // Record a MEANINGFUL debounced search under both purposes.
         // Dedup on the trimmed lowercased text so casing changes
-        // during typing don't re-fire the event either.
+        // during typing don't re-fire either row. Server drops the
+        // personalization row when consent is off.
         const normalized = trimmed.toLowerCase();
         if (lastRecordedQueryRef.current !== normalized) {
           lastRecordedQueryRef.current = normalized;
-          analytics.operational({
-            eventType: 'search_query',
-            subjectType: 'search',
+          const payload = {
+            eventType: 'search_query' as const,
+            subjectType: 'search' as const,
             properties: {
               // Truncated to 200 chars. Never printed to console;
               // never sent outside Supabase.
@@ -98,7 +99,9 @@ export default function LocationSelectorScreen() {
               query_length: trimmed.length,
               result_count: finalResults.length,
             },
-          });
+          };
+          analytics.operational(payload);
+          analytics.personalization(payload);
         }
       };
       void run();
@@ -125,22 +128,23 @@ export default function LocationSelectorScreen() {
         latitude: venue.latitude,
         longitude: venue.longitude,
       };
-      // Operational: only fires when this tap came from a search
-      // result list — the same handler is called for both the
-      // nearby list (query empty) and the search list (query
-      // non-empty). Recording only the search-list case keeps the
-      // event meaningful.
+      // Operational + personalization pair. Fires only when this
+      // tap came from the search list (query non-empty); the same
+      // handler is called for the nearby list too, and recording
+      // nearby taps as search results would be misleading.
       const q = query.trim();
       if (q.length > 0) {
-        analytics.operational({
-          eventType: 'search_result_clicked',
-          subjectType: 'venue',
+        const payload = {
+          eventType: 'search_result_clicked' as const,
+          subjectType: 'venue' as const,
           subjectId: venue.id,
           properties: {
             query: q.slice(0, 200),
             position: searchResults.findIndex((v) => v.id === venue.id),
           },
-        });
+        };
+        analytics.operational(payload);
+        analytics.personalization(payload);
       }
       router.back();
       setTimeout(() => {

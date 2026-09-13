@@ -19,6 +19,7 @@ import {
   BellRing,
   Bug,
   Check,
+  Sparkles,
   ChevronDown,
   FileText,
   Fingerprint,
@@ -47,7 +48,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
 import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import { getLocationConsent, setLocationConsent } from '@/services/consent';
+import {
+  getLocationConsent,
+  setLocationConsent,
+  getMyPersonalizationConsent,
+  setMyPersonalizationConsent,
+} from '@/services/consent';
 import { supabase } from '@/services/supabase';
 import {
   getNotificationPrefs,
@@ -75,13 +81,37 @@ export default function SettingsScreen() {
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ checkInPrompt: true });
   const [locationConsent, setLocationConsentState] = useState<boolean>(false);
+  // Personalization consent (Batch 4B). Separate from demographic
+  // analytics + location + location-based check-ins. Default OFF
+  // unless the persisted flag is already true.
+  const [personalizationConsent, setPersonalizationConsentState] = useState<boolean>(false);
+  const [personalizationBusy, setPersonalizationBusy] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     getLocationConsent(user.id).then((granted) => { if (!cancelled) setLocationConsentState(granted); });
+    getMyPersonalizationConsent().then((granted) => { if (!cancelled) setPersonalizationConsentState(granted); });
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  const togglePersonalizationConsent = useCallback(async () => {
+    if (personalizationBusy) return;
+    void Haptics.selectionAsync();
+    const next = !personalizationConsent;
+    setPersonalizationBusy(true);
+    // Optimistic — flip the UI so the switch feels instant, revert
+    // on any failure. Withdrawing must be immediate: even if the
+    // network call is slow, the client-visible state matches the
+    // caller's intent.
+    setPersonalizationConsentState(next);
+    const ok = await setMyPersonalizationConsent(next);
+    if (!ok) {
+      setPersonalizationConsentState(!next);
+      Alert.alert("Couldn't update", 'Please try again.');
+    }
+    setPersonalizationBusy(false);
+  }, [personalizationBusy, personalizationConsent]);
 
   const [locationBusy, setLocationBusy] = useState<boolean>(false);
 
@@ -458,6 +488,25 @@ export default function SettingsScreen() {
                 disabled={locationBusy}
                 trackColor={{ false: colors.border, true: colors.aqua }}
                 testID="switch-location-consent"
+              />
+            </View>
+
+            <View style={[styles.radioRow, { backgroundColor: colors.card, borderColor: 'transparent' }]} testID="pref-personalization-consent">
+              <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                <Sparkles color={colors.aqua} size={18} />
+              </View>
+              <View style={styles.settingBody}>
+                <Text style={[styles.settingValue, { color: colors.text }]}>Use my activity to improve recommendations</Text>
+                <Text style={[styles.settingLabel, { color: colors.textMuted }]}>
+                  When on, Pulze may use your activity — venues viewed, saved, searched, selected, and similar interactions — to personalize what it suggests. Off by default. You can turn this off any time.
+                </Text>
+              </View>
+              <Switch
+                value={personalizationConsent}
+                onValueChange={togglePersonalizationConsent}
+                disabled={personalizationBusy}
+                trackColor={{ false: colors.border, true: colors.aqua }}
+                testID="switch-personalization-consent"
               />
             </View>
           </View>

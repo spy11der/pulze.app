@@ -1771,6 +1771,10 @@ export type Database = {
               venue_id: string
             }[]
           }
+      get_personalization_features_for_user: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       gettransactionid: { Args: never; Returns: unknown }
       handle_geofence_transition: {
         Args: { p_lat: number; p_lng: number; p_user_id: string }
@@ -1889,6 +1893,10 @@ export type Database = {
       }
       set_my_optional_demographics: {
         Args: { p_consent: boolean; p_gender: string; p_race: string[] }
+        Returns: undefined
+      }
+      set_my_personalization_consent: {
+        Args: { p_granted: boolean }
         Returns: undefined
       }
       st_3dclosestpoint: {

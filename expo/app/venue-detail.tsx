@@ -56,18 +56,23 @@ export default function VenueDetailScreen() {
       if (cancelled) return;
       setVenue(v);
       if (v) {
-        // Operational: track that this venue detail was opened. Uses
-        // the resolved venue's real id (some entry points pass a
-        // mock id like `v-001`, so we log the canonical id).
-        analytics.operational({
-          eventType: 'venue_view',
-          subjectType: 'venue',
+        // Two rows per venue open: an unconditional operational row
+        // (product operation / measurement), and a personalization row
+        // that the server drops via record_app_event when consent is
+        // off. Do NOT reinterpret the operational row as personalization
+        // data — the recommendation-input layer reads only via
+        // personalization_events_eligible.
+        const payload = {
+          eventType: 'venue_view' as const,
+          subjectType: 'venue' as const,
           subjectId: v.id,
           properties: {
             neighborhood: v.neighborhood || undefined,
             category: v.type,
           },
-        });
+        };
+        analytics.operational(payload);
+        analytics.personalization(payload);
       }
     });
     return () => { cancelled = true; };

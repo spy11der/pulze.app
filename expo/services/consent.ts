@@ -32,3 +32,34 @@ export async function setLocationConsent(userId: string, granted: boolean): Prom
   }
   return true;
 }
+
+
+// -----------------------------
+// Personalization consent (Batch 4B)
+// -----------------------------
+//
+// The flag has existed on user_consent_states since Batch 3; Batch 4B
+// adds the narrow write path + Settings UI. All mutations go through
+// the SECURITY DEFINER RPC so a client cannot ride a broader PATCH
+// to alter the other consent columns (location, demographic, ads).
+
+export async function getMyPersonalizationConsent(): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_consent_states')
+    .select('consent_personalized_recommendations')
+    .maybeSingle();
+  if (error) {
+    console.log('[Consent] getMyPersonalizationConsent error:', error.message);
+    return false;
+  }
+  return !!(data as { consent_personalized_recommendations?: boolean } | null)?.consent_personalized_recommendations;
+}
+
+export async function setMyPersonalizationConsent(granted: boolean): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('set_my_personalization_consent', { p_granted: granted });
+  if (error) {
+    console.log('[Consent] setMyPersonalizationConsent error:', error.message);
+    return false;
+  }
+  return true;
+}

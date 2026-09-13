@@ -271,13 +271,17 @@ export const [FavoritesProvider, useFavorites] = createContextHook(() => {
       if (type !== 'venue') return;
       const wasSaved = favorites.some((f) => f.id === id);
       toggleMutation.mutate({ venueId: id, wasSaved, venueName: name });
-      // Operational: track the save/unsave. Fire-and-forget so the
-      // optimistic UI update never waits.
-      analytics.operational({
-        eventType: wasSaved ? 'venue_unsave' : 'venue_save',
-        subjectType: 'venue',
+      // Two rows: unconditional operational (product measurement)
+      // + personalization (server drops if consent is off). The
+      // recommendation-input layer only sees the personalization
+      // row via personalization_events_eligible.
+      const payload = {
+        eventType: (wasSaved ? 'venue_unsave' : 'venue_save') as 'venue_unsave' | 'venue_save',
+        subjectType: 'venue' as const,
         subjectId: id,
-      });
+      };
+      analytics.operational(payload);
+      analytics.personalization(payload);
     },
     [favorites, toggleMutation]
   );
