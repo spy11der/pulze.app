@@ -22,6 +22,12 @@ import {
   metersToWalkMinutes,
   type NearbyVenue,
 } from '@/hooks/useNearbyVenues';
+import {
+  blendVenueOrder,
+  emptyPersonalizationSnapshot,
+  fetchPersonalizedVenueScores,
+  type PersonalizationSnapshot,
+} from '@/services/recommendations';
 import { hasReliableBusyness } from '@/types/venue';
 
 function NearbyCard({
@@ -117,6 +123,10 @@ export default function NearbyScreen() {
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
   const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
   const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(true);
+  // Same one-shot personalization snapshot Home uses. Fetched in
+  // parallel with the venue list; failure/cold-start leaves ordering
+  // exactly at rank_nearby_venues' output.
+  const [personalization, setPersonalization] = useState<PersonalizationSnapshot>(emptyPersonalizationSnapshot);
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -132,7 +142,17 @@ export default function NearbyScreen() {
         setIsLoadingVenues(false);
       }
     });
+    void fetchPersonalizedVenueScores().then((snap) => {
+      if (isMountedRef.current) setPersonalization(snap);
+    });
   }, [lat, lng]);
+
+  // Apply the 70/30 blend to the nearby list. Untouched when
+  // personalization is unavailable.
+  const orderedVenues = useMemo(
+    () => blendVenueOrder(nearbyVenues, personalization),
+    [nearbyVenues, personalization],
+  );
 
   useEffect(() => { loadVenues(); }, [loadVenues]);
 
@@ -194,7 +214,7 @@ export default function NearbyScreen() {
             </Text>
           </View>
         ) : (
-          nearbyVenues.map((venue) => (
+          orderedVenues.map((venue) => (
             <NearbyCard
               key={venue.id}
               venue={venue}

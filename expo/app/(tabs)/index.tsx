@@ -14,6 +14,12 @@ import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { getAllLiveVenues } from '@/services/venues';
+import {
+  blendVenueOrder,
+  emptyPersonalizationSnapshot,
+  fetchPersonalizedVenueScores,
+  type PersonalizationSnapshot,
+} from '@/services/recommendations';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
@@ -97,6 +103,11 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allVenues, setAllVenues] = useState<PulzeVenue[]>([]);
+  // One personalization snapshot per screen load — fire-and-forget
+  // and never blocks the venue list from rendering. Failure /
+  // cold-start / consent-off all collapse to the empty snapshot,
+  // which passes venues through unchanged.
+  const [personalization, setPersonalization] = useState<PersonalizationSnapshot>(emptyPersonalizationSnapshot);
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -105,6 +116,12 @@ export default function HomeScreen() {
 
   const loadVenues = useCallback(() => {
     getAllLiveVenues().then((v) => { if (isMountedRef.current) setAllVenues(v); });
+    // Personalization is fetched in parallel — venue list never
+    // waits on it. If the request fails or takes too long, the
+    // list still renders in the server's default order.
+    void fetchPersonalizedVenueScores().then((snap) => {
+      if (isMountedRef.current) setPersonalization(snap);
+    });
   }, []);
 
   useEffect(() => { loadVenues(); }, [loadVenues]);
@@ -135,19 +152,22 @@ export default function HomeScreen() {
   }, []);
 
   const filteredVenues = useMemo(() => {
-    if (activeFilters.size === 0) return allVenues;
-
     const busynessKeys = FILTER_PILLS.filter((f) => f.category === 'busyness' && activeFilters.has(f.key)).map((f) => f.key);
     const neighborhoodKeys = FILTER_PILLS.filter((f) => f.category === 'neighborhood' && activeFilters.has(f.key)).map((f) => f.key);
     const typeKeys = FILTER_PILLS.filter((f) => f.category === 'type' && activeFilters.has(f.key)).map((f) => f.key);
 
-    return allVenues.filter((v) => {
+    const filtered = activeFilters.size === 0 ? allVenues : allVenues.filter((v) => {
       if (busynessKeys.length > 0 && !busynessKeys.some((k) => venueMatchesBusynessFilter(v, k))) return false;
       if (neighborhoodKeys.length > 0 && !neighborhoodKeys.includes(v.neighborhood)) return false;
       if (typeKeys.length > 0 && !typeKeys.some((k) => venueMatchesTypeFilter(v, k))) return false;
       return true;
     });
-  }, [activeFilters, allVenues]);
+    // 70/30 blend of live (busynessPercent) + personalization
+    // preference. When personalization is unavailable (cold-start,
+    // consent off, failure), the helper returns the input untouched
+    // — so pure-live users see exactly the existing ordering.
+    return blendVenueOrder(filtered, personalization);
+  }, [activeFilters, allVenues, personalization]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
