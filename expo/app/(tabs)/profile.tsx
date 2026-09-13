@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -7,13 +16,13 @@ import {
   ChevronRight,
   Edit3,
   LogOut,
+  Menu,
   Moon,
   Settings,
   Sun,
-  Users,
+  X,
 } from 'lucide-react-native';
 
-import { tierDefinitions } from '@/mocks/friends';
 import { getFriendsAndRequests } from '@/services/friends';
 import { getMyCheckIns } from '@/services/crewFeed';
 import { getCurrentUserAge } from '@/services/demographics';
@@ -22,7 +31,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 
-interface MenuRowProps {
+interface MenuItemProps {
   icon: React.ReactNode;
   label: string;
   sublabel?: string;
@@ -32,7 +41,7 @@ interface MenuRowProps {
   testID?: string;
 }
 
-function MenuRow({ icon, label, sublabel, onPress, trailing, isDestructive, testID }: MenuRowProps) {
+function MenuItem({ icon, label, sublabel, onPress, trailing, isDestructive, testID }: MenuItemProps) {
   const { colors } = useTheme();
   const iconColor = isDestructive ? colors.danger : colors.aqua;
   const labelColor = isDestructive ? colors.danger : colors.text;
@@ -100,18 +109,16 @@ export default function ProfileScreen() {
     }, [user?.id]),
   );
 
-  const [friendStats, setFriendStats] = useState({ innerCircleCount: 0, friendsCount: 0, requestsCount: 0 });
+  // Only the friends count is displayed on Profile now — the tier
+  // breakdown and pending-request badge live on the Friends screen.
+  const [friendsCount, setFriendsCount] = useState<number>(0);
 
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    getFriendsAndRequests(user.id).then(({ friends, requests }) => {
+    getFriendsAndRequests(user.id).then(({ friends }) => {
       if (cancelled) return;
-      setFriendStats({
-        innerCircleCount: friends.filter((f) => f.tier === 'inner_circle').length,
-        friendsCount: friends.length,
-        requestsCount: requests.length,
-      });
+      setFriendsCount(friends.length);
     });
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -126,17 +133,34 @@ export default function ProfileScreen() {
     return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
   }, [displayName]);
 
-  const innerCircleTier = tierDefinitions.find((t) => t.id === 'inner_circle');
   const savedCount = favoriteVenues.length;
-  const { innerCircleCount, friendsCount, requestsCount } = friendStats;
+
+  const [hamburgerVisible, setHamburgerVisible] = useState<boolean>(false);
+  const closeHamburger = useCallback(() => setHamburgerVisible(false), []);
 
   const handleToggleTheme = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Tap cycles through the three modes — matches the previous
+    // Profile behavior; the label in the row shows the current mode
+    // so the user can see the state advance.
     const next = mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark';
     void setThemeMode(next);
   }, [mode, setThemeMode]);
 
+  const handleEditProfile = useCallback(() => {
+    void Haptics.selectionAsync();
+    closeHamburger();
+    router.push('/edit-profile');
+  }, [router, closeHamburger]);
+
+  const handleOpenSettings = useCallback(() => {
+    void Haptics.selectionAsync();
+    closeHamburger();
+    router.push('/settings');
+  }, [router, closeHamburger]);
+
   const handleLogout = useCallback(() => {
+    closeHamburger();
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -148,7 +172,7 @@ export default function ProfileScreen() {
         },
       },
     ]);
-  }, [logout]);
+  }, [logout, closeHamburger]);
 
   const themeLabel = mode === 'dark' ? 'Dark' : mode === 'light' ? 'Light' : 'System';
   const ThemeIcon = isDark ? Moon : Sun;
@@ -164,10 +188,14 @@ export default function ProfileScreen() {
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
           <Pressable
-            onPress={() => router.push('/settings')}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setHamburgerVisible(true);
+            }}
             style={({ pressed }) => [styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            testID="profile-menu-btn"
           >
-            <Settings color={colors.text} size={18} />
+            <Menu color={colors.text} size={18} />
           </Pressable>
         </View>
 
@@ -187,16 +215,6 @@ export default function ProfileScreen() {
                 {age !== null ? ` · ${age}` : ''}
               </Text>
             </View>
-          </View>
-
-          <View style={styles.identityActions}>
-            <Pressable
-              onPress={() => router.push('/edit-profile')}
-              style={({ pressed }) => [styles.identityBtn, { backgroundColor: colors.aqua, opacity: pressed ? 0.9 : 1 }]}
-            >
-              <Edit3 color={isDark ? colors.background : colors.white} size={14} />
-              <Text style={[styles.identityBtnText, { color: isDark ? colors.background : colors.white }]}>Edit Profile</Text>
-            </Pressable>
           </View>
         </View>
 
@@ -223,57 +241,88 @@ export default function ProfileScreen() {
             <Text style={[styles.statValue, { color: colors.text }]}>{savedCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Saved</Text>
           </Pressable>
-          <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/friends');
+            }}
+            style={({ pressed }) => [styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+            testID="stat-friends"
+          >
             <Text style={[styles.statValue, { color: colors.text }]}>{friendsCount}</Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Friends</Text>
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Friends</Text>
-        <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <MenuRow
-            icon={<Users />}
-            label="Friends"
-            sublabel={`${friendsCount} friends${requestsCount ? ` · ${requestsCount} request${requestsCount === 1 ? '' : 's'}` : ''}`}
-            onPress={() => router.push('/friends')}
-          />
-          <Pressable
-            onPress={() => router.push('/friends')}
-            style={({ pressed }) => [styles.tierRow, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
-          >
-            <View style={[styles.tierDot, { backgroundColor: innerCircleTier?.color ?? colors.aqua }]} />
-            <View style={styles.menuTextWrap}>
-              <Text style={[styles.menuLabel, { color: colors.text }]}>Inner Circle</Text>
-              <Text style={[styles.menuSublabel, { color: colors.textMuted }]} numberOfLines={1}>
-                {innerCircleCount} {innerCircleCount === 1 ? 'person' : 'people'} with full access
-              </Text>
-            </View>
-            <ChevronRight color={colors.textMuted} size={18} />
           </Pressable>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Preferences</Text>
-        <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <MenuRow
-            icon={<ThemeIcon />}
-            label="Theme"
-            sublabel={`Currently ${themeLabel}`}
-            onPress={handleToggleTheme}
-            trailing={
-              <View style={[styles.pillBadge, { backgroundColor: colors.surfaceAlt }]}>
-                <Text style={[styles.pillBadgeText, { color: colors.text }]}>{themeLabel}</Text>
-              </View>
-            }
-          />
-          <MenuRow icon={<Settings />} label="Settings" sublabel="Privacy, alerts, location" onPress={() => router.push('/settings')} />
-        </View>
-
-        <View style={[styles.menuGroup, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 24 }]}>
-          <MenuRow icon={<LogOut />} label="Sign out" onPress={handleLogout} isDestructive trailing={<ChevronRight color={colors.danger} size={18} />} />
         </View>
 
         <Text style={[styles.footer, { color: colors.textSoft }]}>Pulze · v1.0.0 · Denver</Text>
       </ScrollView>
+
+      <Modal
+        transparent
+        animationType="fade"
+        visible={hamburgerVisible}
+        onRequestClose={closeHamburger}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={closeHamburger} />
+        <View
+          style={[
+            styles.modalSheet,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              paddingTop: insets.top + 12,
+              paddingBottom: insets.bottom + 24,
+            },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Menu</Text>
+            <Pressable
+              onPress={closeHamburger}
+              style={({ pressed }) => [styles.modalCloseBtn, { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}
+              testID="profile-menu-close"
+            >
+              <X color={colors.textMuted} size={16} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <MenuItem
+              icon={<Edit3 />}
+              label="Edit Profile"
+              onPress={handleEditProfile}
+              testID="menu-edit-profile"
+            />
+            <MenuItem
+              icon={<ThemeIcon />}
+              label="Theme"
+              sublabel={`Currently ${themeLabel}`}
+              onPress={handleToggleTheme}
+              trailing={
+                <View style={[styles.pillBadge, { backgroundColor: colors.surfaceAlt }]}>
+                  <Text style={[styles.pillBadgeText, { color: colors.text }]}>{themeLabel}</Text>
+                </View>
+              }
+              testID="menu-theme"
+            />
+            <MenuItem
+              icon={<Settings />}
+              label="Settings"
+              sublabel="Privacy, alerts, location"
+              onPress={handleOpenSettings}
+              testID="menu-settings"
+            />
+            <MenuItem
+              icon={<LogOut />}
+              label="Sign Out"
+              onPress={handleLogout}
+              isDestructive
+              trailing={<ChevronRight color={colors.danger} size={18} />}
+              testID="menu-signout"
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -292,24 +341,53 @@ const styles = StyleSheet.create({
   identityInfo: { flex: 1, gap: 2 },
   displayName: { fontSize: 20, fontWeight: '800' as const, letterSpacing: -0.3, flexShrink: 1 },
   username: { fontSize: 13, fontWeight: '600' as const },
-  bio: { fontSize: 14, lineHeight: 20 },
-  identityActions: { flexDirection: 'row', gap: 8 },
-  identityBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 14 },
-  identityBtnText: { fontSize: 14, fontWeight: '700' as const },
   statsRow: { flexDirection: 'row', gap: 10 },
   statCard: { flex: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center', borderWidth: 1, gap: 2 },
   statValue: { fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.5 },
   statLabel: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.5 },
-  sectionTitle: { fontSize: 11, fontWeight: '700' as const, letterSpacing: 1.2, paddingHorizontal: 4, marginTop: 4 },
   menuGroup: { borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   menuIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   menuTextWrap: { flex: 1, gap: 2 },
   menuLabel: { fontSize: 15, fontWeight: '600' as const },
   menuSublabel: { fontSize: 12 },
-  tierRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  tierDot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 12 },
   pillBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   pillBadgeText: { fontSize: 11, fontWeight: '700' as const },
   footer: { fontSize: 11, textAlign: 'center', marginTop: 8 },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(4, 19, 24, 0.55)',
+  },
+  modalSheet: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: '82%',
+    borderLeftWidth: 1,
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    letterSpacing: -0.4,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
