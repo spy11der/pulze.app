@@ -520,6 +520,7 @@ export type Database = {
           consent_proximity_bluetooth: boolean
           created_at: string
           id: string
+          personalization_consent_granted_at: string | null
           updated_at: string
           user_id: string
         }
@@ -532,6 +533,7 @@ export type Database = {
           consent_proximity_bluetooth?: boolean
           created_at?: string
           id?: string
+          personalization_consent_granted_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -544,6 +546,7 @@ export type Database = {
           consent_proximity_bluetooth?: boolean
           created_at?: string
           id?: string
+          personalization_consent_granted_at?: string | null
           updated_at?: string
           user_id?: string
         }
