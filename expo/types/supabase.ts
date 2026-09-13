@@ -798,6 +798,105 @@ export type Database = {
           },
         ]
       }
+      venue_happy_hours: {
+        Row: {
+          created_at: string
+          days_of_week: number[]
+          description: string | null
+          drink_specials: string[] | null
+          effective_from: string | null
+          effective_until: string | null
+          end_time: string
+          food_specials: string[] | null
+          id: string
+          is_active: boolean
+          last_verified_at: string
+          source: string
+          source_provider_ref: string | null
+          source_url: string | null
+          start_time: string
+          updated_at: string
+          venue_id: string
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          days_of_week: number[]
+          description?: string | null
+          drink_specials?: string[] | null
+          effective_from?: string | null
+          effective_until?: string | null
+          end_time: string
+          food_specials?: string[] | null
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string
+          source: string
+          source_provider_ref?: string | null
+          source_url?: string | null
+          start_time: string
+          updated_at?: string
+          venue_id: string
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: number[]
+          description?: string | null
+          drink_specials?: string[] | null
+          effective_from?: string | null
+          effective_until?: string | null
+          end_time?: string
+          food_specials?: string[] | null
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string
+          source?: string
+          source_provider_ref?: string | null
+          source_url?: string | null
+          start_time?: string
+          updated_at?: string
+          venue_id?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "live_venue_metrics"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "live_venue_scores"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "pulze_master_scores"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_with_scores"
+            referencedColumns: ["venue_id"]
+          },
+        ]
+      }
       venue_photos: {
         Row: {
           created_at: string
@@ -961,6 +1060,7 @@ export type Database = {
           phone: string | null
           price_level: number | null
           rating: number | null
+          timezone: string
           website: string | null
           wifi_fingerprint: string | null
           wifi_fingerprint_hash: string | null
@@ -989,6 +1089,7 @@ export type Database = {
           phone?: string | null
           price_level?: number | null
           rating?: number | null
+          timezone?: string
           website?: string | null
           wifi_fingerprint?: string | null
           wifi_fingerprint_hash?: string | null
@@ -1017,6 +1118,7 @@ export type Database = {
           phone?: string | null
           price_level?: number | null
           rating?: number | null
+          timezone?: string
           website?: string | null
           wifi_fingerprint?: string | null
           wifi_fingerprint_hash?: string | null
@@ -1353,6 +1455,66 @@ export type Database = {
           venue_id: string | null
         }
         Relationships: []
+      }
+      v_active_happy_hours: {
+        Row: {
+          days_of_week: number[] | null
+          description: string | null
+          drink_specials: string[] | null
+          effective_from: string | null
+          effective_until: string | null
+          end_time: string | null
+          food_specials: string[] | null
+          happy_hour_id: string | null
+          last_verified_at: string | null
+          latitude: number | null
+          longitude: number | null
+          source: string | null
+          source_url: string | null
+          start_time: string | null
+          venue_category: string | null
+          venue_id: string | null
+          venue_name: string | null
+          venue_neighborhood_id: string | null
+          venue_timezone: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "live_venue_metrics"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "live_venue_scores"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "pulze_master_scores"
+            referencedColumns: ["venue_id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_happy_hours_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_with_scores"
+            referencedColumns: ["venue_id"]
+          },
+        ]
       }
       v_checkin_signals_recent: {
         Row: {
@@ -1750,6 +1912,47 @@ export type Database = {
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
       get_current_user_age: { Args: never; Returns: number }
+      get_happy_hours_happening_now: {
+        Args: { p_now?: string }
+        Returns: {
+          description: string
+          drink_specials: string[]
+          ends_at_local: string
+          food_specials: string[]
+          happy_hour_id: string
+          is_overnight: boolean
+          last_verified_at: string
+          latitude: number
+          longitude: number
+          source: string
+          venue_category: string
+          venue_id: string
+          venue_name: string
+          venue_neighborhood_id: string
+          venue_timezone: string
+        }[]
+      }
+      get_happy_hours_upcoming_today: {
+        Args: { p_now?: string }
+        Returns: {
+          description: string
+          drink_specials: string[]
+          ends_at_local: string
+          food_specials: string[]
+          happy_hour_id: string
+          is_overnight: boolean
+          last_verified_at: string
+          latitude: number
+          longitude: number
+          source: string
+          starts_at_local: string
+          venue_category: string
+          venue_id: string
+          venue_name: string
+          venue_neighborhood_id: string
+          venue_timezone: string
+        }[]
+      }
       get_nearby_geofence_candidates:
         | {
             Args: { p_lat: number; p_limit?: number; p_lng: number }
@@ -1778,6 +1981,24 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      get_venue_weekly_happy_hours: {
+        Args: { p_venue_id: string }
+        Returns: {
+          days_of_week: number[]
+          description: string
+          drink_specials: string[]
+          ends_at_local: string
+          food_specials: string[]
+          happy_hour_id: string
+          is_overnight: boolean
+          last_verified_at: string
+          source: string
+          starts_at_local: string
+          venue_id: string
+          venue_name: string
+          venue_timezone: string
+        }[]
+      }
       gettransactionid: { Args: never; Returns: unknown }
       handle_geofence_transition: {
         Args: { p_lat: number; p_lng: number; p_user_id: string }
@@ -1793,6 +2014,10 @@ export type Database = {
           p_wifi_hash?: string
         }
         Returns: Json
+      }
+      is_happy_hour_row_fresh: {
+        Args: { p_last_verified_at: string; p_now?: string; p_source: string }
+        Returns: boolean
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
       mark_optional_demographics_skipped: { Args: never; Returns: undefined }
