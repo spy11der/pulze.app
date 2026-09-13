@@ -1867,6 +1867,10 @@ export type Database = {
           venue_name: string
         }[]
       }
+      rank_personalized_venues_for_user: {
+        Args: { p_limit?: number; p_user_id: string }
+        Returns: Json
+      }
       record_app_event: {
         Args: {
           p_client_ts: string
