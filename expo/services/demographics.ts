@@ -102,3 +102,190 @@ export async function hasCompletedAgeGate(): Promise<boolean> {
 export function maxSelectableDobForAge21(now: Date = new Date()): Date {
   return new Date(now.getFullYear() - 21, now.getMonth(), now.getDate());
 }
+
+
+// =============================================================
+// Batch 3: optional demographics + demographic-analytics consent
+// =============================================================
+//
+// Design rules baked into the shape of this file:
+//
+//   * Race and gender may only come from voluntary user selection.
+//     Nothing here or elsewhere infers race, ethnicity, gender, or
+//     gender identity from name, location, behavior, photos, voice,
+//     friends, or any other signal.
+//
+//   * Gender is freely editable by the owner (updateMyGenderIdentity).
+//     Race is one-shot on this schema: once established, the client
+//     has no update path. Corrections go through Pulze support
+//     (contact@pulze.pro).
+//
+//   * Consent to use these values in demographic analytics is
+//     tracked as a separate boolean on user_consent_states.
+//     Withdrawing consent stops future analytics use but does NOT
+//     delete the underlying demographic row (so historical
+//     aggregates that no longer tie back to the account can remain).
+//
+//   * SMALL-COHORT RULE for the future analytics engine (deliberately
+//     not implemented in Batch 3): Pulze must not expose demographic
+//     breakdowns for cohorts smaller than 20. Small groups must be
+//     suppressed or truthfully combined into an appropriately labeled
+//     broader reporting category. Do NOT relabel identities to reach
+//     the threshold (e.g. a small Transgender Woman cohort is NOT
+//     reported as Woman).
+
+export type GenderIdentity =
+  | 'man'
+  | 'woman'
+  | 'trans_man'
+  | 'trans_woman'
+  | 'nonbinary'
+  | 'other'
+  | 'prefer_not_to_say';
+
+export const GENDER_IDENTITY_OPTIONS: Array<{ value: GenderIdentity; label: string }> = [
+  { value: 'man',               label: 'Man' },
+  { value: 'woman',             label: 'Woman' },
+  { value: 'trans_man',         label: 'Transgender Man' },
+  { value: 'trans_woman',       label: 'Transgender Woman' },
+  { value: 'nonbinary',         label: 'Nonbinary' },
+  { value: 'other',             label: 'Other' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
+
+export type RaceEthnicity =
+  | 'american_indian_or_alaska_native'
+  | 'asian'
+  | 'black_or_african_american'
+  | 'hispanic_or_latino'
+  | 'middle_eastern_or_north_african'
+  | 'native_hawaiian_or_other_pacific_islander'
+  | 'white'
+  | 'other'
+  | 'prefer_not_to_say';
+
+export const RACE_ETHNICITY_OPTIONS: Array<{ value: RaceEthnicity; label: string }> = [
+  { value: 'american_indian_or_alaska_native',        label: 'American Indian or Alaska Native' },
+  { value: 'asian',                                   label: 'Asian' },
+  { value: 'black_or_african_american',               label: 'Black or African American' },
+  { value: 'hispanic_or_latino',                      label: 'Hispanic or Latino' },
+  { value: 'middle_eastern_or_north_african',         label: 'Middle Eastern or North African' },
+  { value: 'native_hawaiian_or_other_pacific_islander', label: 'Native Hawaiian or Other Pacific Islander' },
+  { value: 'white',                                   label: 'White' },
+  { value: 'other',                                   label: 'Other' },
+  { value: 'prefer_not_to_say',                       label: 'Prefer not to say' },
+];
+
+// Full owner-only row read via RLS. Returns null if the user
+// hasn't completed the DOB gate yet. Never returned to any other
+// user — the SELECT policy on user_demographics is owner-only.
+export interface MyDemographics {
+  dateOfBirth: string;                       // 'YYYY-MM-DD'
+  genderIdentity: GenderIdentity | null;
+  raceEthnicity: RaceEthnicity[] | null;
+  raceEstablished: boolean;                  // true once race can no longer be self-edited
+  optionalStepCompleted: boolean;            // true once the onboarding demographic step was shown/handled
+  demographicAnalyticsConsent: boolean;
+}
+
+interface DemographicsRow {
+  date_of_birth: string;
+  gender_identity: GenderIdentity | null;
+  race_ethnicity: RaceEthnicity[] | null;
+  race_ethnicity_established_at: string | null;
+  optional_step_completed_at: string | null;
+}
+
+interface ConsentRow {
+  consent_demographic_analytics: boolean | null;
+}
+
+export async function getMyDemographics(): Promise<MyDemographics | null> {
+  const [{ data: demo, error: demoErr }, { data: consent, error: consErr }] = await Promise.all([
+    (supabase.from('user_demographics') as any)
+      .select('date_of_birth, gender_identity, race_ethnicity, race_ethnicity_established_at, optional_step_completed_at')
+      .maybeSingle(),
+    (supabase.from('user_consent_states') as any)
+      .select('consent_demographic_analytics')
+      .maybeSingle(),
+  ]);
+  if (demoErr) {
+    console.log('[Demographics] getMyDemographics demo error:', demoErr.message);
+    return null;
+  }
+  if (!demo) return null;
+  if (consErr) {
+    console.log('[Demographics] getMyDemographics consent error:', consErr.message);
+  }
+  const d = demo as DemographicsRow;
+  const c = (consent ?? null) as ConsentRow | null;
+  return {
+    dateOfBirth: d.date_of_birth,
+    genderIdentity: d.gender_identity,
+    raceEthnicity: d.race_ethnicity,
+    raceEstablished: d.race_ethnicity_established_at !== null,
+    optionalStepCompleted: d.optional_step_completed_at !== null,
+    demographicAnalyticsConsent: c?.consent_demographic_analytics ?? false,
+  };
+}
+
+// True when the caller has landed on the optional demographic
+// onboarding step at least once (either Continue or Skip). Routes
+// off `optional_step_completed_at`, not off whether any values
+// were filled in — skipping without answering still marks the
+// step done, and pre-existing accounts (who haven't seen it yet)
+// return false so the router shows the step once.
+export async function hasSeenOptionalDemographicsStep(): Promise<boolean> {
+  const { data, error } = await (supabase.from('user_demographics') as any)
+    .select('optional_step_completed_at')
+    .maybeSingle();
+  if (error) {
+    console.log('[Demographics] hasSeenOptionalDemographicsStep failed:', error.message);
+    return false;
+  }
+  return !!(data?.optional_step_completed_at);
+}
+
+export async function setMyOptionalDemographics(input: {
+  gender: GenderIdentity | null;
+  race: RaceEthnicity[] | null;
+  consent: boolean;
+}): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('set_my_optional_demographics', {
+    p_gender: input.gender,
+    p_race: input.race && input.race.length > 0 ? input.race : null,
+    p_consent: input.consent,
+  });
+  if (error) {
+    console.log('[Demographics] setMyOptionalDemographics failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function markOptionalDemographicsSkipped(): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('mark_optional_demographics_skipped');
+  if (error) {
+    console.log('[Demographics] mark_optional_demographics_skipped failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function updateMyGenderIdentity(gender: GenderIdentity | null): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('update_my_gender_identity', { p_gender: gender });
+  if (error) {
+    console.log('[Demographics] updateMyGenderIdentity failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function setDemographicAnalyticsConsent(granted: boolean): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('set_my_demographic_analytics_consent', { p_granted: granted });
+  if (error) {
+    console.log('[Demographics] setDemographicAnalyticsConsent failed:', error.message);
+    return false;
+  }
+  return true;
+}

@@ -23,8 +23,9 @@ import { setupNotificationCategories, registerNotificationResponseHandler } from
 import { startGeofenceMonitoring, stopGeofenceMonitoring, setCurrentUserId } from '@/services/geofence';
 import { getLocationConsent } from '@/services/consent';
 import { insertCheckIn } from '@/services/checkInDatabase';
-import { hasCompletedAgeGate } from '@/services/demographics';
+import { hasCompletedAgeGate, hasSeenOptionalDemographicsStep } from '@/services/demographics';
 import { AgeGateScreen } from '@/components/AgeGateScreen';
+import { DemographicsOnboardingScreen } from '@/components/DemographicsOnboardingScreen';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   console.log('[SplashScreen] preventAutoHideAsync failed');
@@ -69,16 +70,21 @@ function AppContent() {
   const notifSubRef = useRef<ReturnType<typeof registerNotificationResponseHandler> | null>(null);
   const geofenceStartedRef = useRef<boolean>(false);
 
-  // Age-gate router state:
-  //   'unknown' — post-auth check hasn't landed yet; show splash
-  //   'needed'  — no user_demographics row yet; show AgeGateScreen
-  //   'passed'  — row exists; main app can render
+  // Post-auth router state machine. Runs in order and only mounts
+  // the main tab tree once every gate is 'passed'.
   //
-  // This is what makes the 21+ gate work retroactively: existing
-  // accounts created before the demographics table simply have no
-  // row, so on their next authenticated session they land in
-  // 'needed' and are routed to the picker before anything else.
+  //   Age gate: 21+ DOB. Failing this doesn't sign the user out — it
+  //   just blocks the app until they submit an eligible DOB.
+  //   Retroactive: existing accounts with no user_demographics row
+  //   are routed through the picker on their next session.
+  //
+  //   Demographic step: optional gender/race + explicit demographic-
+  //   analytics consent. Skippable; skipping still marks the step
+  //   complete so a legitimately-declining user isn't re-prompted.
+  //   Also retroactive: any pre-Batch-3 row has NULL
+  //   optional_step_completed_at and the user sees the screen once.
   const [ageGateStatus, setAgeGateStatus] = useState<'unknown' | 'needed' | 'passed'>('unknown');
+  const [demographicsStepStatus, setDemographicsStepStatus] = useState<'unknown' | 'needed' | 'passed'>('unknown');
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
@@ -87,27 +93,51 @@ function AppContent() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
       setAgeGateStatus('unknown');
+      setDemographicsStepStatus('unknown');
       return;
     }
     let cancelled = false;
     void (async () => {
       const done = await hasCompletedAgeGate();
-      if (!cancelled) setAgeGateStatus(done ? 'passed' : 'needed');
+      if (cancelled) return;
+      setAgeGateStatus(done ? 'passed' : 'needed');
     })();
     return () => { cancelled = true; };
   }, [isAuthenticated, user?.id]);
+
+  // Chained after the age gate: once the DOB row exists, check
+  // whether the demographic step still needs to be shown.
+  useEffect(() => {
+    if (ageGateStatus !== 'passed') {
+      setDemographicsStepStatus('unknown');
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const seen = await hasSeenOptionalDemographicsStep();
+      if (cancelled) return;
+      setDemographicsStepStatus(seen ? 'passed' : 'needed');
+    })();
+    return () => { cancelled = true; };
+  }, [ageGateStatus]);
 
   const handleAgeGateComplete = useCallback(() => {
     setAgeGateStatus('passed');
   }, []);
 
+  const handleDemographicsComplete = useCallback(() => {
+    setDemographicsStepStatus('passed');
+  }, []);
+
   // Initialize notifications and geofence when authenticated AND
-  // the age gate has cleared. Holding the effect back until 'passed'
-  // means a user still on the DOB screen never registers a device
-  // for notifications, never starts background location, and never
+  // both onboarding gates have cleared. Holding the effect back
+  // until 'passed'/'passed' means a user still on the DOB screen or
+  // the optional demographic screen never registers a device for
+  // notifications, never starts background location, and never
   // opens a location-related consent record.
   useEffect(() => {
-    if (!isAuthenticated || !user || !splashDone || ageGateStatus !== 'passed') return;
+    if (!isAuthenticated || !user || !splashDone) return;
+    if (ageGateStatus !== 'passed' || demographicsStepStatus !== 'passed') return;
 
     void (async () => {
       await setupNotificationCategories();
@@ -180,7 +210,7 @@ function AppContent() {
         notifSubRef.current.remove();
       }
     };
-  }, [isAuthenticated, user, splashDone, ageGateStatus, router]);
+  }, [isAuthenticated, user, splashDone, ageGateStatus, demographicsStepStatus, router]);
 
   // Stop geofence on logout
   useEffect(() => {
@@ -228,6 +258,28 @@ function AppContent() {
       <>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <AgeGateScreen onComplete={handleAgeGateComplete} />
+      </>
+    );
+  }
+
+  // Age gate cleared but the optional demographic step is still
+  // resolving or still needed. `'unknown'` at this point means the
+  // demographic-step check has yet to land — hold on the splash so
+  // we don't briefly flash the main app between the two checks.
+  if (demographicsStepStatus === 'unknown') {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <PulseSplash onComplete={handleSplashComplete} />
+      </>
+    );
+  }
+
+  if (demographicsStepStatus === 'needed') {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <DemographicsOnboardingScreen onComplete={handleDemographicsComplete} />
       </>
     );
   }

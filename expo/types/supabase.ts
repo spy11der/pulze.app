@@ -478,6 +478,7 @@ export type Database = {
         Row: {
           consent_ads_and_tracking: boolean
           consent_core_app: boolean
+          consent_demographic_analytics: boolean
           consent_location_gps: boolean
           consent_personalized_recommendations: boolean
           consent_proximity_bluetooth: boolean
@@ -489,6 +490,7 @@ export type Database = {
         Insert: {
           consent_ads_and_tracking?: boolean
           consent_core_app?: boolean
+          consent_demographic_analytics?: boolean
           consent_location_gps?: boolean
           consent_personalized_recommendations?: boolean
           consent_proximity_bluetooth?: boolean
@@ -500,6 +502,7 @@ export type Database = {
         Update: {
           consent_ads_and_tracking?: boolean
           consent_core_app?: boolean
+          consent_demographic_analytics?: boolean
           consent_location_gps?: boolean
           consent_personalized_recommendations?: boolean
           consent_proximity_bluetooth?: boolean
@@ -515,6 +518,11 @@ export type Database = {
           created_at: string
           date_of_birth: string
           established_at: string
+          gender_identity: string | null
+          gender_updated_at: string | null
+          optional_step_completed_at: string | null
+          race_ethnicity: string[] | null
+          race_ethnicity_established_at: string | null
           updated_at: string
           user_id: string
         }
@@ -522,6 +530,11 @@ export type Database = {
           created_at?: string
           date_of_birth: string
           established_at?: string
+          gender_identity?: string | null
+          gender_updated_at?: string | null
+          optional_step_completed_at?: string | null
+          race_ethnicity?: string[] | null
+          race_ethnicity_established_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -529,6 +542,11 @@ export type Database = {
           created_at?: string
           date_of_birth?: string
           established_at?: string
+          gender_identity?: string | null
+          gender_updated_at?: string | null
+          optional_step_completed_at?: string | null
+          race_ethnicity?: string[] | null
+          race_ethnicity_established_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1707,6 +1725,7 @@ export type Database = {
         Returns: Json
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      mark_optional_demographics_skipped: { Args: never; Returns: undefined }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -1789,6 +1808,14 @@ export type Database = {
       }
       resolve_login_email: { Args: { p_username: string }; Returns: string }
       set_my_date_of_birth: { Args: { p_dob: string }; Returns: number }
+      set_my_demographic_analytics_consent: {
+        Args: { p_granted: boolean }
+        Returns: undefined
+      }
+      set_my_optional_demographics: {
+        Args: { p_consent: boolean; p_gender: string; p_race: string[] }
+        Returns: undefined
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown
@@ -2393,6 +2420,10 @@ export type Database = {
       }
       update_friend_presence: {
         Args: { p_user_id: string; p_venue_id: string }
+        Returns: undefined
+      }
+      update_my_gender_identity: {
+        Args: { p_gender: string }
         Returns: undefined
       }
       update_venue_scores: {

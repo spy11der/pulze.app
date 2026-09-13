@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -14,8 +15,10 @@ import {
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  BarChart3,
   BellRing,
   Bug,
+  Check,
   ChevronDown,
   FileText,
   Fingerprint,
@@ -32,6 +35,9 @@ import {
   ShieldAlert,
   Sun,
   Trash2,
+  User as UserIcon,
+  Users,
+  X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -50,6 +56,15 @@ import {
 } from '@/services/notificationPrefs';
 import { startGeofenceMonitoring, stopGeofenceMonitoring } from '@/services/geofence';
 import { ensureNotificationPermission } from '@/services/checkInNotifications';
+import {
+  GENDER_IDENTITY_OPTIONS,
+  RACE_ETHNICITY_OPTIONS,
+  getMyDemographics,
+  setDemographicAnalyticsConsent,
+  updateMyGenderIdentity,
+  type GenderIdentity,
+  type MyDemographics,
+} from '@/services/demographics';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -145,6 +160,84 @@ export default function SettingsScreen() {
       if (!cancelled) setNotifPrefs(prefs);
     });
     return () => { cancelled = true; };
+  }, []);
+
+  // Demographics state — loaded once per screen mount. Every write
+  // path re-reads to keep the view in sync (race establishment
+  // flips the "one-shot" note text, gender changes update the
+  // displayed label, consent toggle updates the switch).
+  const [demographics, setDemographics] = useState<MyDemographics | null>(null);
+  const [demographicsBusy, setDemographicsBusy] = useState<boolean>(false);
+  const [genderPickerVisible, setGenderPickerVisible] = useState<boolean>(false);
+
+  const reloadDemographics = useCallback(async () => {
+    const next = await getMyDemographics();
+    setDemographics(next);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getMyDemographics().then((d) => {
+      if (!cancelled) setDemographics(d);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const genderLabel = useMemo(() => {
+    const v = demographics?.genderIdentity;
+    if (!v) return 'Not set';
+    return GENDER_IDENTITY_OPTIONS.find((o) => o.value === v)?.label ?? 'Not set';
+  }, [demographics?.genderIdentity]);
+
+  const raceLabel = useMemo(() => {
+    const arr = demographics?.raceEthnicity;
+    if (!arr || arr.length === 0) return 'Not set';
+    return arr
+      .map((v) => RACE_ETHNICITY_OPTIONS.find((o) => o.value === v)?.label ?? v)
+      .join(', ');
+  }, [demographics?.raceEthnicity]);
+
+  const handleGenderPick = useCallback(async (next: GenderIdentity | null) => {
+    if (demographicsBusy) return;
+    setDemographicsBusy(true);
+    void Haptics.selectionAsync();
+    const ok = await updateMyGenderIdentity(next);
+    if (ok) await reloadDemographics();
+    else Alert.alert("Couldn't save", 'Please try again.');
+    setDemographicsBusy(false);
+    setGenderPickerVisible(false);
+  }, [demographicsBusy, reloadDemographics]);
+
+  const handleDemoConsentToggle = useCallback(async () => {
+    if (!demographics || demographicsBusy) return;
+    const next = !demographics.demographicAnalyticsConsent;
+    setDemographicsBusy(true);
+    void Haptics.selectionAsync();
+    // Optimistic
+    setDemographics((prev) => (prev ? { ...prev, demographicAnalyticsConsent: next } : prev));
+    const ok = await setDemographicAnalyticsConsent(next);
+    if (!ok) {
+      setDemographics((prev) => (prev ? { ...prev, demographicAnalyticsConsent: !next } : prev));
+      Alert.alert("Couldn't update", 'Please try again.');
+    }
+    setDemographicsBusy(false);
+  }, [demographics, demographicsBusy]);
+
+  const handleRaceCorrectionInfo = useCallback(() => {
+    void Haptics.selectionAsync();
+    Alert.alert(
+      'Race / ethnicity',
+      'To correct your race or ethnicity, contact Pulze support at contact@pulze.pro.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Email support',
+          onPress: () => {
+            void Linking.openURL('mailto:contact@pulze.pro?subject=Race%2FEthnicity%20correction%20request');
+          },
+        },
+      ],
+    );
   }, []);
 
   const updateNotif = useCallback(async (key: keyof NotificationPrefs) => {
@@ -369,6 +462,129 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        {demographics && (
+          <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Demographics</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>
+              Private. Never shown on your profile.
+            </Text>
+            <View style={styles.preferenceList}>
+              <Pressable
+                onPress={() => { void Haptics.selectionAsync(); setGenderPickerVisible(true); }}
+                style={[styles.settingRow, { backgroundColor: colors.card }]}
+                testID="settings-gender"
+              >
+                <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                  <UserIcon color={colors.aqua} size={18} />
+                </View>
+                <View style={styles.settingBody}>
+                  <Text style={[styles.settingValue, { color: colors.text }]}>Gender identity</Text>
+                  <Text style={[styles.settingLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                    {genderLabel}
+                  </Text>
+                </View>
+                <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
+              </Pressable>
+
+              <Pressable
+                onPress={handleRaceCorrectionInfo}
+                style={[styles.settingRow, { backgroundColor: colors.card }]}
+                testID="settings-race"
+              >
+                <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                  <Users color={colors.aqua} size={18} />
+                </View>
+                <View style={styles.settingBody}>
+                  <Text style={[styles.settingValue, { color: colors.text }]}>Race / ethnicity</Text>
+                  <Text style={[styles.settingLabel, { color: colors.textMuted }]} numberOfLines={2}>
+                    {raceLabel}
+                  </Text>
+                  <Text style={[styles.settingLabel, { color: colors.textSoft, marginTop: 2, fontSize: 11 }]}>
+                    Corrections via contact@pulze.pro
+                  </Text>
+                </View>
+              </Pressable>
+
+              <View style={[styles.radioRow, { backgroundColor: colors.card, borderColor: 'transparent' }]} testID="pref-demographic-consent">
+                <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                  <BarChart3 color={colors.aqua} size={18} />
+                </View>
+                <View style={styles.settingBody}>
+                  <Text style={[styles.settingValue, { color: colors.text }]}>Use in nightlife trends</Text>
+                  <Text style={[styles.settingLabel, { color: colors.textMuted }]}>
+                    Allow Pulze to use your demographic info for aggregated neighborhood trends. Withdraw any time.
+                  </Text>
+                </View>
+                <Switch
+                  value={demographics.demographicAnalyticsConsent}
+                  onValueChange={handleDemoConsentToggle}
+                  disabled={demographicsBusy}
+                  trackColor={{ false: colors.border, true: colors.aqua }}
+                  testID="switch-demographic-consent"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        <Modal
+          transparent
+          animationType="fade"
+          visible={genderPickerVisible}
+          onRequestClose={() => setGenderPickerVisible(false)}
+        >
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setGenderPickerVisible(false)}
+          />
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Gender identity</Text>
+              <Pressable
+                onPress={() => setGenderPickerVisible(false)}
+                style={styles.modalCloseBtn}
+                testID="gender-picker-close"
+              >
+                <X color={colors.textMuted} size={18} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {GENDER_IDENTITY_OPTIONS.map((opt) => {
+                const active = demographics?.genderIdentity === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => handleGenderPick(active ? null : opt.value)}
+                    disabled={demographicsBusy}
+                    style={({ pressed }) => [
+                      styles.modalOptionRow,
+                      {
+                        backgroundColor: active ? colors.aqua + '18' : colors.card,
+                        borderColor: active ? colors.aqua : colors.border,
+                        opacity: pressed ? 0.85 : 1,
+                      },
+                    ]}
+                    testID={`gender-picker-${opt.value}`}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionLabel,
+                        { color: active ? colors.aqua : colors.text, fontWeight: active ? '700' : '600' },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                    {active ? <Check color={colors.aqua} size={16} /> : null}
+                  </Pressable>
+                );
+              })}
+              <Text style={[styles.modalFineprint, { color: colors.textSoft }]}>
+                Not displayed on your profile. Tap again to clear.
+              </Text>
+            </ScrollView>
+          </View>
+        </Modal>
 
         {(biometricAvailable || Platform.OS === 'web') && (
           <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -744,5 +960,59 @@ const styles = StyleSheet.create({
   legalSub: {
     fontSize: 12,
     fontWeight: '500' as const,
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(4, 19, 24, 0.55)',
+  },
+  modalSheet: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    top: '20%',
+    bottom: '10%',
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
+  modalScroll: {
+    flexGrow: 0,
+  },
+  modalOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  modalOptionLabel: {
+    fontSize: 14,
+  },
+  modalFineprint: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 4,
   },
 });
