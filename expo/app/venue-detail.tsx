@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import {
   Bookmark,
   Camera,
+  Clock,
   Compass,
   MapPin,
   Radio,
@@ -26,6 +27,16 @@ import { useMapLocation } from '@/hooks/useMapLocation';
 import { haversineMeters, metersToWalkMinutes } from '@/hooks/useNearbyVenues';
 import { resolveVenueById, getRealCheckInCount } from '@/services/venues';
 import { analytics } from '@/services/analytics';
+import {
+  fetchHappyHoursHappeningNow,
+  fetchHappyHoursUpcomingToday,
+  fetchVenueWeeklyHappyHours,
+  formatDaysOfWeek,
+  formatLocalTimeLabel,
+  type HappyHourNow,
+  type HappyHourUpcoming,
+  type HappyHourWeekly,
+} from '@/services/happyHours';
 import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 // Same fallback used by Nearby/Home when device location isn't available yet
@@ -48,6 +59,9 @@ export default function VenueDetailScreen() {
 
   const [venue, setVenue] = useState<PulzeVenue | null | undefined>(undefined); // undefined = loading
   const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
+  const [weeklyHappyHours, setWeeklyHappyHours] = useState<HappyHourWeekly[]>([]);
+  const [happyHourNow, setHappyHourNow] = useState<HappyHourNow | null>(null);
+  const [happyHourNext, setHappyHourNext] = useState<HappyHourUpcoming | null>(null);
 
   useEffect(() => {
     if (!params.venueId) return;
@@ -86,6 +100,26 @@ export default function VenueDetailScreen() {
       }
     }, [params.venueId, venue?.id])
   );
+
+  // Happy hour: pull weekly schedule for this venue + city-wide
+  // now/upcoming, then filter to this venue. All three calls tolerate
+  // failure (empty arrays) so a schedule outage never blocks the page.
+  useEffect(() => {
+    const venueId = venue?.id;
+    if (!venueId) return;
+    let cancelled = false;
+    void Promise.all([
+      fetchVenueWeeklyHappyHours(venueId),
+      fetchHappyHoursHappeningNow(),
+      fetchHappyHoursUpcomingToday(),
+    ]).then(([weekly, nowList, upcomingList]) => {
+      if (cancelled) return;
+      setWeeklyHappyHours(weekly);
+      setHappyHourNow(nowList.find((r) => r.venue_id === venueId) ?? null);
+      setHappyHourNext(upcomingList.find((r) => r.venue_id === venueId) ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [venue?.id]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -231,6 +265,55 @@ export default function VenueDetailScreen() {
             <Text style={[styles.addressText, { color: colors.text }]} numberOfLines={2}>{venue.address}</Text>
           </View>
 
+          {weeklyHappyHours.length > 0 && (
+            <View style={[styles.happyHourCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.happyHourHeader}>
+                <Clock color={colors.amber} size={16} />
+                <Text style={[styles.happyHourTitle, { color: colors.text }]}>Happy Hour</Text>
+              </View>
+
+              {happyHourNow ? (
+                <View style={[styles.happyHourStatusPill, { backgroundColor: colors.amber + '22', borderColor: colors.amber }]}>
+                  <View style={[styles.happyHourLiveDot, { backgroundColor: colors.amber }]} />
+                  <Text style={[styles.happyHourStatusText, { color: colors.amber }]} numberOfLines={1}>
+                    Happening now{formatLocalTimeLabel(happyHourNow.ends_at_local) ? ` · until ${formatLocalTimeLabel(happyHourNow.ends_at_local)}` : ''}
+                  </Text>
+                </View>
+              ) : happyHourNext ? (
+                <View style={[styles.happyHourStatusPill, { backgroundColor: colors.aqua + '18', borderColor: colors.aqua + '55' }]}>
+                  <Clock color={colors.aqua} size={11} />
+                  <Text style={[styles.happyHourStatusText, { color: colors.aqua }]} numberOfLines={1}>
+                    Later today · {formatLocalTimeLabel(happyHourNext.starts_at_local)}–{formatLocalTimeLabel(happyHourNext.ends_at_local)}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.happyHourList}>
+                {weeklyHappyHours.map((row) => {
+                  const rangeLabel = `${formatLocalTimeLabel(row.starts_at_local)} – ${formatLocalTimeLabel(row.ends_at_local)}${row.is_overnight ? ' (next day)' : ''}`;
+                  const specials = [
+                    ...(row.drink_specials ?? []),
+                    ...(row.food_specials ?? []),
+                  ];
+                  return (
+                    <View key={row.happy_hour_id} style={styles.happyHourRow}>
+                      <Text style={[styles.happyHourDays, { color: colors.text }]}>{formatDaysOfWeek(row.days_of_week)}</Text>
+                      <Text style={[styles.happyHourTime, { color: colors.textMuted }]}>{rangeLabel}</Text>
+                      {specials.length > 0 && (
+                        <Text style={[styles.happyHourSpecials, { color: colors.textMuted }]}>
+                          {specials.join(' · ')}
+                        </Text>
+                      )}
+                      {row.description ? (
+                        <Text style={[styles.happyHourDesc, { color: colors.textSoft }]}>{row.description}</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {venue.photos.length > 1 && (
             <View>
               <Text style={[styles.photosHeading, { color: colors.text }]}>Photos</Text>
@@ -281,6 +364,18 @@ const styles = StyleSheet.create({
   vibeText: { fontSize: 14, lineHeight: 20 },
   addressCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, borderWidth: 1 },
   addressText: { fontSize: 14, flex: 1 },
+  happyHourCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 10 },
+  happyHourHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  happyHourTitle: { fontSize: 14, fontWeight: '700' as const, letterSpacing: -0.2 },
+  happyHourStatusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  happyHourStatusText: { fontSize: 12, fontWeight: '700' as const },
+  happyHourLiveDot: { width: 6, height: 6, borderRadius: 3 },
+  happyHourList: { gap: 10 },
+  happyHourRow: { gap: 2 },
+  happyHourDays: { fontSize: 13, fontWeight: '700' as const },
+  happyHourTime: { fontSize: 13, fontWeight: '500' as const },
+  happyHourSpecials: { fontSize: 12, fontWeight: '500' as const },
+  happyHourDesc: { fontSize: 12, fontWeight: '400' as const, fontStyle: 'italic' as const },
   photosHeading: { fontSize: 16, fontWeight: '700' as const, letterSpacing: -0.2, marginBottom: 8 },
   photosRow: { gap: 10, paddingRight: 4 },
   thumb: { width: 110, height: 78, borderRadius: 12, borderWidth: 1, resizeMode: 'cover' },

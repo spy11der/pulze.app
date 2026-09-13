@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bell, MapPin } from 'lucide-react-native';
+import { Bell, Clock, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -28,14 +28,22 @@ import {
   fetchPersonalizedVenueScores,
   type PersonalizationSnapshot,
 } from '@/services/recommendations';
+import {
+  buildHappeningNowIndex,
+  fetchHappyHoursHappeningNow,
+  formatLocalTimeLabel,
+  type HappyHourNow,
+} from '@/services/happyHours';
 import { hasReliableBusyness } from '@/types/venue';
 
 function NearbyCard({
   venue,
   onPress,
+  happyHourNow,
 }: {
   venue: NearbyVenue;
   onPress: () => void;
+  happyHourNow?: HappyHourNow;
 }) {
   const { colors, isDark } = useTheme();
 
@@ -43,6 +51,7 @@ function NearbyCard({
   const photoUri = venue.photoUri;
   const displayTags = (venue.tags ?? []).slice(0, 2);
   const walkMins = metersToWalkMinutes(venue.distanceMeters);
+  const happyHourEndsLabel = happyHourNow ? formatLocalTimeLabel(happyHourNow.ends_at_local) : '';
 
   return (
     <Pressable
@@ -82,6 +91,15 @@ function NearbyCard({
             {venue.neighborhood}
           </Text>
         </View>
+
+        {happyHourNow ? (
+          <View style={styles.happyHourRow}>
+            <Clock color={colors.amber} size={11} />
+            <Text style={[styles.happyHourText, { color: colors.amber }]} numberOfLines={1}>
+              Happy Hour now{happyHourEndsLabel ? ` · until ${happyHourEndsLabel}` : ''}
+            </Text>
+          </View>
+        ) : null}
 
         {hasReliableBusyness(venue) ? (
           <Text style={[styles.busynessPercent, { color: colors.text }]}>
@@ -127,6 +145,9 @@ export default function NearbyScreen() {
   // parallel with the venue list; failure/cold-start leaves ordering
   // exactly at rank_nearby_venues' output.
   const [personalization, setPersonalization] = useState<PersonalizationSnapshot>(emptyPersonalizationSnapshot);
+  // venue_id -> current happy-hour row (empty until the RPC resolves).
+  const [happeningNow, setHappeningNow] = useState<Map<string, HappyHourNow>>(() => new Map());
+  const [showOnlyHappyHour, setShowOnlyHappyHour] = useState<boolean>(false);
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
@@ -145,6 +166,11 @@ export default function NearbyScreen() {
     void fetchPersonalizedVenueScores().then((snap) => {
       if (isMountedRef.current) setPersonalization(snap);
     });
+    // Happy Hour Now runs in parallel; a failure leaves the map empty
+    // and the filter falls back to "no venues currently in HH".
+    void fetchHappyHoursHappeningNow().then((rows) => {
+      if (isMountedRef.current) setHappeningNow(buildHappeningNowIndex(rows));
+    });
   }, [lat, lng]);
 
   // Apply the 70/30 blend to the nearby list. Untouched when
@@ -152,6 +178,16 @@ export default function NearbyScreen() {
   const orderedVenues = useMemo(
     () => blendVenueOrder(nearbyVenues, personalization),
     [nearbyVenues, personalization],
+  );
+
+  const visibleVenues = useMemo(
+    () => (showOnlyHappyHour ? orderedVenues.filter((v) => happeningNow.has(v.id)) : orderedVenues),
+    [orderedVenues, showOnlyHappyHour, happeningNow],
+  );
+
+  const happyHourCount = useMemo(
+    () => orderedVenues.reduce((n, v) => n + (happeningNow.has(v.id) ? 1 : 0), 0),
+    [orderedVenues, happeningNow],
   );
 
   useEffect(() => { loadVenues(); }, [loadVenues]);
@@ -172,6 +208,11 @@ export default function NearbyScreen() {
     [router],
   );
 
+  const toggleHappyHourFilter = useCallback(() => {
+    void Haptics.selectionAsync();
+    setShowOnlyHappyHour((prev) => !prev);
+  }, []);
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
@@ -190,6 +231,36 @@ export default function NearbyScreen() {
             <Bell color={colors.textMuted} size={20} />
           </Pressable>
         </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+          style={styles.filterScroll}
+        >
+          <Pressable
+            onPress={toggleHappyHourFilter}
+            style={[
+              styles.filterPill,
+              {
+                backgroundColor: showOnlyHappyHour
+                  ? colors.amber
+                  : isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                borderColor: showOnlyHappyHour ? colors.amber : 'transparent',
+              },
+            ]}
+          >
+            <Clock color={showOnlyHappyHour ? '#060C10' : colors.amber} size={12} />
+            <Text
+              style={[
+                styles.filterPillText,
+                { color: showOnlyHappyHour ? '#060C10' : colors.textMuted },
+              ]}
+            >
+              Happy Hour Now{happyHourCount > 0 ? ` · ${happyHourCount}` : ''}
+            </Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
       <ScrollView
@@ -213,11 +284,19 @@ export default function NearbyScreen() {
               No venues nearby
             </Text>
           </View>
+        ) : !isLoadingVenues && showOnlyHappyHour && visibleVenues.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Clock color={colors.textSoft} size={32} />
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              No happy hour running nearby right now
+            </Text>
+          </View>
         ) : (
-          orderedVenues.map((venue) => (
+          visibleVenues.map((venue) => (
             <NearbyCard
               key={venue.id}
               venue={venue}
+              happyHourNow={happeningNow.get(venue.id)}
               onPress={() => handleVenuePress(venue.id)}
             />
           ))
@@ -252,7 +331,13 @@ const styles = StyleSheet.create({
   cardRow2: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 11, fontWeight: '500' as const },
   metaDot: { fontSize: 11 },
+  happyHourRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  happyHourText: { fontSize: 11, fontWeight: '700' as const },
   busynessPercent: { fontSize: 12, fontWeight: '600' as const },
+  filterScroll: { marginTop: 10, marginBottom: 2 },
+  filterRow: { gap: 8, paddingRight: 16 },
+  filterPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  filterPillText: { fontSize: 13, fontWeight: '600' as const },
   tagsRow: { flexDirection: 'row', gap: 5 },
   tagChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
   tagText: { fontSize: 10, fontWeight: '500' as const },
