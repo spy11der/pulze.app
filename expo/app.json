@@ -47,7 +47,14 @@
           "locationAlwaysAndWhenInUsePermission": "If you enable Location-based check-ins, Pulze uses your location in the background to detect when you arrive at participating venues and prompt you to check in.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true
+          "isAndroidForegroundServiceEnabled": true,
+          "motionUsagePermission": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "microphonePermission": false
         }
       ],
       [

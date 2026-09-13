@@ -1,11 +1,16 @@
 export type FriendTier = 'public' | 'friends' | 'inner_circle';
 
+// The `permissions` string arrays that previously lived on each tier
+// described features Pulze does not ship (live location sharing,
+// saved-spots visibility, "Can see private check-ins" outside the
+// close-friend RLS gate). They were never rendered — only `color`,
+// `label`, and `description` are read by the UI — but keeping the
+// copy in the bundle risked a future PR surfacing it accidentally.
 export interface TierInfo {
   id: FriendTier;
   label: string;
   description: string;
   color: string;
-  permissions: string[];
 }
 
 export interface FriendCheckInFeedItem {
@@ -28,34 +33,18 @@ export const tierDefinitions: TierInfo[] = [
     label: 'Public',
     description: 'Basic visibility only',
     color: '#5B8792',
-    permissions: [
-      'Can see public vibe drops',
-      'Cannot see precise locations',
-      'Cannot see saved spots',
-    ],
   },
   {
     id: 'friends',
     label: 'Friends',
     description: 'General vibe access',
     color: '#35D4CF',
-    permissions: [
-      'Can see general vibe activity',
-      'Can see venue names',
-      'Cannot see exact real-time movement',
-    ],
   },
-
   {
     id: 'inner_circle',
     label: 'Inner Circle',
     description: 'Full visibility',
     color: '#2BBFBA',
-    permissions: [
-      'Full live location access',
-      'Can see saved spots',
-      'Can see private check-ins',
-    ],
   },
 ];
 

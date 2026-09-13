@@ -97,39 +97,55 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, [user?.avatarUrl]);
 
   const login = useCallback(async (emailOrUsername: string, password: string): Promise<boolean> => {
-    console.log('[Auth] Login attempt for', emailOrUsername);
+    console.log('[Auth] Login attempt');
 
-    let email = emailOrUsername.trim();
+    const trimmed = emailOrUsername.trim();
 
-    if (!email.includes('@')) {
-      // Username login — resolve the username to the user's REAL auth email
-      // via the secure SECURITY DEFINER RPC. Never guess an email pattern
-      // (e.g. username@domain) client-side. A null/failed resolution answers
-      // with a generic error so username probing isn't surfaced.
-      // `resolve_login_email` isn't in the generated Supabase types — cast the rpc call.
-      const { data: resolved, error: resolveError } = await (supabase.rpc as any)('resolve_login_email', { p_username: email });
-
-      if (resolveError) {
-        console.log('[Auth] Username resolution failed:', resolveError.message);
-        throw new Error('Invalid username or password');
+    if (trimmed.includes('@')) {
+      // Email path — Supabase Auth handles password verification. Nothing
+      // custom on top; a matching email that fails auth returns a generic
+      // "Invalid login credentials" upstream.
+      const { data, error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
+      if (error || !data.session) {
+        console.log('[Auth] Email login failed');
+        throw new Error('Invalid email/username or password');
       }
-      if (!resolved) {
-        console.log('[Auth] Unknown username');
-        throw new Error('Invalid username or password');
-      }
-      email = resolved;
+      console.log('[Auth] Email login successful');
+      setSession(data.session);
+      setUser(mapSessionUser(data.session));
+      setIsAuthenticated(true);
+      return true;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Username path — the `resolve_login_email` SECURITY DEFINER RPC is
+    // no longer callable by anon or authenticated (it was an enumeration
+    // oracle: anyone with the publishable key could reverse username to
+    // email). It's now reached only server-side through the
+    // `login-with-username` Edge Function, which does its own rate
+    // limiting and returns only session tokens — never the resolved
+    // email. On any failure we install the same generic error so the
+    // caller learns nothing about whether the username exists.
+    const { data: fnData, error: fnError } = await supabase.functions.invoke<{
+      session?: { access_token: string; refresh_token: string };
+    }>('login-with-username', { body: { username: trimmed, password } });
 
-    if (error || !data.session) {
-      console.log('[Auth] Login failed:', error?.message);
-      throw new Error(error?.message ?? 'Invalid email/username or password');
+    if (fnError || !fnData?.session?.access_token || !fnData?.session?.refresh_token) {
+      console.log('[Auth] Username login failed');
+      throw new Error('Invalid email/username or password');
     }
 
-    console.log('[Auth] Login successful');
-    setSession(data.session);
-    setUser(mapSessionUser(data.session));
+    const { data: setData, error: setErr } = await supabase.auth.setSession({
+      access_token: fnData.session.access_token,
+      refresh_token: fnData.session.refresh_token,
+    });
+    if (setErr || !setData?.session) {
+      console.log('[Auth] setSession failed after username login');
+      throw new Error('Invalid email/username or password');
+    }
+
+    console.log('[Auth] Username login successful');
+    setSession(setData.session);
+    setUser(mapSessionUser(setData.session));
     setIsAuthenticated(true);
     return true;
   }, []);

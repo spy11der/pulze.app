@@ -83,7 +83,6 @@ export default function EditProfileScreen() {
     try {
       const { error } = await supabase
         .from('profiles')
-        // @ts-expect-error supabase types not configured for profiles table
         .update({ display_name: displayName, username })
         .eq('id', user.id);
 
@@ -167,7 +166,6 @@ export default function EditProfileScreen() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        // @ts-expect-error supabase types not configured for profiles table
         .update({ avatar_url: path })
         .eq('id', user.id);
       if (profileError) {
