@@ -23,6 +23,8 @@ import { setupNotificationCategories, registerNotificationResponseHandler } from
 import { startGeofenceMonitoring, stopGeofenceMonitoring, setCurrentUserId } from '@/services/geofence';
 import { getLocationConsent } from '@/services/consent';
 import { insertCheckIn } from '@/services/checkInDatabase';
+import { hasCompletedAgeGate } from '@/services/demographics';
+import { AgeGateScreen } from '@/components/AgeGateScreen';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   console.log('[SplashScreen] preventAutoHideAsync failed');
@@ -67,13 +69,45 @@ function AppContent() {
   const notifSubRef = useRef<ReturnType<typeof registerNotificationResponseHandler> | null>(null);
   const geofenceStartedRef = useRef<boolean>(false);
 
+  // Age-gate router state:
+  //   'unknown' — post-auth check hasn't landed yet; show splash
+  //   'needed'  — no user_demographics row yet; show AgeGateScreen
+  //   'passed'  — row exists; main app can render
+  //
+  // This is what makes the 21+ gate work retroactively: existing
+  // accounts created before the demographics table simply have no
+  // row, so on their next authenticated session they land in
+  // 'needed' and are routed to the picker before anything else.
+  const [ageGateStatus, setAgeGateStatus] = useState<'unknown' | 'needed' | 'passed'>('unknown');
+
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
   }, []);
 
-  // Initialize notifications and geofence when authenticated
   useEffect(() => {
-    if (!isAuthenticated || !user || !splashDone) return;
+    if (!isAuthenticated || !user?.id) {
+      setAgeGateStatus('unknown');
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const done = await hasCompletedAgeGate();
+      if (!cancelled) setAgeGateStatus(done ? 'passed' : 'needed');
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user?.id]);
+
+  const handleAgeGateComplete = useCallback(() => {
+    setAgeGateStatus('passed');
+  }, []);
+
+  // Initialize notifications and geofence when authenticated AND
+  // the age gate has cleared. Holding the effect back until 'passed'
+  // means a user still on the DOB screen never registers a device
+  // for notifications, never starts background location, and never
+  // opens a location-related consent record.
+  useEffect(() => {
+    if (!isAuthenticated || !user || !splashDone || ageGateStatus !== 'passed') return;
 
     void (async () => {
       await setupNotificationCategories();
@@ -146,7 +180,7 @@ function AppContent() {
         notifSubRef.current.remove();
       }
     };
-  }, [isAuthenticated, user, splashDone, router]);
+  }, [isAuthenticated, user, splashDone, ageGateStatus, router]);
 
   // Stop geofence on logout
   useEffect(() => {
@@ -172,6 +206,28 @@ function AppContent() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
         {splashDone && <AuthScreen />}
+      </>
+    );
+  }
+
+  // Age-gate router: while the DOB check is still resolving, show
+  // the splash; while it's known-needed, show the picker. Neither
+  // branch mounts the main tab tree, so the user has no path into
+  // the app until the 21+ gate is satisfied.
+  if (ageGateStatus === 'unknown' || !splashDone) {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <PulseSplash onComplete={handleSplashComplete} />
+      </>
+    );
+  }
+
+  if (ageGateStatus === 'needed') {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <AgeGateScreen onComplete={handleAgeGateComplete} />
       </>
     );
   }

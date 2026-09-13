@@ -16,6 +16,7 @@ import {
 import { tierDefinitions } from '@/mocks/friends';
 import { getFriendsAndRequests } from '@/services/friends';
 import { getMyCheckIns } from '@/services/crewFeed';
+import { getCurrentUserAge } from '@/services/demographics';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
@@ -77,6 +78,25 @@ export default function ProfileScreen() {
       getMyCheckIns(user.id)
         .then((items) => setRealCheckInCount(items.length))
         .catch(() => {});
+    }, [user?.id]),
+  );
+
+  // Age comes from the SECURITY DEFINER RPC get_current_user_age()
+  // — the client never sees raw DOB. Recomputed on focus so a
+  // user staying signed in on their birthday sees the number roll
+  // over on their next return to Profile.
+  const [age, setAge] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        setAge(null);
+        return;
+      }
+      let cancelled = false;
+      void getCurrentUserAge().then((a) => {
+        if (!cancelled) setAge(a);
+      });
+      return () => { cancelled = true; };
     }, [user?.id]),
   );
 
@@ -162,7 +182,10 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.identityInfo}>
               <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>{displayName}</Text>
-              <Text style={[styles.username, { color: colors.textMuted }]} numberOfLines={1}>@{username}</Text>
+              <Text style={[styles.username, { color: colors.textMuted }]} numberOfLines={1}>
+                @{username}
+                {age !== null ? ` · ${age}` : ''}
+              </Text>
             </View>
           </View>
 

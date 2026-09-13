@@ -510,6 +510,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_demographics: {
+        Row: {
+          created_at: string
+          date_of_birth: string
+          established_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth: string
+          established_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string
+          established_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_friendships: {
         Row: {
           allow_a_sees_b_location: boolean
@@ -1641,6 +1665,7 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_current_user_age: { Args: never; Returns: number }
       get_nearby_geofence_candidates:
         | {
             Args: { p_lat: number; p_limit?: number; p_lng: number }
@@ -1763,6 +1788,7 @@ export type Database = {
         Returns: undefined
       }
       resolve_login_email: { Args: { p_username: string }; Returns: string }
+      set_my_date_of_birth: { Args: { p_dob: string }; Returns: number }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown
