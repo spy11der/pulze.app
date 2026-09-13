@@ -39,6 +39,10 @@ export default function LocationSelectorScreen() {
   const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
   const [searchResults, setSearchResults] = useState<NearbyVenue[]>([]);
   const inputRef = useRef<TextInput>(null);
+  // Skip recording the same executed query twice in a row — pause,
+  // resume-typing, and same-key-retap should collapse into one
+  // event, not three.
+  const lastRecordedQueryRef = useRef<string>('');
 
   useEffect(() => {
     if (!userLocation) return;
@@ -49,45 +53,60 @@ export default function LocationSelectorScreen() {
     const trimmed = query.trim();
     if (trimmed.length === 0) {
       setSearchResults([]);
+      lastRecordedQueryRef.current = '';
       return;
     }
     let cancelled = false;
-    const run = async () => {
-      const results = await searchVenuesLive(query);
-      if (cancelled) return;
-      let finalResults: NearbyVenue[];
-      if (userLocation) {
-        const nearbyResults = await getNearbyVenuesLive(userLocation.latitude, userLocation.longitude, 50);
+    // 400ms debounce — long enough that a normal typist doesn't
+    // burn one network + one analytics event per keystroke, short
+    // enough to feel instant. The cleanup below clears the timer
+    // when `query` changes again, so the effect only fires for the
+    // last stable value the user paused on.
+    const timer = setTimeout(() => {
+      const run = async () => {
+        const results = await searchVenuesLive(query);
         if (cancelled) return;
-        const filtered = nearbyResults.filter(
-          (v) =>
-            v.name.toLowerCase().includes(query.toLowerCase()) ||
-            v.neighborhood.toLowerCase().includes(query.toLowerCase())
-        );
-        const ids = new Set(filtered.map((v) => v.id));
-        const extra = results.filter((v) => !ids.has(v.id));
-        finalResults = [...filtered, ...extra].slice(0, 15);
-      } else {
-        finalResults = results.slice(0, 15);
-      }
-      setSearchResults(finalResults);
-      // Operational: record that a search ran. The query text is
-      // stored in properties.query (truncated to 200 chars) rather
-      // than in subject_id so a future retention rule can purge
-      // just the text without discarding the aggregate count of
-      // searches. Raw coordinates are never included.
-      analytics.operational({
-        eventType: 'search_query',
-        subjectType: 'search',
-        properties: {
-          query: trimmed.slice(0, 200),
-          query_length: trimmed.length,
-          result_count: finalResults.length,
-        },
-      });
+        let finalResults: NearbyVenue[];
+        if (userLocation) {
+          const nearbyResults = await getNearbyVenuesLive(userLocation.latitude, userLocation.longitude, 50);
+          if (cancelled) return;
+          const filtered = nearbyResults.filter(
+            (v) =>
+              v.name.toLowerCase().includes(query.toLowerCase()) ||
+              v.neighborhood.toLowerCase().includes(query.toLowerCase())
+          );
+          const ids = new Set(filtered.map((v) => v.id));
+          const extra = results.filter((v) => !ids.has(v.id));
+          finalResults = [...filtered, ...extra].slice(0, 15);
+        } else {
+          finalResults = results.slice(0, 15);
+        }
+        setSearchResults(finalResults);
+        // Operational: record that a MEANINGFUL debounced search ran.
+        // Dedup on the trimmed lowercased text so casing changes
+        // during typing don't re-fire the event either.
+        const normalized = trimmed.toLowerCase();
+        if (lastRecordedQueryRef.current !== normalized) {
+          lastRecordedQueryRef.current = normalized;
+          analytics.operational({
+            eventType: 'search_query',
+            subjectType: 'search',
+            properties: {
+              // Truncated to 200 chars. Never printed to console;
+              // never sent outside Supabase.
+              query: trimmed.slice(0, 200),
+              query_length: trimmed.length,
+              result_count: finalResults.length,
+            },
+          });
+        }
+      };
+      void run();
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-    void run();
-    return () => { cancelled = true; };
   }, [query, userLocation]);
 
   const displayList = useMemo(() => {

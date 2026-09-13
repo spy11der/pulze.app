@@ -1227,6 +1227,19 @@ export type Database = {
           },
         ]
       }
+      demographic_aggregate_events_eligible: {
+        Row: {
+          client_ts: string | null
+          event_type: string | null
+          id: number | null
+          properties: Json | null
+          server_ts: string | null
+          subject_id: string | null
+          subject_type: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       geography_columns: {
         Row: {
           coord_dimension: number | null
@@ -1310,6 +1323,19 @@ export type Database = {
           growth_rate_pct: number | null
           name: string | null
           previous_window_arrivals: number | null
+        }
+        Relationships: []
+      }
+      personalization_events_eligible: {
+        Row: {
+          client_ts: string | null
+          event_type: string | null
+          id: number | null
+          properties: Json | null
+          server_ts: string | null
+          subject_id: string | null
+          subject_type: string | null
+          user_id: string | null
         }
         Relationships: []
       }
@@ -1855,6 +1881,7 @@ export type Database = {
         Returns: undefined
       }
       resolve_login_email: { Args: { p_username: string }; Returns: string }
+      sanitize_event_properties: { Args: { p: Json }; Returns: Json }
       set_my_date_of_birth: { Args: { p_dob: string }; Returns: number }
       set_my_demographic_analytics_consent: {
         Args: { p_granted: boolean }
