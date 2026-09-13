@@ -17,22 +17,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BarChart3,
   BellRing,
-  Bug,
   Check,
   Sparkles,
   ChevronDown,
-  FileText,
   Fingerprint,
   Info,
   Lock,
-  Mail,
   MapPin,
-  MessageSquare,
   Monitor,
   Moon,
   ScanFace,
   Share2,
-  Shield,
   ShieldAlert,
   Sun,
   Trash2,
@@ -301,15 +296,6 @@ export default function SettingsScreen() {
     } catch (e) {
       console.log('[Settings] share error', e);
     }
-  }, []);
-
-  const openMail = useCallback((subject: string) => {
-    void Haptics.selectionAsync();
-    const url = `mailto:hello@pulze.pro?subject=${encodeURIComponent(subject)}`;
-    Linking.openURL(url).catch((e) => {
-      console.log('[Settings] mail error', e);
-      Alert.alert('Email unavailable', 'Please email hello@pulze.pro');
-    });
   }, []);
 
   const handleDeleteAccount = useCallback(() => {
@@ -666,74 +652,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
-
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Legal</Text>
-          <Pressable
-            onPress={() => {
-              void Haptics.selectionAsync();
-              router.push('/privacy-policy');
-            }}
-            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
-            testID="privacy-policy-btn"
-          >
-            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <Shield color={colors.aqua} size={18} />
-            </View>
-            <View style={styles.settingBody}>
-              <Text style={[styles.settingValue, { color: colors.text }]}>Privacy Policy</Text>
-            </View>
-            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              void Haptics.selectionAsync();
-              router.push('/terms-of-service');
-            }}
-            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
-            testID="terms-btn"
-          >
-            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <FileText color={colors.aqua} size={18} />
-            </View>
-            <View style={styles.settingBody}>
-              <Text style={[styles.settingValue, { color: colors.text }]}>Terms of Service</Text>
-            </View>
-            <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
-          </Pressable>
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Support</Text>
-          <Pressable
-            onPress={() => openMail('Pulze Feedback')}
-            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
-            testID="send-feedback-btn"
-          >
-            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <MessageSquare color={colors.aqua} size={18} />
-            </View>
-            <View style={styles.settingBody}>
-              <Text style={[styles.settingValue, { color: colors.text }]}>Send Feedback</Text>
-              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>hello@pulze.pro</Text>
-            </View>
-            <Mail color={colors.textSoft} size={16} />
-          </Pressable>
-          <Pressable
-            onPress={() => openMail('Bug Report')}
-            style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
-            testID="report-bug-btn"
-          >
-            <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-              <Bug color={colors.aqua} size={18} />
-            </View>
-            <View style={styles.settingBody}>
-              <Text style={[styles.settingValue, { color: colors.text }]}>Report a Bug</Text>
-              <Text style={[styles.settingLabel, { color: colors.textMuted }]}>Help us improve Pulze</Text>
-            </View>
-            <Mail color={colors.textSoft} size={16} />
-          </Pressable>
-        </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>

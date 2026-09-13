@@ -107,15 +107,24 @@ export default function FriendsScreen() {
       requests?: RealFriendRequest[];
     }> = [];
 
+    // Requests stay contextual — only shown when someone actually
+    // sent one. Friends and Inner Circle are always visible so the
+    // screen's shape doesn't change based on how many friends the
+    // user has. Empty sections render an inline placeholder via
+    // renderSectionFooter below.
     if (requests.length > 0) {
       data.push({ title: 'Requests', data: [], requests });
     }
-    if (innerCircle.length > 0) {
-      data.push({ title: 'Inner Circle', data: innerCircle, tier: tierDefinitions.find((t) => t.id === 'inner_circle') });
-    }
-    if (friendsList.length > 0) {
-      data.push({ title: 'Friends', data: friendsList, tier: tierDefinitions.find((t) => t.id === 'friends') });
-    }
+    data.push({
+      title: 'Friends',
+      data: friendsList,
+      tier: tierDefinitions.find((t) => t.id === 'friends'),
+    });
+    data.push({
+      title: 'Inner Circle',
+      data: innerCircle,
+      tier: tierDefinitions.find((t) => t.id === 'inner_circle'),
+    });
     return data;
   }, [friends, requests]);
 
@@ -204,6 +213,31 @@ export default function FriendsScreen() {
 
   const renderItem = useCallback(({ item }: { item: RealFriend }) => renderFriend({ item }), [renderFriend]);
 
+  // Placeholder shown inline when Friends or Inner Circle has no
+  // members. Requests section is intentionally not decorated here —
+  // it doesn't render at all when empty.
+  const renderSectionFooter = useCallback(
+    ({ section }: { section: { title: string; data: RealFriend[] } }) => {
+      if (section.title === 'Requests') return null;
+      if (section.data.length > 0) return null;
+      const message =
+        section.title === 'Friends'
+          ? 'No friends yet. Add someone by username above.'
+          : 'No one in your inner circle yet. Tap a friend to add them.';
+      return (
+        <View
+          style={[
+            styles.emptyStateRow,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>{message}</Text>
+        </View>
+      );
+    },
+    [colors],
+  );
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Friends', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.text, headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 } }} />
@@ -212,6 +246,7 @@ export default function FriendsScreen() {
         keyExtractor={(item) => ('friendshipId' in item ? item.friendshipId : '')}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
+        renderSectionFooter={renderSectionFooter}
         contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
         ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
         SectionSeparatorComponent={() => <View style={{ height: 16 }} />}
@@ -222,21 +257,24 @@ export default function FriendsScreen() {
           // reuses the same subtree across parent re-renders. An inline
           // `() => (...)` here is a new component type each keystroke,
           // which unmounted the TextInput and dropped keyboard focus.
-          <View style={styles.addFriendRow}>
-            <View style={[styles.addFriendInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <TextInput
-                value={addUsername}
-                onChangeText={setAddUsername}
-                placeholder="Add by username"
-                placeholderTextColor={colors.textSoft}
-                autoCapitalize="none"
-                style={[styles.addFriendText, { color: colors.text }]}
-                onSubmitEditing={handleAddFriend}
-              />
+          <View style={styles.addFriendBlock}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>ADD FRIENDS</Text>
+            <View style={styles.addFriendRow}>
+              <View style={[styles.addFriendInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <TextInput
+                  value={addUsername}
+                  onChangeText={setAddUsername}
+                  placeholder="Add by username"
+                  placeholderTextColor={colors.textSoft}
+                  autoCapitalize="none"
+                  style={[styles.addFriendText, { color: colors.text }]}
+                  onSubmitEditing={handleAddFriend}
+                />
+              </View>
+              <Pressable onPress={handleAddFriend} style={[styles.addFriendBtn, { backgroundColor: colors.aqua }]}>
+                <UserPlus color="#fff" size={18} />
+              </Pressable>
             </View>
-            <Pressable onPress={handleAddFriend} style={[styles.addFriendBtn, { backgroundColor: colors.aqua }]}>
-              <UserPlus color="#fff" size={18} />
-            </Pressable>
           </View>
         }
         ListFooterComponent={() => {
@@ -251,10 +289,19 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   listContent: { padding: 16, paddingTop: 8 },
-  addFriendRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  addFriendBlock: { gap: 8, marginBottom: 16 },
+  addFriendRow: { flexDirection: 'row', gap: 8 },
   addFriendInput: { flex: 1, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, justifyContent: 'center', height: 44 },
   addFriendText: { fontSize: 14, fontWeight: '500' as const },
   addFriendBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  emptyStateRow: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  emptyStateText: { fontSize: 13, fontWeight: '500' as const, textAlign: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, paddingVertical: 8 },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tierDot: { width: 10, height: 10, borderRadius: 5 },

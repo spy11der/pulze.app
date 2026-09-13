@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Dimensions,
   Image,
+  Linking,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,14 +17,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
+  Bug,
   ChevronRight,
   Edit3,
+  FileText,
   LogOut,
   Menu,
+  MessageSquare,
   Moon,
   Settings,
+  Shield,
   Sun,
-  X,
 } from 'lucide-react-native';
 
 import { getFriendsAndRequests } from '@/services/friends';
@@ -31,6 +38,8 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 interface MenuItemProps {
   icon: React.ReactNode;
   label: string;
@@ -38,10 +47,11 @@ interface MenuItemProps {
   onPress: () => void;
   trailing?: React.ReactNode;
   isDestructive?: boolean;
+  isLast?: boolean;
   testID?: string;
 }
 
-function MenuItem({ icon, label, sublabel, onPress, trailing, isDestructive, testID }: MenuItemProps) {
+function MenuItem({ icon, label, sublabel, onPress, trailing, isDestructive, isLast, testID }: MenuItemProps) {
   const { colors } = useTheme();
   const iconColor = isDestructive ? colors.danger : colors.aqua;
   const labelColor = isDestructive ? colors.danger : colors.text;
@@ -50,7 +60,14 @@ function MenuItem({ icon, label, sublabel, onPress, trailing, isDestructive, tes
     <Pressable
       onPress={onPress}
       testID={testID}
-      style={({ pressed }) => [styles.menuRow, { borderBottomColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+      style={({ pressed }) => [
+        styles.menuRow,
+        {
+          borderBottomColor: colors.border,
+          borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
     >
       <View style={[styles.menuIconWrap, { backgroundColor: colors.aqua + '14' }]}>
         {React.isValidElement(icon)
@@ -65,6 +82,118 @@ function MenuItem({ icon, label, sublabel, onPress, trailing, isDestructive, tes
       </View>
       {trailing ?? <ChevronRight color={colors.textMuted} size={18} />}
     </Pressable>
+  );
+}
+
+// A bottom sheet that:
+//   * slides up from the bottom, backdrop fades in
+//   * shows a small horizontal drag indicator centered at the top
+//   * can be dragged downward to dismiss (threshold-based)
+//   * can be dismissed by tapping the backdrop
+//   * only rises as high as its content requires (capped at 80% of
+//     screen height so it never occupies the entire screen)
+//
+// `children` is rendered inside a ScrollView. It receives a
+// `close(action?)` helper that runs the slide-down animation before
+// firing the caller's action — so tapping a menu item feels like
+// the sheet dismisses then navigates, rather than snapping shut.
+interface BottomSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  children: (close: (action?: () => void) => void) => React.ReactNode;
+}
+
+function BottomSheet({ visible, onClose, children }: BottomSheetProps) {
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      dragY.setValue(0);
+      Animated.parallel([
+        Animated.spring(slideAnim, { toValue: 0, friction: 12, tension: 60, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    } else {
+      slideAnim.setValue(SCREEN_HEIGHT);
+      backdropOpacity.setValue(0);
+      dragY.setValue(0);
+    }
+  }, [visible, slideAnim, backdropOpacity, dragY]);
+
+  const close = useCallback((action?: () => void) => {
+    Animated.parallel([
+      Animated.timing(slideAnim,      { toValue: SCREEN_HEIGHT, duration: 220, useNativeDriver: true }),
+      Animated.timing(backdropOpacity,{ toValue: 0,            duration: 200, useNativeDriver: true }),
+      Animated.timing(dragY,          { toValue: 0,            duration: 220, useNativeDriver: true }),
+    ]).start(() => {
+      onClose();
+      if (action) action();
+    });
+  }, [slideAnim, backdropOpacity, dragY, onClose]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_evt, g) => g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderMove: (_evt, g) => {
+          if (g.dy > 0) dragY.setValue(g.dy);
+        },
+        onPanResponderRelease: (_evt, g) => {
+          if (g.dy > 80 || g.vy > 0.5) {
+            close();
+          } else {
+            Animated.spring(dragY, { toValue: 0, friction: 10, tension: 80, useNativeDriver: true }).start();
+          }
+        },
+      }),
+    [close, dragY],
+  );
+
+  const translateY = Animated.add(slideAnim, dragY);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={() => close()}
+    >
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} testID="bottom-sheet-backdrop" />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            transform: [{ translateY }],
+            maxHeight: SCREEN_HEIGHT * 0.8,
+          },
+        ]}
+      >
+        <View {...panResponder.panHandlers} style={styles.handleArea}>
+          <View
+            style={[
+              styles.handleBar,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)' },
+            ]}
+          />
+        </View>
+        <ScrollView
+          contentContainerStyle={[styles.sheetContent, { paddingBottom: insets.bottom + 20 }]}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {children(close)}
+        </ScrollView>
+      </Animated.View>
+    </Modal>
   );
 }
 
@@ -135,32 +264,17 @@ export default function ProfileScreen() {
 
   const savedCount = favoriteVenues.length;
 
-  const [hamburgerVisible, setHamburgerVisible] = useState<boolean>(false);
-  const closeHamburger = useCallback(() => setHamburgerVisible(false), []);
+  const [menuVisible, setMenuVisible] = useState<boolean>(false);
 
   const handleToggleTheme = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Tap cycles through the three modes — matches the previous
-    // Profile behavior; the label in the row shows the current mode
-    // so the user can see the state advance.
+    // Tap cycles through the three modes — the label in the row
+    // shows the current mode so the user can see the state advance.
     const next = mode === 'dark' ? 'light' : mode === 'light' ? 'system' : 'dark';
     void setThemeMode(next);
   }, [mode, setThemeMode]);
 
-  const handleEditProfile = useCallback(() => {
-    void Haptics.selectionAsync();
-    closeHamburger();
-    router.push('/edit-profile');
-  }, [router, closeHamburger]);
-
-  const handleOpenSettings = useCallback(() => {
-    void Haptics.selectionAsync();
-    closeHamburger();
-    router.push('/settings');
-  }, [router, closeHamburger]);
-
   const handleLogout = useCallback(() => {
-    closeHamburger();
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -172,7 +286,18 @@ export default function ProfileScreen() {
         },
       },
     ]);
-  }, [logout, closeHamburger]);
+  }, [logout]);
+
+  // Same mailto contract Settings used to use before the Legal and
+  // Support sections were moved into this menu. Support inbox is
+  // hello@pulze.pro; race/ethnicity corrections still go to
+  // contact@pulze.pro from the Demographics section in Settings.
+  const openMail = useCallback((subject: string) => {
+    const url = `mailto:hello@pulze.pro?subject=${encodeURIComponent(subject)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Email unavailable', 'Please email hello@pulze.pro');
+    });
+  }, []);
 
   const themeLabel = mode === 'dark' ? 'Dark' : mode === 'light' ? 'Light' : 'System';
   const ThemeIcon = isDark ? Moon : Sun;
@@ -190,7 +315,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => {
               void Haptics.selectionAsync();
-              setHamburgerVisible(true);
+              setMenuVisible(true);
             }}
             style={({ pressed }) => [styles.headerBtn, { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
             testID="profile-menu-btn"
@@ -257,72 +382,89 @@ export default function ProfileScreen() {
         <Text style={[styles.footer, { color: colors.textSoft }]}>Pulze · v1.0.0 · Denver</Text>
       </ScrollView>
 
-      <Modal
-        transparent
-        animationType="fade"
-        visible={hamburgerVisible}
-        onRequestClose={closeHamburger}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={closeHamburger} />
-        <View
-          style={[
-            styles.modalSheet,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              paddingTop: insets.top + 12,
-              paddingBottom: insets.bottom + 24,
-            },
-          ]}
-        >
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Menu</Text>
-            <Pressable
-              onPress={closeHamburger}
-              style={({ pressed }) => [styles.modalCloseBtn, { backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 }]}
-              testID="profile-menu-close"
-            >
-              <X color={colors.textMuted} size={16} />
-            </Pressable>
-          </View>
+      <BottomSheet visible={menuVisible} onClose={() => setMenuVisible(false)}>
+        {(close) => (
+          <>
+            <Text style={[styles.groupLabel, { color: colors.textMuted }]}>MAIN</Text>
+            <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <MenuItem
+                icon={<Edit3 />}
+                label="Edit Profile"
+                onPress={() => close(() => router.push('/edit-profile'))}
+                testID="menu-edit-profile"
+              />
+              <MenuItem
+                icon={<ThemeIcon />}
+                label="Theme"
+                sublabel={`Currently ${themeLabel}`}
+                onPress={handleToggleTheme}
+                trailing={
+                  <View style={[styles.pillBadge, { backgroundColor: colors.surfaceAlt }]}>
+                    <Text style={[styles.pillBadgeText, { color: colors.text }]}>{themeLabel}</Text>
+                  </View>
+                }
+                testID="menu-theme"
+              />
+              <MenuItem
+                icon={<Settings />}
+                label="Settings"
+                sublabel="Privacy, alerts, location"
+                onPress={() => close(() => router.push('/settings'))}
+                isLast
+                testID="menu-settings"
+              />
+            </View>
 
-          <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <MenuItem
-              icon={<Edit3 />}
-              label="Edit Profile"
-              onPress={handleEditProfile}
-              testID="menu-edit-profile"
-            />
-            <MenuItem
-              icon={<ThemeIcon />}
-              label="Theme"
-              sublabel={`Currently ${themeLabel}`}
-              onPress={handleToggleTheme}
-              trailing={
-                <View style={[styles.pillBadge, { backgroundColor: colors.surfaceAlt }]}>
-                  <Text style={[styles.pillBadgeText, { color: colors.text }]}>{themeLabel}</Text>
-                </View>
-              }
-              testID="menu-theme"
-            />
-            <MenuItem
-              icon={<Settings />}
-              label="Settings"
-              sublabel="Privacy, alerts, location"
-              onPress={handleOpenSettings}
-              testID="menu-settings"
-            />
-            <MenuItem
-              icon={<LogOut />}
-              label="Sign Out"
-              onPress={handleLogout}
-              isDestructive
-              trailing={<ChevronRight color={colors.danger} size={18} />}
-              testID="menu-signout"
-            />
-          </View>
-        </View>
-      </Modal>
+            <Text style={[styles.groupLabel, { color: colors.textMuted }]}>LEGAL</Text>
+            <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <MenuItem
+                icon={<Shield />}
+                label="Privacy Policy"
+                onPress={() => close(() => router.push('/privacy-policy'))}
+                testID="menu-privacy"
+              />
+              <MenuItem
+                icon={<FileText />}
+                label="Terms of Service"
+                onPress={() => close(() => router.push('/terms-of-service'))}
+                isLast
+                testID="menu-terms"
+              />
+            </View>
+
+            <Text style={[styles.groupLabel, { color: colors.textMuted }]}>SUPPORT</Text>
+            <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <MenuItem
+                icon={<MessageSquare />}
+                label="Send Feedback"
+                sublabel="hello@pulze.pro"
+                onPress={() => close(() => openMail('Pulze Feedback'))}
+                testID="menu-feedback"
+              />
+              <MenuItem
+                icon={<Bug />}
+                label="Report a Bug"
+                sublabel="Help us improve Pulze"
+                onPress={() => close(() => openMail('Bug Report'))}
+                isLast
+                testID="menu-bug"
+              />
+            </View>
+
+            <View style={[styles.menuGroup, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 4 }]}>
+              <MenuItem
+                icon={<LogOut />}
+                label="Sign Out"
+                onPress={() => close(handleLogout)}
+                isDestructive
+                isLast
+                trailing={<ChevronRight color={colors.danger} size={18} />}
+                testID="menu-signout"
+              />
+            </View>
+          </>
+        )}
+      </BottomSheet>
     </View>
   );
 }
@@ -346,7 +488,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.5 },
   statLabel: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.5 },
   menuGroup: { borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
   menuIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   menuTextWrap: { flex: 1, gap: 2 },
   menuLabel: { fontSize: 15, fontWeight: '600' as const },
@@ -354,7 +496,9 @@ const styles = StyleSheet.create({
   pillBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   pillBadgeText: { fontSize: 11, fontWeight: '700' as const },
   footer: { fontSize: 11, textAlign: 'center', marginTop: 8 },
-  modalBackdrop: {
+
+  // Bottom sheet
+  backdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -362,32 +506,42 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(4, 19, 24, 0.55)',
   },
-  modalSheet: {
+  sheet: {
     position: 'absolute',
-    top: 0,
-    right: 0,
     bottom: 0,
-    width: '82%',
-    borderLeftWidth: 1,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 20,
+  },
+  handleArea: {
+    paddingTop: 10,
+    paddingBottom: 6,
+    alignItems: 'center',
+  },
+  handleBar: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+  },
+  sheetContent: {
     paddingHorizontal: 16,
-    gap: 16,
+    paddingTop: 6,
+    gap: 10,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
     paddingHorizontal: 4,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-    letterSpacing: -0.4,
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 6,
   },
 });
