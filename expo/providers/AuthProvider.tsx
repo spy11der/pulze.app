@@ -48,7 +48,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
 
         if (existingSession) {
-          console.log('[Auth] Restored session for', existingSession.user.email);
+          if (__DEV__) console.log('[Auth] Restored session for', existingSession.user.email);
           setSession(existingSession);
           setUser(mapSessionUser(existingSession));
           setIsAuthenticated(true);

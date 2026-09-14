@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rork-app",
+    "scheme": "pulze",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "bundleIdentifier": "com.pulze.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#041318"
       },
-      "package": "app.rork.cmdj1v6lzdnu5omh92zbm",
+      "package": "com.pulze.app",
       "versionCode": 1,
       "permissions": [
         "CAMERA",

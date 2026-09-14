@@ -89,7 +89,7 @@ async function checkProximityAndNotify(lat: number, lng: number, velocityMph: nu
 
     const shouldFire = await shouldTriggerCheckIn(userId, venueId);
     if (!shouldFire) {
-      console.log(`[Geofence] Deduped: ${venueName} for user ${userId}`);
+      if (__DEV__) console.log(`[Geofence] Deduped: ${venueName} for user ${userId}`);
       return;
     }
 
