@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -133,36 +134,20 @@ export default function EditProfileScreen() {
     return computed || displayName[0] || 'P';
   }, [displayName]);
 
-  const handleChangePhoto = useCallback(async () => {
-    if (isUploadingAvatar) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  // Shared post-pick flow — identical for camera and library images.
+  // Upload/storage/database logic is unchanged; only the selection UI differs.
+  const handleUploadAsset = useCallback(async (assetUri: string) => {
     if (!user?.id) {
       Alert.alert('Not signed in', 'You must be signed in to update your profile photo.');
       return;
     }
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo library access to choose a profile photo.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    if (!asset) return;
 
     setIsUploadingAvatar(true);
     try {
       // Store the raw object path in the DB / auth metadata (bucket is
       // private now) and use the freshly-issued signed URL only for the
       // in-screen preview.
-      const { path, signedUrl } = await uploadAvatar(user.id, asset.uri);
+      const { path, signedUrl } = await uploadAvatar(user.id, assetUri);
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -197,7 +182,85 @@ export default function EditProfileScreen() {
     } finally {
       setIsUploadingAvatar(false);
     }
-  }, [avatarUrl, isUploadingAvatar, user]);
+  }, [avatarUrl, user]);
+
+  const handleTakePhoto = useCallback(async () => {
+    if (isUploadingAvatar) return;
+
+    // Requested only when the camera option is actually chosen.
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Camera access needed',
+        'Camera access is needed to take a profile photo. You can enable it in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+        ],
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    await handleUploadAsset(asset.uri);
+  }, [handleUploadAsset, isUploadingAvatar]);
+
+  const handleChooseFromLibrary = useCallback(async () => {
+    if (isUploadingAvatar) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Photo library access needed',
+        'Photo library access is needed to choose a profile photo. You can enable it in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+        ],
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    await handleUploadAsset(asset.uri);
+  }, [handleUploadAsset, isUploadingAvatar]);
+
+  const handleChangePhoto = useCallback(() => {
+    if (isUploadingAvatar) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!user?.id) {
+      Alert.alert('Not signed in', 'You must be signed in to update your profile photo.');
+      return;
+    }
+
+    Alert.alert(
+      'Profile Photo',
+      undefined,
+      [
+        { text: 'Take Photo', onPress: () => { void handleTakePhoto(); } },
+        { text: 'Choose from Library', onPress: () => { void handleChooseFromLibrary(); } },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  }, [handleChooseFromLibrary, handleTakePhoto, isUploadingAvatar, user?.id]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
