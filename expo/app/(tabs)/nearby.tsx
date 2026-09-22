@@ -22,12 +22,7 @@ import {
   metersToWalkMinutes,
   type NearbyVenue,
 } from '@/hooks/useNearbyVenues';
-import {
-  blendVenueOrder,
-  emptyPersonalizationSnapshot,
-  fetchPersonalizedVenueScores,
-  type PersonalizationSnapshot,
-} from '@/services/recommendations';
+import { SponsoredBadge } from '@/components/SponsoredBadge';
 import {
   buildHappeningNowIndex,
   fetchHappyHoursHappeningNow,
@@ -92,6 +87,10 @@ function NearbyCard({
           </Text>
         </View>
 
+        {/* Inert through all of 6A -- the server hardcodes is_sponsored=false.
+            Rendered from the server flag only; never inferred client-side. */}
+        <SponsoredBadge isSponsored={venue.isSponsored} />
+
         {happyHourNow ? (
           <View style={styles.happyHourRow}>
             <Clock color={colors.amber} size={11} />
@@ -141,10 +140,10 @@ export default function NearbyScreen() {
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
   const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
   const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(true);
-  // Same one-shot personalization snapshot Home uses. Fetched in
-  // parallel with the venue list; failure/cold-start leaves ordering
-  // exactly at rank_nearby_venues' output.
-  const [personalization, setPersonalization] = useState<PersonalizationSnapshot>(emptyPersonalizationSnapshot);
+  // Phase 6A-1: no client-side personalization state. pulze_discover_feed
+  // applies the limit and then the 70/30 blend server-side, in that order --
+  // which is exactly what this screen used to do by slicing and only then
+  // calling blendVenueOrder. The array arrives final.
   // venue_id -> current happy-hour row (empty until the RPC resolves).
   const [happeningNow, setHappeningNow] = useState<Map<string, HappyHourNow>>(() => new Map());
   const [showOnlyHappyHour, setShowOnlyHappyHour] = useState<boolean>(false);
@@ -163,9 +162,6 @@ export default function NearbyScreen() {
         setIsLoadingVenues(false);
       }
     });
-    void fetchPersonalizedVenueScores().then((snap) => {
-      if (isMountedRef.current) setPersonalization(snap);
-    });
     // Happy Hour Now runs in parallel; a failure leaves the map empty
     // and the filter falls back to "no venues currently in HH".
     void fetchHappyHoursHappeningNow().then((rows) => {
@@ -173,12 +169,10 @@ export default function NearbyScreen() {
     });
   }, [lat, lng]);
 
-  // Apply the 70/30 blend to the nearby list. Untouched when
-  // personalization is unavailable.
-  const orderedVenues = useMemo(
-    () => blendVenueOrder(nearbyVenues, personalization),
-    [nearbyVenues, personalization],
-  );
+  // The server already ordered this list (organic_rank). Kept as a named
+  // value so the happy-hour filter below reads the same way it did before;
+  // re-sorting here would double-apply the personalization blend.
+  const orderedVenues = nearbyVenues;
 
   const visibleVenues = useMemo(
     () => (showOnlyHappyHour ? orderedVenues.filter((v) => happeningNow.has(v.id)) : orderedVenues),

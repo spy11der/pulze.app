@@ -13,13 +13,8 @@ import { useRouter } from 'expo-router';
 import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-import { getAllLiveVenues } from '@/services/venues';
-import {
-  blendVenueOrder,
-  emptyPersonalizationSnapshot,
-  fetchPersonalizedVenueScores,
-  type PersonalizationSnapshot,
-} from '@/services/recommendations';
+import { getDiscoverFeed, type DiscoverFilters, type FeedFacets } from '@/services/venues';
+import { SponsoredBadge } from '@/components/SponsoredBadge';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
@@ -39,17 +34,55 @@ interface FilterPillDef {
   category: FilterCategory;
 }
 
-const FILTER_PILLS: FilterPillDef[] = [
+// Phase 6A-3: filtering moved server-side and the pill row is now DERIVED
+// from the feed's facets instead of being hardcoded.
+//
+// The old list contained a "Baker" pill that matched zero venues in the
+// database AND zero in the mock catalogue -- it could never return a result.
+// It was not removed by deleting Baker (it is a real Denver neighborhood and
+// decision D8 kept it in the vocabulary); it disappeared because pills are
+// now built from neighborhoods that actually have active venues. When a Baker
+// venue is added, the pill appears on its own.
+//
+// Busyness pills are static because they are claims about live crowd state
+// rather than about the catalogue. Both require real signal at or above the
+// confidence floor, so while confidence is zero everywhere they correctly
+// return nothing -- the server enforces that, not this file.
+const BUSYNESS_PILLS: FilterPillDef[] = [
   { key: 'popping', label: 'Popping now', category: 'busyness' },
   { key: 'low_wait', label: 'Low wait', category: 'busyness' },
-  { key: 'RiNo', label: 'RiNo', category: 'neighborhood' },
-  { key: 'Cap Hill', label: 'Cap Hill', category: 'neighborhood' },
-  { key: 'LoDo', label: 'LoDo', category: 'neighborhood' },
-  { key: 'Baker', label: 'Baker', category: 'neighborhood' },
-  { key: 'bars', label: 'Bars', category: 'type' },
-  { key: 'clubs', label: 'Clubs', category: 'type' },
-  { key: 'breweries', label: 'Breweries', category: 'type' },
-] as const;
+];
+
+// Display groupings over raw venue.category values. A group pill is rendered
+// only when the facets show at least one venue in it.
+const TYPE_GROUPS: { key: string; label: string; categories: string[] }[] = [
+  { key: 'bars', label: 'Bars', categories: ['bar', 'dive', 'speakeasy'] },
+  { key: 'clubs', label: 'Clubs', categories: ['club'] },
+  { key: 'breweries', label: 'Breweries', categories: ['brewery'] },
+  { key: 'lounges', label: 'Lounges', categories: ['lounge', 'rooftop'] },
+];
+
+// A neighborhood pill's key carries the neighborhood name, which is what
+// makes the selected-filter -> server-filter translation independent of the
+// facet list. See the `serverFilters` memo below for why that matters.
+const NBHD_PILL_PREFIX = 'nbhd:';
+
+function buildPills(facets: FeedFacets): FilterPillDef[] {
+  const present = new Set((facets.categories ?? []).map((c) => c.value));
+  const typePills: FilterPillDef[] = TYPE_GROUPS
+    .filter((g) => g.categories.some((c) => present.has(c)))
+    .map((g) => ({ key: g.key, label: g.label, category: 'type' as const }));
+
+  const nbhdPills: FilterPillDef[] = (facets.neighborhoods ?? [])
+    .filter((n) => n.venue_count > 0)
+    .map((n) => ({
+      key: `${NBHD_PILL_PREFIX}${n.name}`,
+      label: n.name,
+      category: 'neighborhood' as const,
+    }));
+
+  return [...BUSYNESS_PILLS, ...nbhdPills, ...typePills];
+}
 
 function getTimeContext(): string {
   const hour = new Date().getHours();
@@ -58,34 +91,6 @@ function getTimeContext(): string {
   if (hour >= 17 && hour < 21) return 'Denver, tonight';
   if (hour >= 21 || hour < 3) return 'Denver, right now';
   return 'Denver, late night';
-}
-
-function venueMatchesTypeFilter(venue: PulzeVenue, filterKey: string): boolean {
-  switch (filterKey) {
-    case 'bars':
-      return venue.type === 'bar' || venue.type === 'dive' || venue.type === 'speakeasy';
-    case 'clubs':
-      return venue.type === 'club';
-    case 'breweries':
-      return venue.type === 'brewery';
-    default:
-      return false;
-  }
-}
-
-function venueMatchesBusynessFilter(venue: PulzeVenue, filterKey: string): boolean {
-  // Both busyness filters are claims about live crowd state, so require
-  // reliable confidence — a venue with no signal isn't defensibly "low wait"
-  // OR "popping now"; it's unknown, and shouldn't appear under either pill.
-  if (!hasReliableBusyness(venue)) return false;
-  switch (filterKey) {
-    case 'popping':
-      return venue.busynessPercent >= 80;
-    case 'low_wait':
-      return venue.busynessPercent <= 40;
-    default:
-      return false;
-  }
 }
 
 export default function HomeScreen() {
@@ -103,26 +108,68 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [allVenues, setAllVenues] = useState<PulzeVenue[]>([]);
-  // One personalization snapshot per screen load — fire-and-forget
-  // and never blocks the venue list from rendering. Failure /
-  // cold-start / consent-off all collapse to the empty snapshot,
-  // which passes venues through unchanged.
-  const [personalization, setPersonalization] = useState<PersonalizationSnapshot>(emptyPersonalizationSnapshot);
+  // Facet vocabulary from the server. Until the first response lands there are
+  // no pills, which is correct: the app does not know what exists yet.
+  const [facets, setFacets] = useState<FeedFacets>({ neighborhoods: [], categories: [] });
+  // Phase 6A-1: there is no client-side personalization state any more. The
+  // discover-feed Edge Function derives auth.uid() server-side and
+  // pulze_discover_feed applies the 70/30 live/preference blend before it
+  // returns, so the array arrives already ordered by `organic_rank`.
+  // Re-sorting here would double-apply the blend.
 
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
   const timeContext = useMemo(() => getTimeContext(), []);
 
+  const pills = useMemo(() => buildPills(facets), [facets]);
+
+  // Translate selected pill keys into the server-side filter contract.
+  // Nothing is filtered on the device any more: these go to
+  // pulze_discover_feed, which applies them as hard predicates.
+  //
+  // THIS DERIVES FROM `activeFilters` ALONE, NEVER FROM `pills`, AND THAT IS
+  // LOAD-BEARING. `pills` is derived from `facets`, and `facets` is set from
+  // every feed response. Reading `pills` here put the fetch inside its own
+  // output: response -> setFacets (a fresh object off the wire, so never
+  // reference-equal) -> new pills -> new serverFilters -> new loadVenues ->
+  // effect refires -> fetch. That is an unbounded request loop against the
+  // discover-feed Edge Function for as long as Discover is open.
+  //
+  // It is decoupled rather than merely memo-guarded because the pill key
+  // already carries everything the contract needs: type pills key into the
+  // static TYPE_GROUPS table, and a neighborhood pill's key is the
+  // neighborhood name behind NBHD_PILL_PREFIX. The facet list is needed to
+  // decide which pills to *render*, never to interpret one that is selected.
+  const serverFilters = useMemo<DiscoverFilters>(() => {
+    const categories = TYPE_GROUPS
+      .filter((g) => activeFilters.has(g.key))
+      .flatMap((g) => g.categories);
+    const neighborhoods = [...activeFilters]
+      .filter((k) => k.startsWith(NBHD_PILL_PREFIX))
+      .map((k) => k.slice(NBHD_PILL_PREFIX.length));
+    // Busyness is single-valued server-side; if both are somehow selected
+    // 'popping' wins rather than silently returning the empty intersection.
+    // Checked in BUSYNESS_PILLS order so the outcome does not depend on which
+    // the user happened to tap first.
+    const busyness = BUSYNESS_PILLS.find((p) => activeFilters.has(p.key))?.key as
+      | 'popping'
+      | 'low_wait'
+      | undefined;
+    return { categories, neighborhoods, busyness };
+  }, [activeFilters]);
+
   const loadVenues = useCallback(() => {
-    getAllLiveVenues().then((v) => { if (isMountedRef.current) setAllVenues(v); });
-    // Personalization is fetched in parallel — venue list never
-    // waits on it. If the request fails or takes too long, the
-    // list still renders in the server's default order.
-    void fetchPersonalizedVenueScores().then((snap) => {
-      if (isMountedRef.current) setPersonalization(snap);
+    // One authenticated call returning both the filtered venues and the facet
+    // vocabulary. Coordinates feed the proximity relevance term (6A-3).
+    getDiscoverFeed(userLat, userLng, serverFilters).then((res) => {
+      if (!isMountedRef.current) return;
+      setAllVenues(res.venues);
+      // Facets are computed over ALL active venues, not the filtered set, so
+      // the pill row does not collapse as the user narrows.
+      setFacets(res.facets);
     });
-  }, []);
+  }, [userLat, userLng, serverFilters]);
 
   useEffect(() => { loadVenues(); }, [loadVenues]);
 
@@ -151,23 +198,10 @@ export default function HomeScreen() {
     });
   }, []);
 
-  const filteredVenues = useMemo(() => {
-    const busynessKeys = FILTER_PILLS.filter((f) => f.category === 'busyness' && activeFilters.has(f.key)).map((f) => f.key);
-    const neighborhoodKeys = FILTER_PILLS.filter((f) => f.category === 'neighborhood' && activeFilters.has(f.key)).map((f) => f.key);
-    const typeKeys = FILTER_PILLS.filter((f) => f.category === 'type' && activeFilters.has(f.key)).map((f) => f.key);
-
-    const filtered = activeFilters.size === 0 ? allVenues : allVenues.filter((v) => {
-      if (busynessKeys.length > 0 && !busynessKeys.some((k) => venueMatchesBusynessFilter(v, k))) return false;
-      if (neighborhoodKeys.length > 0 && !neighborhoodKeys.includes(v.neighborhood)) return false;
-      if (typeKeys.length > 0 && !typeKeys.some((k) => venueMatchesTypeFilter(v, k))) return false;
-      return true;
-    });
-    // 70/30 blend of live (busynessPercent) + personalization
-    // preference. When personalization is unavailable (cold-start,
-    // consent off, failure), the helper returns the input untouched
-    // — so pure-live users see exactly the existing ordering.
-    return blendVenueOrder(filtered, personalization);
-  }, [activeFilters, allVenues, personalization]);
+  // Phase 6A-3: no client-side filtering and no client-side ordering. The
+  // server applied the filters and returned the list in authoritative
+  // `organic_rank` order; this screen renders exactly what it was given.
+  const filteredVenues = allVenues;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -194,7 +228,7 @@ export default function HomeScreen() {
           contentContainerStyle={styles.filterRow}
           style={styles.filterScroll}
         >
-          {FILTER_PILLS.map((pill) => {
+          {pills.map((pill) => {
             const isActive = activeFilters.has(pill.key);
             return (
               <Pressable
@@ -289,6 +323,10 @@ const VenueCard = React.memo(function VenueCard({
           <MapPin color={colors.textMuted} size={10} />
           <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{venue.neighborhood}</Text>
         </View>
+
+        {/* Inert through all of 6A — the server hardcodes is_sponsored=false.
+            Rendered from the server flag only; never inferred client-side. */}
+        <SponsoredBadge isSponsored={venue.isSponsored} />
 
         {hasReliableBusyness(venue) ? (
           <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}%</Text>

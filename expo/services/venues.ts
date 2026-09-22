@@ -4,6 +4,34 @@ import type { PulzeVenue, VenueType, BusynessLevel } from '@/types/venue';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// ---------------------------------------------------------------------------
+// Phase 6A-1 — every venue read goes through the authoritative feed.
+// ---------------------------------------------------------------------------
+//
+// What this replaced. Four separate reads issued with the publishable key:
+//
+//   venues_with_scores   the list / search / detail source   (3 call sites)
+//   venues               address, lat/lng, phone, rating, price_level
+//   neighborhoods        a second lookup, because venues.neighborhood_id has
+//                        no FK and PostGREST cannot auto-embed it
+//   live_venue_scores    confidence_score only
+//
+// ...plus ordering and filtering performed in JavaScript afterwards. Ordering
+// decided on the device cannot be recorded, audited, or carry a disclosed paid
+// placement, which 6B and 6C both need. It is now one authenticated call to
+// the discover-feed Edge Function, which verifies the JWT, derives auth.uid()
+// server-side, and calls pulze_discover_feed as service_role.
+//
+// The personalization blend moved server-side with it. The client no longer
+// calls personalized-venues and no longer re-sorts anything: `organic_rank`
+// from the feed IS the order. Re-sorting here would double-apply the blend.
+//
+// 6A-3 COMPLETED THAT MOVE. Category/neighborhood filtering and the Discover
+// pill vocabulary are both server-side now: the feed applies filters as hard
+// predicates and returns the facet list the pills are rendered from. The one
+// remaining mock dependency is presentational — photo, photos, tags and vibe
+// — and that boundary is stated in full at feedRowToVenue below.
+
 function busynessLevelFromScore(score: number): BusynessLevel {
   if (score >= 75) return 'packed';
   if (score >= 40) return 'getting_busy';
@@ -33,179 +61,248 @@ function normalizeVenueType(rawCategory: string | null | undefined): { type: Ven
   return { type, typeLabel: CATEGORY_LABELS[type] };
 }
 
-interface ExtraVenueFields {
-  category?: string | null;
-  city?: string | null;
-  address?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  phone?: string | null;
-  rating?: number | null;
-  price_level?: number | null;
-  // Resolved name from the neighborhoods table (populated by
-  // fetchExtraVenueFields after a follow-up lookup by neighborhood_id).
-  // Preferred over city for the venue card's neighborhood label.
-  neighborhood?: string | null;
+// ---------------------------------------------------------------------------
+// Feed wire format — mirrors pulze_discover_feed's jsonb payload exactly.
+// ---------------------------------------------------------------------------
+
+export type FeedSurface = 'discover' | 'nearby' | 'search' | 'venue';
+
+export interface FeedVenueRow {
+  venue_id: string;
+  name: string;
+  legacy_mock_id: string | null;
+  category: string | null;
+  city: string | null;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  rating: number | null;
+  price_level: number | null;
+  timezone: string | null;
+  neighborhood_id: string | null;
+  neighborhood_name: string | null;
+  pulze_score: number | null;
+  busyness_percent: number;
+  confidence_score: number | null;
+  has_live_signal: boolean;
+  trend_label: string | null;
+  distance_m: number | null;
+  // 6A-3. Three-valued on purpose: 'unknown' is NOT 'closed'. The server
+  // returns 'unknown' when a venue has no hours, an incomplete schedule, or a
+  // self-contradictory one, and the ranker scores it at the neutral midpoint.
+  open_state: 'open' | 'closed' | 'unknown';
+  happy_hour: 'now' | 'not_now' | 'unknown';
+  organic_score: number;
+  organic_rank: number;
+  // Inert for all of 6A. See types/venue.ts for the disclosure rule.
+  is_sponsored: boolean;
+  placement_id: string | null;
+  placement_reason: string | null;
 }
 
-// Merges a real Supabase venue (identity + live score) with its mock's
-// presentational content (photos/tags/vibe copy/address — not yet migrated
-// into Supabase) when a mock match exists. When no mock match exists (e.g.
-// a provider-imported venue), builds a real-data-only fallback instead of
-// dropping the venue — using only actual Supabase fields, never invented
-// photos/tags/vibe/activity.
-function mergeWithMock(
-  realId: string,
-  legacyMockId: string | null,
-  name: string,
-  pulzeScore: number,
-  confidence: number | null | undefined,
-  extra?: ExtraVenueFields,
-): PulzeVenue {
-  const mock = pulzeVenues.find((v) => v.id === legacyMockId);
-  const busynessPercent = Math.round(pulzeScore);
-  const busyness = busynessLevelFromScore(busynessPercent);
-  // Real per-venue confidence from live_venue_scores. Undefined here means
-  // we didn't fetch it; the UI treats undefined as insufficient signal and
-  // renders the neutral "no live data" state, which is what we want.
-  const confidenceNum = confidence === null || confidence === undefined
-    ? undefined
-    : Number(confidence);
+export interface FeedFacets {
+  neighborhoods: { id: string; name: string; venue_count: number }[];
+  categories: { value: string; venue_count: number }[];
+}
 
-  if (mock) {
-    return {
-      ...mock,
-      id: realId,
-      name,
-      busynessPercent,
-      busyness,
-      confidence: confidenceNum,
-    };
+export interface FeedResponse {
+  surface: string;
+  generated_at: string;
+  personalized: boolean;
+  min_confidence: number;
+  count: number;
+  venues: FeedVenueRow[];
+  // 6A-3. Derived server-side from venues that actually exist and are active.
+  // The Discover pill row is rendered from this rather than a hardcoded array,
+  // which is what retired the "Baker" pill that matched zero venues in either
+  // the database or the mock catalogue. Baker is still a real neighborhood in
+  // the vocabulary (decision D8) -- it simply has no pilot venue yet, so it
+  // produces no pill until it does.
+  facets: FeedFacets;
+}
+
+export const EMPTY_FACETS: FeedFacets = { neighborhoods: [], categories: [] };
+
+const EMPTY_FEED: FeedResponse = {
+  surface: 'discover',
+  generated_at: '',
+  personalized: false,
+  min_confidence: 20,
+  count: 0,
+  venues: [],
+  facets: EMPTY_FACETS,
+};
+
+interface FeedRequest {
+  surface: FeedSurface;
+  lat?: number | null;
+  lng?: number | null;
+  radiusM?: number;
+  filters?: Record<string, unknown>;
+  limit?: number;
+}
+
+// One call, one failure mode. Every caller below fails soft to an empty feed,
+// which is the same contract the four old reads had (they each returned []
+// or null on error) — so a feed outage degrades to an empty list, never to a
+// crash and never to stale mock content presented as live.
+async function fetchFeed(req: FeedRequest): Promise<FeedResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke<FeedResponse>('discover-feed', {
+      body: {
+        surface: req.surface,
+        lat: req.lat ?? null,
+        lng: req.lng ?? null,
+        radius_m: req.radiusM,
+        filters: req.filters ?? {},
+        limit: req.limit,
+      },
+    });
+    if (error || !data || !Array.isArray(data.venues)) {
+      console.log('[Venues] discover-feed error:', error?.message);
+      return EMPTY_FEED;
+    }
+    return { ...data, facets: data.facets ?? EMPTY_FACETS };
+  } catch (e) {
+    console.log('[Venues] discover-feed crashed:', e);
+    return EMPTY_FEED;
   }
+}
 
-  // Real-data fallback — every field here comes from an actual Supabase
-  // column, never fabricated content.
-  const { type, typeLabel } = normalizeVenueType(extra?.category);
+// Postgres `numeric` can arrive as a JSON number or, for some drivers, a
+// string. Coerce once here rather than at every read site.
+function num(v: unknown): number | undefined {
+  if (v === null || v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Feed row -> PulzeVenue
+// ---------------------------------------------------------------------------
+//
+// 6A-3 narrowed what the mock catalogue may supply, and this is the boundary.
+//
+// GEOGRAPHY IS NOW SERVER-ONLY. neighborhood and address come from the
+// database and nowhere else. The mock geography was not merely redundant, it
+// was WRONG: it placed Temple Nightclub in LoDo (actually 1136 Broadway,
+// Golden Triangle), The Cruise Room in "Downtown" (actually LoDo), Bar
+// Standard on "South Broadway" (actually 1037 Broadway), and The Golden Mill
+// in RiNo (actually Golden, Colorado). 6A-2 backfilled all 11 active venues
+// with verified addresses and neighborhoods, each carrying provenance.
+//
+// WHAT THE MOCK STILL SUPPLIES, EXPLICITLY AND ONLY: photo, photos, tags and
+// vibe copy. Per decision A1 that content was deliberately NOT migrated into
+// the database -- it is unsourced presentational filler and the goal is an
+// authoritative database, not a database full of tidied-up mock data. Until
+// properly sourced imagery exists, this is the one remaining mock dependency
+// in the product, and it is confined to these four presentational fields.
+// It is named here rather than left implicit so it cannot go unnoticed again.
+function feedRowToVenue(row: FeedVenueRow): PulzeVenue {
+  const mock = pulzeVenues.find((v) => v.id === row.legacy_mock_id);
+  const busynessPercent = Math.round(num(row.busyness_percent) ?? 0);
+  const busyness = busynessLevelFromScore(busynessPercent);
+  const confidence = num(row.confidence_score);
+
+  const placement = {
+    isSponsored: row.is_sponsored === true,
+    placementId: row.placement_id ?? null,
+    placementReason: row.placement_reason ?? null,
+  };
+
+  const { type, typeLabel } = normalizeVenueType(row.category);
+
+  // Presentation-only fallback to the mock, never geography. An absent photo
+  // or empty tag list is rendered as absence by the UI (icon placeholder,
+  // hidden vibe block) rather than filled in.
+  const presentation = mock
+    ? { photo: mock.photo, photos: mock.photos ?? [], tags: mock.tags ?? [], vibe: mock.vibe ?? '' }
+    : { photo: undefined, photos: [] as string[], tags: [] as string[], vibe: '' };
+
   return {
-    id: realId,
-    name,
-    latitude: extra?.latitude ?? 0,
-    longitude: extra?.longitude ?? 0,
+    id: row.venue_id,
+    name: row.name,
+    latitude: num(row.latitude) ?? 0,
+    longitude: num(row.longitude) ?? 0,
     type,
     typeLabel,
     busyness,
     busynessPercent,
-    // Prefer the real neighborhood name (resolved via neighborhoods table).
-    // City is not a neighborhood; if no neighborhood is set on the venue,
+    // Server only (6A-3). City is not a neighborhood; if the venue has none,
     // show nothing rather than something semantically wrong like "Denver".
-    neighborhood: extra?.neighborhood ?? '',
-    address: extra?.address ?? '',
-    vibe: '', // intentionally empty — no invented copy; UI hides the vibe block when empty
-    tags: [],
-    photo: undefined, // UI already falls back to its existing icon placeholder
-    photos: [],
-    phone: extra?.phone ?? undefined,
-    rating: extra?.rating ?? undefined,
-    priceLevel: extra?.price_level ?? undefined,
-    confidence: confidenceNum,
+    neighborhood: row.neighborhood_name ?? '',
+    address: row.address ?? '',
+    ...presentation,
+    phone: row.phone ?? undefined,
+    rating: num(row.rating),
+    priceLevel: num(row.price_level),
+    confidence,
+    ...placement,
   };
 }
 
-// venues_with_scores exposes pulze_score but not confidence_score. Rather
-// than modify the view, batch-fetch confidence from live_venue_scores by
-// venue id — same additive pattern as fetchExtraVenueFields.
-async function fetchConfidenceByVenueId(venueIds: string[]): Promise<Record<string, number>> {
-  if (venueIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from('live_venue_scores')
-    .select('venue_id, confidence_score')
-    .in('venue_id', venueIds);
-  if (error || !data) {
-    console.log('[Venues] fetchConfidenceByVenueId error:', error?.message);
-    return {};
-  }
-  const byId: Record<string, number> = {};
-  for (const row of data as any[]) {
-    byId[row.venue_id] = Number(row.confidence_score);
-  }
-  return byId;
+// ---------------------------------------------------------------------------
+// Public API — same signatures the screens already use.
+// ---------------------------------------------------------------------------
+
+// 6A-3 filter contract. Every one of these is a HARD filter applied
+// server-side in pulze_discover_feed: a non-matching venue is absent from the
+// result, never merely demoted. That is the property 6C needs too -- a
+// sponsored placement that fails the geographic or category predicate must be
+// excluded outright rather than bought past it.
+export interface DiscoverFilters {
+  /** Raw venue.category values, e.g. ['bar','dive','speakeasy'] for "Bars". */
+  categories?: string[];
+  /** Neighborhood names exactly as the facets report them. */
+  neighborhoods?: string[];
+  /** Requires real live signal at or above the confidence floor. */
+  busyness?: 'popping' | 'low_wait';
+  happyHourNow?: boolean;
+  openNow?: boolean;
 }
 
-// venues_with_scores (existing view, unchanged) already exposes
-// category/city, but not address/latitude/longitude/phone/rating/price_level
-// — rather than modify that view, fetch those extra real columns from the
-// base venues table and merge client-side by id.
-//
-// Also resolves neighborhood_id → neighborhoods.name in a second batch
-// query. venues.neighborhood_id has no FK constraint in live schema, so
-// PostgREST auto-embed isn't available; explicit lookup is the honest way.
-async function fetchExtraVenueFields(venueIds: string[]): Promise<Record<string, ExtraVenueFields>> {
-  if (venueIds.length === 0) return {};
-  const { data, error } = await supabase
-    .from('venues')
-    .select('id, category, city, address, latitude, longitude, phone, rating, price_level, neighborhood_id')
-    .in('id', venueIds);
-  if (error || !data) {
-    console.log('[Venues] fetchExtraVenueFields error:', error?.message);
-    return {};
-  }
-  const rows = data as any[];
-
-  const neighborhoodIds = Array.from(
-    new Set(rows.map((r) => r.neighborhood_id).filter((v: unknown): v is string => typeof v === 'string')),
-  );
-  const neighborhoodNameById: Record<string, string> = {};
-  if (neighborhoodIds.length > 0) {
-    const { data: nRows, error: nErr } = await supabase
-      .from('neighborhoods')
-      .select('id, name')
-      .in('id', neighborhoodIds);
-    if (nErr) {
-      console.log('[Venues] fetchExtraVenueFields neighborhood lookup error:', nErr.message);
-    } else if (nRows) {
-      for (const row of nRows as any[]) {
-        if (typeof row.name === 'string') neighborhoodNameById[row.id] = row.name;
-      }
-    }
-  }
-
-  const byId: Record<string, ExtraVenueFields> = {};
-  for (const row of rows) {
-    byId[row.id] = {
-      ...row,
-      neighborhood: row.neighborhood_id ? neighborhoodNameById[row.neighborhood_id] ?? null : null,
-    };
-  }
-  return byId;
+function toFilterPayload(f?: DiscoverFilters): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (f?.categories?.length) out.categories = f.categories;
+  if (f?.neighborhoods?.length) out.neighborhoods = f.neighborhoods;
+  if (f?.busyness) out.busyness = f.busyness;
+  if (f?.happyHourNow) out.happy_hour_now = true;
+  if (f?.openNow) out.open_now = true;
+  return out;
 }
 
-export async function getAllLiveVenues(): Promise<PulzeVenue[]> {
-  const { data, error } = await supabase
-    .from('venues_with_scores')
-    .select('venue_id, name, legacy_mock_id, pulze_score');
+export interface DiscoverResult {
+  venues: PulzeVenue[];
+  facets: FeedFacets;
+  personalized: boolean;
+}
 
-  if (error || !data) {
-    console.log('[Venues] getAllLiveVenues error:', error?.message);
-    return [];
-  }
+// Discover: venues AND the facet vocabulary, in one call. The screen renders
+// its filter pills from `facets` so the pill row always reflects venues that
+// actually exist -- no more hardcoded pill matching zero venues.
+export async function getDiscoverFeed(
+  lat?: number | null,
+  lng?: number | null,
+  filters?: DiscoverFilters,
+): Promise<DiscoverResult> {
+  const feed = await fetchFeed({
+    surface: 'discover',
+    lat,
+    lng,
+    filters: toFilterPayload(filters),
+    limit: 100,
+  });
+  return {
+    venues: feed.venues.map(feedRowToVenue),
+    facets: feed.facets ?? EMPTY_FACETS,
+    personalized: feed.personalized,
+  };
+}
 
-  const rows = data as any[];
-  const ids = rows.map((r) => r.venue_id);
-  const [extraById, confidenceById] = await Promise.all([
-    fetchExtraVenueFields(ids),
-    fetchConfidenceByVenueId(ids),
-  ]);
-
-  return rows.map((row) =>
-    mergeWithMock(
-      row.venue_id,
-      row.legacy_mock_id,
-      row.name,
-      row.pulze_score,
-      confidenceById[row.venue_id],
-      extraById[row.venue_id],
-    ),
-  );
+export async function getAllLiveVenues(lat?: number | null, lng?: number | null): Promise<PulzeVenue[]> {
+  const feed = await fetchFeed({ surface: 'discover', lat, lng, limit: 100 });
+  return feed.venues.map(feedRowToVenue);
 }
 
 export async function getNearbyLiveVenues(
@@ -213,58 +310,43 @@ export async function getNearbyLiveVenues(
   lng: number,
   maxResults = 12,
 ): Promise<(PulzeVenue & { distanceMeters: number })[]> {
-  // `rank_nearby_venues` isn't in the generated Supabase types — cast the rpc call.
-  const { data, error } = await (supabase.rpc as any)('rank_nearby_venues', {
-    p_user_lat: lat,
-    p_user_lon: lng,
-    p_radius_m: 20000,
-    p_desired_mode: 'default',
+  // The server applies the limit BEFORE the personalization blend, which is
+  // what the client used to do by slicing and only then re-sorting. Passing
+  // maxResults through keeps that identical.
+  const feed = await fetchFeed({
+    surface: 'nearby',
+    lat,
+    lng,
+    radiusM: 20000,
+    limit: maxResults,
   });
-
-  if (error || !data) {
-    console.log('[Venues] getNearbyLiveVenues error:', error?.message);
-    return [];
-  }
-
-  const rows = (data as any[]).slice(0, maxResults);
-  const extraById = await fetchExtraVenueFields(rows.map((r) => r.venue_id));
-
-  return rows.map((row) => {
-    // rank_nearby_venues already returns confidence_score — no supplementary
-    // fetch needed for the Nearby path.
-    const merged = mergeWithMock(
-      row.venue_id,
-      row.legacy_mock_id,
-      row.venue_name,
-      row.pulze_score,
-      row.confidence_score,
-      extraById[row.venue_id],
-    );
-    return { ...merged, distanceMeters: Number(row.distance_m) };
-  });
+  return feed.venues.map((row) => ({
+    ...feedRowToVenue(row),
+    distanceMeters: num(row.distance_m) ?? 0,
+  }));
 }
 
 export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue | null> {
-  const column = UUID_RE.test(idOrLegacyId) ? 'venue_id' : 'legacy_mock_id';
-  const { data, error } = await supabase
-    .from('venues_with_scores')
-    .select('venue_id, name, legacy_mock_id, pulze_score')
-    .eq(column, idOrLegacyId)
-    .maybeSingle();
-  if (error || !data) return null;
-  const row = data as any;
-  const [extraById, confidenceById] = await Promise.all([
-    fetchExtraVenueFields([row.venue_id]),
-    fetchConfidenceByVenueId([row.venue_id]),
-  ]);
-  return mergeWithMock(
-    row.venue_id,
-    row.legacy_mock_id,
-    row.name,
-    row.pulze_score,
-    confidenceById[row.venue_id],
-    extraById[row.venue_id],
-  );
+  const ref = idOrLegacyId?.trim();
+  if (!ref) return null;
+  const feed = await fetchFeed({
+    surface: 'venue',
+    filters: { venue_ref: ref },
+    limit: 1,
+  });
+  const row = feed.venues[0];
+  return row ? feedRowToVenue(row) : null;
+}
+
+export async function searchLiveVenues(query: string, maxResults = 15): Promise<PulzeVenue[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const feed = await fetchFeed({
+    surface: 'search',
+    filters: { query: q },
+    limit: maxResults,
+  });
+  return feed.venues.map(feedRowToVenue);
 }
 
 // Real cross-user check-in count for a venue. `realVenueId` must already be
@@ -283,40 +365,6 @@ export async function getRealCheckInCount(realVenueId: string): Promise<number> 
     return 0;
   }
   return count ?? 0;
-}
-
-// Real Supabase venue search (name/category/city), enriched with mock
-// display content the same way the other live functions are. Note:
-// "neighborhood" as the mocks define it isn't a searchable Supabase column
-// yet, so this matches on city instead as the closest real equivalent.
-export async function searchLiveVenues(query: string, maxResults = 15): Promise<PulzeVenue[]> {
-  const q = query.trim();
-  if (!q) return [];
-  const { data, error } = await supabase
-    .from('venues_with_scores')
-    .select('venue_id, name, legacy_mock_id, pulze_score')
-    .or(`name.ilike.%${q}%,category.ilike.%${q}%,city.ilike.%${q}%`)
-    .limit(maxResults);
-  if (error || !data) {
-    console.log('[Venues] searchLiveVenues error:', error?.message);
-    return [];
-  }
-  const rows = data as any[];
-  const ids = rows.map((r) => r.venue_id);
-  const [extraById, confidenceById] = await Promise.all([
-    fetchExtraVenueFields(ids),
-    fetchConfidenceByVenueId(ids),
-  ]);
-  return rows.map((row) =>
-    mergeWithMock(
-      row.venue_id,
-      row.legacy_mock_id,
-      row.name,
-      row.pulze_score,
-      confidenceById[row.venue_id],
-      extraById[row.venue_id],
-    ),
-  );
 }
 
 export interface VenueActivitySummary {

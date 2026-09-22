@@ -1,5 +1,4 @@
 import { supabase } from '@/services/supabase';
-import { pulzeVenues } from '@/mocks/venues';
 import { signedUrlFor } from '@/services/storageUrls';
 import type { FriendCheckInFeedItem } from '@/mocks/friends';
 
@@ -13,13 +12,18 @@ function getTimeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const CHECKIN_SELECT = 'id, user_id, venue_id, photo_url, caption, visibility, created_at, profiles(username, display_name, avatar_url), venues(name, city, legacy_mock_id)';
+// Phase 6A-3: neighborhoods(name) is embedded directly. That became possible
+// when venues.neighborhood_id got its foreign key in 6A-3 -- before that
+// PostgREST could not auto-embed, and this file fell back to the MOCK
+// catalogue for the neighborhood name, which was wrong for every venue where
+// mock and reality disagreed (a Temple Nightclub check-in rendered "LoDo";
+// the venue is in the Golden Triangle).
+const CHECKIN_SELECT = 'id, user_id, venue_id, photo_url, caption, visibility, created_at, profiles(username, display_name, avatar_url), venues(name, city, neighborhoods(name))';
 
 // Storage buckets are private — photo_url and profiles.avatar_url hold
 // raw object paths (or legacy full URLs, which extractStoragePath still
 // handles). Resolve both to signed URLs before handing back to the UI.
 async function rowToFeedItem(row: any): Promise<FriendCheckInFeedItem> {
-  const mockVenue = pulzeVenues.find((v) => v.id === row.venues?.legacy_mock_id);
   const [photoUri, friendAvatar] = await Promise.all([
     row.photo_url ? signedUrlFor('check-in-photos', row.photo_url) : Promise.resolve(null),
     row.profiles?.avatar_url ? signedUrlFor('avatars', row.profiles.avatar_url) : Promise.resolve(null),
@@ -32,7 +36,9 @@ async function rowToFeedItem(row: any): Promise<FriendCheckInFeedItem> {
     friendId: row.user_id,
     venueName: row.venues?.name ?? '',
     venueId: row.venue_id,
-    neighborhood: mockVenue?.neighborhood ?? row.venues?.city ?? '',
+    // Database only. City is a last resort and is not a neighborhood; an
+    // absent neighborhood renders as absence rather than as "Denver".
+    neighborhood: row.venues?.neighborhoods?.name ?? row.venues?.city ?? '',
     photoUri: photoUri ?? '',
     timeAgo: getTimeAgo(row.created_at),
     caption: row.caption ?? undefined,

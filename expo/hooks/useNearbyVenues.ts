@@ -1,4 +1,3 @@
-import { pulzeVenues } from '@/mocks/venues';
 import { getNearbyLiveVenues, searchLiveVenues } from '@/services/venues';
 
 export interface NearbyVenue {
@@ -16,6 +15,12 @@ export interface NearbyVenue {
   confidence?: number;
   photoUri?: string;
   tags: string[];
+  // Placement contract (6A-1, decision A3). Inert for all of 6A — the server
+  // hardcodes these — but carried here so the Nearby card's disclosure path
+  // exists and is testable before 6B/6C.
+  isSponsored?: boolean;
+  placementId?: string | null;
+  placementReason?: string | null;
 }
 
 export interface SelectedLocation {
@@ -62,65 +67,12 @@ export function metersToWalkMinutes(meters: number): string {
   return `${mins} min`;
 }
 
-function toNearbyVenue(
-  lat: number,
-  lng: number,
-  v: (typeof pulzeVenues)[number],
-): NearbyVenue {
-  const distanceMeters = haversineMeters(lat, lng, v.latitude, v.longitude);
-  return {
-    id: v.id,
-    name: v.name,
-    neighborhood: v.neighborhood,
-    latitude: v.latitude,
-    longitude: v.longitude,
-    distanceMeters,
-    distanceLabel: formatDistance(distanceMeters),
-    categoryLabel: v.typeLabel ?? v.type,
-    busynessPercent: v.busynessPercent,
-    photoUri: v.photo,
-    tags: v.tags,
-  };
-}
-
-// Kept for location-selector.tsx, which still uses this synchronous,
-// mock-only version. Not touched this round.
-export function getNearbyVenues(
-  lat: number,
-  lng: number,
-  maxResults: number = 10,
-): NearbyVenue[] {
-  return pulzeVenues
-    .map((v) => toNearbyVenue(lat, lng, v))
-    .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, maxResults);
-}
-
-// Kept for location-selector.tsx. Not touched this round.
-export function searchVenues(query: string): NearbyVenue[] {
-  const q = query.toLowerCase();
-  return pulzeVenues
-    .filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) ||
-        v.neighborhood.toLowerCase().includes(q) ||
-        (v.typeLabel ?? v.type).toLowerCase().includes(q),
-    )
-    .map((v) => ({
-      id: v.id,
-      name: v.name,
-      neighborhood: v.neighborhood,
-      latitude: v.latitude,
-      longitude: v.longitude,
-      distanceMeters: 0,
-      distanceLabel: '',
-      categoryLabel: v.typeLabel ?? v.type,
-      busynessPercent: v.busynessPercent,
-      photoUri: v.photo,
-      tags: v.tags,
-    }))
-    .slice(0, 15);
-}
+// Phase 6A-1 removed the two mock-only helpers that used to live here
+// (`getNearbyVenues` and `searchVenues`, both reading mocks/venues.ts
+// directly and both synchronous). Their only remaining caller,
+// app/location-selector.tsx, had already moved to the Live variants below,
+// so they were dead code sitting on top of the mock catalogue — exactly the
+// dependency 6A is retiring. Removed rather than left to rot.
 
 // Real, Supabase-backed nearby venues — used by app/(tabs)/nearby.tsx.
 export async function getNearbyVenuesLive(lat: number, lng: number, maxResults = 12): Promise<NearbyVenue[]> {
@@ -138,12 +90,13 @@ export async function getNearbyVenuesLive(lat: number, lng: number, maxResults =
     confidence: v.confidence,
     photoUri: v.photo,
     tags: v.tags,
+    isSponsored: v.isSponsored,
+    placementId: v.placementId,
+    placementReason: v.placementReason,
   }));
 }
 
-// Real, Supabase-backed venue search. Not yet wired into any screen this
-// round (location-selector.tsx, the only current caller of `searchVenues`,
-// is out of scope for this pass) — available for that follow-up.
+// Real, Supabase-backed venue search — used by app/location-selector.tsx.
 export async function searchVenuesLive(query: string): Promise<NearbyVenue[]> {
   const venues = await searchLiveVenues(query);
   return venues.map((v) => ({
@@ -159,5 +112,8 @@ export async function searchVenuesLive(query: string): Promise<NearbyVenue[]> {
     confidence: v.confidence,
     photoUri: v.photo,
     tags: v.tags,
+    isSponsored: v.isSponsored,
+    placementId: v.placementId,
+    placementReason: v.placementReason,
   }));
 }

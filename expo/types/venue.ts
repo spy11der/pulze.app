@@ -30,6 +30,22 @@ export interface PulzeVenue {
   // "not fetched" — treated as insufficient by `hasReliableBusyness` so we
   // never surface a busyness figure derived from no signal.
   confidence?: number;
+
+  // --- Placement contract (Phase 6A-1, decision A3) ---
+  //
+  // Set from the authoritative feed and nothing else. They are inert for the
+  // whole of 6A: pulze_discover_feed hardcodes is_sponsored=false and the
+  // other two to null, and pulze_organic_score takes no monetization input at
+  // all. The fields and their rendering boundary ship now so that 6B (CPC)
+  // and 6C (boosts) plug into a disclosure path that already exists and has
+  // already been tested, instead of reopening the organic ranker.
+  //
+  // Disclosure rule, non-negotiable: whenever isSponsored is true the card
+  // MUST render the sponsored label. There is no client-side inference here —
+  // the server decides, the client only displays.
+  isSponsored?: boolean;
+  placementId?: string | null;
+  placementReason?: string | null;
 }
 
 // Threshold below which pulze_score is treated as insufficient live data.
@@ -41,6 +57,11 @@ export const MIN_BUSYNESS_CONFIDENCE = 20;
 // True only when we can defensibly show a real busyness figure. UI code
 // should render the neutral "no live data" state when this returns false,
 // including for busyness-based filters (Popping now / Low wait).
+//
+// This deliberately takes NO account of isSponsored. A sponsored venue with
+// insufficient live signal shows "No live data" exactly like any other venue:
+// paid placement buys position, never an implied crowd level. A sponsored card
+// sitting at position 1 displaying "No live data" is the correct rendering.
 export function hasReliableBusyness(v: { confidence?: number }): boolean {
   return typeof v.confidence === 'number' && v.confidence >= MIN_BUSYNESS_CONFIDENCE;
 }

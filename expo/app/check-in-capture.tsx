@@ -28,7 +28,6 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { insertCheckIn } from '@/services/checkInDatabase';
 import { getQuip } from '@/utils/quips';
-import { pulzeVenues } from '@/mocks/venues';
 import type { VenueType } from '@/types/venue';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -154,10 +153,20 @@ export default function CheckInCaptureScreen() {
     }
   }, []);
 
-  const venue = pulzeVenues.find((v) => v.id === params.venueId);
-  const venueName = params.venueName ?? venue?.name ?? 'Unknown Venue';
-  const neighborhood = params.neighborhood ?? venue?.neighborhood ?? 'Denver';
-  const venueType: VenueType = venue?.type ?? 'bar';
+  // Phase 6A-3 removed a mock lookup here that could never match: it searched
+  // mocks/venues.ts by `params.venueId`, which has been a real Supabase UUID
+  // since venue-detail started passing venue.id, while mock ids are 'v-001'
+  // style. It always returned undefined, so every value below already came
+  // from params or the default -- deleting it changes nothing at runtime and
+  // removes a mock dependency that looked load-bearing.
+  //
+  // venueType is consequently always the 'bar' default today. That is a
+  // pre-existing gap (the stamp does not reflect the real venue type) and is
+  // flagged rather than quietly patched, because the geofence entry point has
+  // no venue type to pass either.
+  const venueName = params.venueName ?? 'Unknown Venue';
+  const neighborhood = params.neighborhood ?? '';
+  const venueType: VenueType = 'bar';
 
   // Camera permission: always call the real request API on first open so iOS
   // shows the system prompt. (The previous code guarded on `camPermission`,

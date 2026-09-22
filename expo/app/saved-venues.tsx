@@ -52,8 +52,9 @@ export default function SavedVenuesScreen() {
         })),
       );
       if (cancelled) return;
-      // Same convention as getAllLiveVenues: skip venues with no mock
-      // match instead of showing placeholder content.
+      // Skip favourites the authoritative feed cannot resolve (a deactivated
+      // or deleted venue) rather than showing placeholder content. Since 6A-1
+      // this is a feed lookup, not a mock-catalogue match.
       setRows(resolved.filter((r): r is SavedRow => r.venue !== null));
       setIsResolving(false);
     })();
