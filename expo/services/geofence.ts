@@ -78,8 +78,7 @@ async function checkProximityAndNotify(lat: number, lng: number): Promise<void> 
   //   3. No p_ble_id / p_wifi_hash. Likewise dead, and retired as legacy
   //      fields — the real scanner is the audio/echolocation hardware.
   //
-  // `pulze_record_presence` isn't in the generated Supabase types yet — cast.
-  const { data: result, error } = await (supabase.rpc as any)('pulze_record_presence', {
+  const { data: result, error } = await supabase.rpc('pulze_record_presence', {
     p_lat: lat,
     p_lng: lng,
   });

@@ -25,6 +25,19 @@
 // path below, which goes through Supabase Auth's normal password
 // verification.
 
+// CORS. This function shipped without any access-control headers and without
+// an OPTIONS branch, so a browser-origin preflight fell through to the 405
+// below with no CORS headers and the real POST was never sent. Native builds
+// were unaffected (no CORS there), which is why web-mode username login was
+// broken invisibly. Phase 6D ports the pattern discover-feed already proved.
+//
+// `*` is safe here for the same reason it is safe there: credentials arrive in
+// the request body, not as a cookie, so a hostile page gains nothing by
+// calling this that it could not do with fetch from anywhere. The origin check
+// was never the control -- the rate limiter, the generic failure shape and
+// Supabase Auth's own password verification are. Headers go on EVERY response,
+// errors included, or the browser cannot read the status it was given.
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -40,10 +53,18 @@ const IP_WINDOW_SECONDS = 60;
 const USER_MAX = 10;            // per-username attempts per window
 const USER_WINDOW_SECONDS = 60;
 
+const CORS_HEADERS: Record<string, string> = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info',
+  'access-control-max-age': '3600',
+};
+
 function jsonResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...CORS_HEADERS,
       'content-type': 'application/json; charset=utf-8',
       // Deny caching so a proxy can't ever memoize a login response.
       'cache-control': 'no-store',
@@ -81,6 +102,11 @@ function extractIp(req: Request): string {
 }
 
 Deno.serve(async (req) => {
+  // Must precede the method check: a preflight is not a client error.
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
