@@ -46,19 +46,14 @@ if (Platform.OS !== 'web') {
 
       console.log('[Geofence] Background location update:', userLoc.coords.latitude, userLoc.coords.longitude);
 
-      // Real speed when the platform provides it (m/s -> mph); 0 only when
-      // genuinely unavailable (e.g. stationary or unsupported device).
-      const speedMps = userLoc.coords.speed;
-      const speedMph = speedMps != null && speedMps > 0 ? speedMps * 2.23694 : 0;
-
-      await checkProximityAndNotify(userLoc.coords.latitude, userLoc.coords.longitude, speedMph);
+      await checkProximityAndNotify(userLoc.coords.latitude, userLoc.coords.longitude);
     });
   } catch (e) {
     console.log('[Geofence] defineTask not supported on this platform:', e);
   }
 }
 
-async function checkProximityAndNotify(lat: number, lng: number, velocityMph: number): Promise<void> {
+async function checkProximityAndNotify(lat: number, lng: number): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const userId = session?.user?.id;
   if (!userId) {
@@ -69,15 +64,31 @@ async function checkProximityAndNotify(lat: number, lng: number, velocityMph: nu
   // Real backend call — determines proximity via each venue's actual
   // geofence radius in Postgres/PostGIS, and opens/closes the real
   // visit_sessions row that feeds the whole busyness pipeline.
-  // `handle_smart_geofence` isn't in the generated Supabase types yet — cast.
-  const { data: result, error } = await (supabase.rpc as any)('handle_smart_geofence', {
-    p_user_id: userId,
+  //
+  // Phase 6D replaced `handle_smart_geofence` with `pulze_record_presence`.
+  // Three things changed and all three are deliberate:
+  //
+  //   1. No p_user_id. The old RPC took the caller's word for who was
+  //      arriving; the new one derives the actor from auth.uid() inside the
+  //      database. `userId` above is still read, but only to skip the call
+  //      when signed out — it is never sent, and it is no longer what
+  //      decides whose visit this is.
+  //   2. No p_velocity_mph. The old function accepted it and never read it,
+  //      so the speed the task used to compute was dead weight.
+  //   3. No p_ble_id / p_wifi_hash. Likewise dead, and retired as legacy
+  //      fields — the real scanner is the audio/echolocation hardware.
+  //
+  // `pulze_record_presence` isn't in the generated Supabase types yet — cast.
+  const { data: result, error } = await (supabase.rpc as any)('pulze_record_presence', {
     p_lat: lat,
     p_lng: lng,
-    p_velocity_mph: velocityMph,
   });
 
   if (error) {
+    // presence_rate_limited / presence_rate_limited_venue are expected under
+    // abnormal call rates and are not worth escalating; everything else is a
+    // genuine failure. Either way the task fails soft — a missed presence
+    // sample is a lost signal, never a fabricated one.
     console.log('[Geofence] RPC error:', error.message);
     return;
   }

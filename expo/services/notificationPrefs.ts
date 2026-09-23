@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'pulze_notif_prefs_v2';
 
 export interface NotificationPrefs {
-  // Fires when handle_smart_geofence reports the user entered a venue.
+  // Fires when pulze_record_presence reports the user entered a venue.
   checkInPrompt: boolean;
 }
 
