@@ -16,3 +16,19 @@
 # it's disabled specifically for this function (and only this one).
 [functions.foursquare-search]
 verify_jwt = false
+
+# login-with-username is the sign-in endpoint: its caller has no session yet,
+# so there is no JWT for the gateway to verify. It authenticates the
+# username/password itself, rate-limited through
+# check_and_increment_login_attempts. It is deployed with verify_jwt = false,
+# and this entry records that, so a config-driven deploy cannot silently flip
+# it to the default (true) and break sign-in. Source/deployment
+# reconciliation only: its authentication behaviour is unchanged.
+[functions.login-with-username]
+verify_jwt = false
+
+# Phase 6B. The default, declared explicitly because this function records
+# CPC billable events: the gateway must reject an unauthenticated call before
+# the function runs. It re-derives the user with auth.getUser() regardless.
+[functions.sponsored-open]
+verify_jwt = true

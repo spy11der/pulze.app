@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await admin.rpc('pulze_discover_feed', {
+  const feedArgs = {
     p_user_id: userId,
     p_surface: surface,
     p_lat: lat,
@@ -169,7 +169,32 @@ Deno.serve(async (req) => {
     p_radius_m: radiusM,
     p_filters: filters,
     p_limit: limit,
-  });
+  };
+
+  // 6B sponsored placement is OPT-IN per request, and only Discover and
+  // Nearby may opt in (decision B6). Screens that render feed rows without
+  // the SponsoredBadge (Activity, saved venues, the location picker) never
+  // send the flag, so a sponsored row can never reach a surface that cannot
+  // disclose it.
+  //
+  // Whether anything is actually placed is decided server-side by
+  // pulze_feed_with_placements: kill switch, eligibility, budgets, B4. With
+  // the switch off it returns pulze_discover_feed(...) unchanged. The client
+  // cannot pass a seed, a campaign or anything else that influences placement.
+  //
+  // Monetization must never break discovery: if the placement RPC fails for
+  // any reason, the organic RPC is served instead.
+  const wantsPlacements =
+    body.placements === true && (surface === 'discover' || surface === 'nearby');
+
+  let { data, error } = wantsPlacements
+    ? await admin.rpc('pulze_feed_with_placements', feedArgs)
+    : await admin.rpc('pulze_discover_feed', feedArgs);
+
+  if (error && wantsPlacements) {
+    console.error('[discover-feed] placement rpc error, serving organic:', error.message);
+    ({ data, error } = await admin.rpc('pulze_discover_feed', feedArgs));
+  }
 
   if (error) {
     console.error('[discover-feed] rpc error:', error.message);
