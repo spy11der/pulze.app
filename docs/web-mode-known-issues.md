@@ -12,9 +12,26 @@ these are reachable outside a browser.
 
 ---
 
-## 1. `login-with-username` has no CORS handling — username sign-in is impossible in a browser
+## 1. ~~`login-with-username` has no CORS handling~~ — FIXED in Phase 6D
 
-**Severity: blocks username sign-in in web mode. Email sign-in is unaffected.**
+**Status: FIXED 2026-09-23 in Phase 6D (decision D7), commit `266d0ee`. No
+longer an open issue.** The function now carries the same `CORS_HEADERS` block
+and `OPTIONS` short-circuit as `discover-feed`, and puts the headers on every
+response. Verified server-side: `OPTIONS` returns `204` with
+`access-control-allow-origin: *`, rechecked 2026-09-24 during 6B. Its
+`verify_jwt = false` deployment setting is now recorded in
+`expo/supabase/config.toml` (6B, K4), so a config-driven deploy cannot flip it.
+
+The remaining step is the end-to-end check in a real browser: username sign-in
+completes, and the session works for a `discover-feed` call. It is tracked as
+pre-pilot item **E2E-2** in `pulze-db/docs/phase-6d-plan.md`, not as open 6D
+work. The `_shared/cors.ts` extraction suggested below was not done. The block
+is still copied per function (`discover-feed`, `login-with-username`,
+`sponsored-open`).
+
+The original finding is kept below as the record.
+
+**Severity (as found): blocked username sign-in in web mode. Email sign-in was unaffected.**
 
 `AuthProvider.login()` branches on `@`. The email branch calls
 `supabase.auth.signInWithPassword` against `/auth/v1/token`, which serves
@@ -47,7 +64,7 @@ third time.
 
 **Severity: none today — the Consumer no longer calls it.**
 
-Identical shape to the above. 6A-1 moved the personalization blend server-side
+Identical shape to #1 as it was found; 6D fixed #1 only, so this gap remains. 6A-1 moved the personalization blend server-side
 into `pulze_discover_feed`, so the client stopped invoking this function
 entirely. It is listed here so that the gap is known before anything calls it
 from a browser again, and so it is fixed in the same pass as #1.
