@@ -158,6 +158,10 @@ interface FeedRequest {
   radiusM?: number;
   filters?: Record<string, unknown>;
   limit?: number;
+  // Phase 6B: ask the server for disclosed sponsored placements. ONLY screens
+  // that render SponsoredBadge on every card may set this (Discover, Nearby;
+  // decision B6). Whether anything is placed is decided server-side.
+  placements?: boolean;
 }
 
 // One call, one failure mode. Every caller below fails soft to an empty feed,
@@ -174,6 +178,7 @@ async function fetchFeed(req: FeedRequest): Promise<FeedResponse> {
         radius_m: req.radiusM,
         filters: req.filters ?? {},
         limit: req.limit,
+        ...(req.placements ? { placements: true } : {}),
       },
     });
     if (error || !data || !Array.isArray(data.venues)) {
@@ -318,6 +323,7 @@ export async function getDiscoverFeed(
     radiusM: DISCOVER_RADIUS_M,
     filters: toFilterPayload(filters),
     limit: 100,
+    placements: true,
   });
   return {
     venues: feed.venues.map(feedRowToVenue),
@@ -339,10 +345,19 @@ export async function getAllLiveVenues(lat?: number | null, lng?: number | null)
 // is fetched with the same circle so the two lists describe the same area.
 export const NEARBY_RADIUS_M = 20_000;
 
+export interface NearbyFeedOptions {
+  // Only the Nearby tab sets this. It renders SponsoredBadge on every card.
+  placements?: boolean;
+  // Server-side hard filter (6B): filtering on the client after placement
+  // could drop or shift a sponsored row out of its disclosed position.
+  happyHourNow?: boolean;
+}
+
 export async function getNearbyLiveVenues(
   lat: number,
   lng: number,
   maxResults = 12,
+  options: NearbyFeedOptions = {},
 ): Promise<(PulzeVenue & { distanceMeters: number })[]> {
   // The server applies the limit BEFORE the personalization blend, which is
   // what the client used to do by slicing and only then re-sorting. Passing
@@ -353,11 +368,36 @@ export async function getNearbyLiveVenues(
     lng,
     radiusM: NEARBY_RADIUS_M,
     limit: maxResults,
+    filters: options.happyHourNow ? { happy_hour_now: true } : {},
+    placements: options.placements === true,
   });
   return feed.venues.map((row) => ({
     ...feedRowToVenue(row),
     distanceMeters: num(row.distance_m) ?? 0,
   }));
+}
+
+// Phase 6B: the user opened venue detail from a sponsored card, which is the CPC
+// billable event. Fire-and-forget: navigation never waits on it, and the
+// server's answer is deliberately opaque (200 {ok:true} whatever happened).
+// Billing, dedupe and venue-member exclusion are decided server-side against
+// the server-issued impression. The client sends only its id. One retry with
+// the SAME placement_id is idempotent server-side. A lost call can only
+// under-bill.
+export function recordSponsoredOpen(placementId: string | null | undefined): void {
+  if (!placementId) return;
+  void (async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { error } = await supabase.functions.invoke('sponsored-open', {
+          body: { placement_id: placementId },
+        });
+        if (!error) return;
+      } catch {
+        // Retry once, then give up silently.
+      }
+    }
+  })();
 }
 
 export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue | null> {

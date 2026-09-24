@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-import { getDiscoverFeed, type DiscoverFilters, type FeedArea, type FeedFacets } from '@/services/venues';
+import { getDiscoverFeed, recordSponsoredOpen, type DiscoverFilters, type FeedArea, type FeedFacets } from '@/services/venues';
 import { SponsoredBadge } from '@/components/SponsoredBadge';
 import { CityWelcome } from '@/components/CityWelcome';
 import { useTheme } from '@/providers/ThemeProvider';
@@ -215,8 +215,11 @@ export default function HomeScreen() {
   }, [loadVenues]);
 
   const handleVenuePress = useCallback(
-    (venueId: string) => {
+    (venueId: string, sponsoredPlacementId?: string | null) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Opening detail from a sponsored card is the CPC billable event (6B).
+      // Fire-and-forget; navigation never waits on it.
+      recordSponsoredOpen(sponsoredPlacementId);
       router.push({ pathname: '/venue-detail', params: { venueId } });
     },
     [router],
@@ -310,7 +313,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           filteredVenues.map((venue) => (
-            <VenueCard key={venue.id} venue={venue} userLat={userLat} userLng={userLng} onPress={() => handleVenuePress(venue.id)} />
+            <VenueCard key={venue.id} venue={venue} userLat={userLat} userLng={userLng} onPress={() => handleVenuePress(venue.id, venue.isSponsored ? venue.placementId : null)} />
           ))
         )}
         <View style={{ height: 100 }} />

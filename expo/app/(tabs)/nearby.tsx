@@ -30,6 +30,7 @@ import {
   type HappyHourNow,
 } from '@/services/happyHours';
 import { hasReliableBusyness } from '@/types/venue';
+import { recordSponsoredOpen } from '@/services/venues';
 
 function NearbyCard({
   venue,
@@ -165,7 +166,11 @@ export default function NearbyScreen() {
       return;
     }
     setIsLoadingVenues(true);
-    getNearbyVenuesLive(lat, lng, 12).then((venues) => {
+    // Phase 6B: this screen renders SponsoredBadge on every card, so it may
+    // receive disclosed placements. The Happy Hour filter is applied by the
+    // SERVER (a hard filter, like category), so a client-side filter can never
+    // drop or shift a sponsored row out of its disclosed position.
+    getNearbyVenuesLive(lat, lng, 12, { placements: true, happyHourNow: showOnlyHappyHour }).then((venues) => {
       if (isMountedRef.current) {
         setNearbyVenues(venues);
         setIsLoadingVenues(false);
@@ -177,17 +182,16 @@ export default function NearbyScreen() {
     void fetchHappyHoursHappeningNow({ lat, lng, radiusM: NEARBY_RADIUS_M }).then((rows) => {
       if (isMountedRef.current) setHappeningNow(buildHappeningNowIndex(rows));
     });
-  }, [lat, lng, hasResolved]);
+  }, [lat, lng, hasResolved, showOnlyHappyHour]);
 
   // The server already ordered this list (organic_rank). Kept as a named
   // value so the happy-hour filter below reads the same way it did before;
   // re-sorting here would double-apply the personalization blend.
   const orderedVenues = nearbyVenues;
 
-  const visibleVenues = useMemo(
-    () => (showOnlyHappyHour ? orderedVenues.filter((v) => happeningNow.has(v.id)) : orderedVenues),
-    [orderedVenues, showOnlyHappyHour, happeningNow],
-  );
+  // Already filtered server-side when Happy Hour Now is on. Never re-filter
+  // or re-sort here: sponsored rows must stay where the server placed them.
+  const visibleVenues = orderedVenues;
 
   const happyHourCount = useMemo(
     () => orderedVenues.reduce((n, v) => n + (happeningNow.has(v.id) ? 1 : 0), 0),
@@ -205,8 +209,11 @@ export default function NearbyScreen() {
   }, [loadVenues]);
 
   const handleVenuePress = useCallback(
-    (venueId: string) => {
+    (venueId: string, sponsoredPlacementId?: string | null) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Opening detail from a sponsored card is the CPC billable event (6B).
+      // Fire-and-forget; navigation never waits on it.
+      recordSponsoredOpen(sponsoredPlacementId);
       router.push({ pathname: '/venue-detail', params: { venueId } });
     },
     [router],
@@ -308,7 +315,7 @@ export default function NearbyScreen() {
               key={venue.id}
               venue={venue}
               happyHourNow={happeningNow.get(venue.id)}
-              onPress={() => handleVenuePress(venue.id)}
+              onPress={() => handleVenuePress(venue.id, venue.isSponsored ? venue.placementId : null)}
             />
           ))
         )}

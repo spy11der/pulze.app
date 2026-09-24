@@ -1,4 +1,4 @@
-import { getNearbyLiveVenues, searchLiveVenues } from '@/services/venues';
+import { getNearbyLiveVenues, searchLiveVenues, type NearbyFeedOptions } from '@/services/venues';
 
 export interface NearbyVenue {
   id: string;
@@ -80,8 +80,13 @@ export function metersToWalkMinutes(meters: number): string {
 // dependency 6A is retiring. Removed rather than left to rot.
 
 // Real, Supabase-backed nearby venues — used by app/(tabs)/nearby.tsx.
-export async function getNearbyVenuesLive(lat: number, lng: number, maxResults = 12): Promise<NearbyVenue[]> {
-  const venues = await getNearbyLiveVenues(lat, lng, maxResults);
+export async function getNearbyVenuesLive(
+  lat: number,
+  lng: number,
+  maxResults = 12,
+  options: NearbyFeedOptions = {},
+): Promise<NearbyVenue[]> {
+  const venues = await getNearbyLiveVenues(lat, lng, maxResults, options);
   return venues.map((v) => ({
     id: v.id,
     name: v.name,
