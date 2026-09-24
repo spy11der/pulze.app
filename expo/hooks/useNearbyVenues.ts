@@ -56,9 +56,14 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
-// Shared fallback when the user's location is unavailable — used by Nearby,
-// Home, and Venue Detail so all screens show the same estimates.
-export const DENVER_COORDS = { lat: 39.756, lng: -104.99 } as const;
+// Where Discover browses when the device location is unavailable (denied,
+// web without geolocation, or no fix). This is a LAUNCH-MARKET choice, not a
+// geographic assumption: every other screen is location-first and shows no
+// distance, no "near you" list and no walk time without a real fix, and
+// Discover labels the area by the server's `area` name, so a user shown this
+// fallback sees "Denver, tonight" -- not a claim that Denver is near them.
+// When launch markets exist as data, this becomes "the default active market".
+export const FALLBACK_BROWSE_CENTER = { lat: 39.756, lng: -104.99 } as const;
 
 // Walking-time estimate (~84 m/min pace), matching the Nearby card.
 export function metersToWalkMinutes(meters: number): string {
@@ -97,8 +102,9 @@ export async function getNearbyVenuesLive(lat: number, lng: number, maxResults =
 }
 
 // Real, Supabase-backed venue search — used by app/location-selector.tsx.
-export async function searchVenuesLive(query: string): Promise<NearbyVenue[]> {
-  const venues = await searchLiveVenues(query);
+// Nationwide by design; a point, when known, only sorts local matches first.
+export async function searchVenuesLive(query: string, lat?: number | null, lng?: number | null): Promise<NearbyVenue[]> {
+  const venues = await searchLiveVenues(query, 15, lat, lng);
   return venues.map((v) => ({
     id: v.id,
     name: v.name,

@@ -35,6 +35,16 @@ export interface ExternalVenue {
   longitude: number;
   address?: string;
   city?: string;
+  // Canonical locality (Nationwide N1). region is the ISO 3166-2 subdivision
+  // code without the country prefix (US: 'CO', 'SC'); countryCode is ISO
+  // 3166-1 alpha-2. Adapters leave any of these undefined rather than guess.
+  region?: string;
+  postalCode?: string;
+  countryCode?: string;
+  // IANA Area/Location name. REQUIRED to create a venue: venues.timezone has
+  // no default any more, and every venue-local computation (hours, Happy Hour,
+  // promotion pricing) runs in it. Never inferred from the city name.
+  timezone?: string;
   category: PulzeCategory;
   rawCategory?: string;
   phone?: string;
@@ -43,6 +53,35 @@ export interface ExternalVenue {
   priceLevel?: number;
   photos: ExternalPhoto[];
   rawMetadata: Record<string, unknown>;
+}
+
+// Shape-checks provider locality before it reaches the venues CHECK
+// constraints, so one malformed field drops that field instead of failing the
+// whole venue. Returns undefined for anything that does not fit.
+export function normalizeRegion(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const v = raw.trim().toUpperCase();
+  return /^[A-Z0-9]{1,3}$/.test(v) ? v : undefined;
+}
+
+export function normalizeCountryCode(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const v = raw.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(v) ? v : undefined;
+}
+
+export function normalizePostalCode(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const v = raw.trim();
+  return v.length >= 3 && v.length <= 12 && /^[A-Za-z0-9 -]+$/.test(v) ? v : undefined;
+}
+
+export function normalizeTimezone(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const v = raw.trim();
+  // Same Area/Location shape the database trigger enforces; the database
+  // remains the authority on whether the zone actually exists.
+  return /^[A-Za-z]+\/[A-Za-z0-9_+/-]+$/.test(v) ? v : undefined;
 }
 
 export function getServiceRoleClient(): SupabaseClient {
@@ -65,6 +104,13 @@ export interface UpsertResult {
 // pair in venue_provider_links first — that's the actual dedup key, not the
 // venue's name/location. Creates a new venues row only if no link exists
 // yet; otherwise updates the existing linked venue in place.
+//
+// Nothing here is city-specific: identity is the provider link, location is
+// the provider's coordinates, and the timezone must come with the record.
+// KNOWN GAP (not addressed here): a venue first imported from provider A and
+// later seen from provider B has no A-link lookup, so B creates a second row.
+// Cross-provider matching needs a candidate step (nearby + normalized name +
+// address) with human review for ambiguous pairs; see the nationwide report.
 export async function upsertExternalVenue(
   supabase: SupabaseClient,
   ev: ExternalVenue,
@@ -92,6 +138,12 @@ export async function upsertExternalVenue(
         website: ev.website ?? null,
         rating: ev.rating ?? null,
         price_level: ev.priceLevel ?? null,
+        // Locality only when the provider supplied it, so a sparse refresh
+        // never erases a curated value. Timezone is deliberately NOT
+        // refreshed: once set it is Pulze's authoritative value.
+        ...(ev.region ? { region: ev.region } : {}),
+        ...(ev.postalCode ? { postal_code: ev.postalCode } : {}),
+        ...(ev.countryCode ? { country_code: ev.countryCode } : {}),
       })
       .eq('id', venueId);
     if (updateError) throw updateError;
@@ -103,6 +155,14 @@ export async function upsertExternalVenue(
       .eq('provider_venue_id', ev.providerVenueId);
     if (linkUpdateError) throw linkUpdateError;
   } else {
+    if (!ev.timezone) {
+      // Refuse rather than guess. Before Nationwide N1 this insert silently
+      // inherited America/Denver; now the column has no default and the
+      // database would reject it anyway -- this just says why, per venue.
+      throw new Error(
+        `timezone_required: ${ev.provider}:${ev.providerVenueId} (${ev.name}) has no timezone; not creating a venue`,
+      );
+    }
     const { data: newVenue, error: insertError } = await supabase
       .from('venues')
       .insert({
@@ -111,6 +171,10 @@ export async function upsertExternalVenue(
         latitude: ev.latitude,
         longitude: ev.longitude,
         city: ev.city ?? null,
+        region: ev.region ?? null,
+        postal_code: ev.postalCode ?? null,
+        country_code: ev.countryCode ?? null,
+        timezone: ev.timezone,
         address: ev.address ?? null,
         phone: ev.phone ?? null,
         website: ev.website ?? null,

@@ -9,7 +9,17 @@
 // exactly what would be inserted/updated so results can be inspected before
 // any write (or any Foursquare quota beyond the search+photo calls) happens.
 
-import { requireAdminSecret, getServiceRoleClient, upsertExternalVenue, type ExternalVenue, type PulzeCategory } from '../_shared/externalVenue.ts';
+import {
+  requireAdminSecret,
+  getServiceRoleClient,
+  upsertExternalVenue,
+  normalizeCountryCode,
+  normalizePostalCode,
+  normalizeRegion,
+  normalizeTimezone,
+  type ExternalVenue,
+  type PulzeCategory,
+} from '../_shared/externalVenue.ts';
 
 const FSQ_API_KEY = Deno.env.get('FOURSQUARE_API_KEY');
 const FSQ_BASE_URL = 'https://places-api.foursquare.com/places';
@@ -75,6 +85,14 @@ function normalizeFoursquarePlace(place: any): ExternalVenue {
     longitude: place.geocodes?.main?.longitude,
     address: place.location?.formatted_address,
     city: place.location?.locality,
+    region: normalizeRegion(place.location?.region),
+    postalCode: normalizePostalCode(place.location?.postcode),
+    countryCode: normalizeCountryCode(place.location?.country),
+    // Read only if the response carries one. NOT verified against a live
+    // Foursquare response in this repo; when absent, upsertExternalVenue
+    // refuses to create the venue instead of defaulting a zone. The dryRun
+    // output shows which places would be refused.
+    timezone: normalizeTimezone(place.timezone),
     category: mapFoursquareCategory(place.categories),
     rawCategory: place.categories?.[0]?.name,
     phone: place.tel,
@@ -133,10 +151,15 @@ Deno.serve(async (req) => {
   }
 
   const supabase = getServiceRoleClient();
+  // Per-venue outcome: one place without a timezone is refused and reported,
+  // it does not abort the rest of the batch.
   const results = [];
   for (const ev of normalized) {
-    const result = await upsertExternalVenue(supabase, ev);
-    results.push(result);
+    try {
+      results.push(await upsertExternalVenue(supabase, ev));
+    } catch (e) {
+      results.push({ providerVenueId: ev.providerVenueId, name: ev.name, error: String((e as Error)?.message ?? e) });
+    }
   }
 
   return new Response(

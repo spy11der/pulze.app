@@ -21,6 +21,7 @@ import {
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { useMapLocation } from '@/hooks/useMapLocation';
 import { getAllLiveVenues, getVenueActivitySummaries } from '@/services/venues';
 import { getFriendsAndRequests, acceptFriendRequest, declineFriendRequest, type RealFriendRequest } from '@/services/friends';
 import type { PulzeVenue } from '@/types/venue';
@@ -59,6 +60,9 @@ export default function ActivityScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { userLocation } = useMapLocation();
+  const nearLat = userLocation?.latitude ?? null;
+  const nearLng = userLocation?.longitude ?? null;
 
   const [tab, setTab] = useState<TabKey>('nearby');
   const [friendReqs, setFriendReqs] = useState<RealFriendRequest[]>([]);
@@ -75,9 +79,12 @@ export default function ActivityScreen() {
 
   useEffect(() => { void loadFriendRequests(); }, [loadFriendRequests]);
 
+  // "Nearby" activity is venues around the user's real location. Without a
+  // fix the list stays empty rather than showing some other city's venues.
   useEffect(() => {
+    if (nearLat == null || nearLng == null) return;
     let cancelled = false;
-    getAllLiveVenues().then(async (venues) => {
+    getAllLiveVenues(nearLat, nearLng).then(async (venues) => {
       const top = venues.slice(0, 6);
       const ids = top.map((v) => v.id);
       const summaries = await getVenueActivitySummaries(ids);
@@ -94,7 +101,7 @@ export default function ActivityScreen() {
       );
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [nearLat, nearLng]);
 
   const unreadByTab = useMemo<Record<TabKey, number>>(() => ({
     nearby: 0,

@@ -9,6 +9,10 @@ interface UserLocation {
 export function useMapLocation() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
+  // True once the first attempt has finished, whether it produced a fix, was
+  // denied, or failed. Screens wait for this before their first venue query,
+  // so they never fetch a placeholder area and then swap to the real one.
+  const [hasResolved, setHasResolved] = useState<boolean>(false);
 
   const requestLocation = useCallback(async () => {
     setIsLocating(true);
@@ -29,6 +33,7 @@ export function useMapLocation() {
       console.log('[useMapLocation] Error:', err);
     } finally {
       setIsLocating(false);
+      setHasResolved(true);
     }
   }, []);
 
@@ -36,5 +41,5 @@ export function useMapLocation() {
     requestLocation();
   }, [requestLocation]);
 
-  return { userLocation, isLocating, requestLocation };
+  return { userLocation, isLocating, hasResolved, requestLocation };
 }

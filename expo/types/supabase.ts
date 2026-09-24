@@ -981,6 +981,7 @@ export type Database = {
           non_billable_reason: string | null
           pricing_schedule: string
           rate_card_id: string
+          repeat_opens: number
           user_id: string | null
           venue_id: string
           venue_timezone: string
@@ -1004,6 +1005,7 @@ export type Database = {
           non_billable_reason?: string | null
           pricing_schedule: string
           rate_card_id: string
+          repeat_opens?: number
           user_id?: string | null
           venue_id: string
           venue_timezone: string
@@ -1027,6 +1029,7 @@ export type Database = {
           non_billable_reason?: string | null
           pricing_schedule?: string
           rate_card_id?: string
+          repeat_opens?: number
           user_id?: string | null
           venue_id?: string
           venue_timezone?: string
@@ -1114,6 +1117,7 @@ export type Database = {
       }
       promotion_daily_stats: {
         Row: {
+          billable_clicks: number
           campaign_id: string
           clicks: number
           impressions: number
@@ -1122,6 +1126,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billable_clicks?: number
           campaign_id: string
           clicks?: number
           impressions?: number
@@ -1130,6 +1135,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billable_clicks?: number
           campaign_id?: string
           clicks?: number
           impressions?: number
@@ -2660,6 +2666,7 @@ export type Database = {
           capacity: number | null
           category: string | null
           city: string | null
+          country_code: string | null
           created_at: string | null
           deactivated_at: string | null
           deactivated_by: string | null
@@ -2678,8 +2685,10 @@ export type Database = {
           name: string
           neighborhood_id: string | null
           phone: string | null
+          postal_code: string | null
           price_level: number | null
           rating: number | null
+          region: string | null
           timezone: string
           verification_notes: string | null
           verification_state: string
@@ -2696,6 +2705,7 @@ export type Database = {
           capacity?: number | null
           category?: string | null
           city?: string | null
+          country_code?: string | null
           created_at?: string | null
           deactivated_at?: string | null
           deactivated_by?: string | null
@@ -2714,9 +2724,11 @@ export type Database = {
           name: string
           neighborhood_id?: string | null
           phone?: string | null
+          postal_code?: string | null
           price_level?: number | null
           rating?: number | null
-          timezone?: string
+          region?: string | null
+          timezone: string
           verification_notes?: string | null
           verification_state?: string
           verified_at?: string | null
@@ -2732,6 +2744,7 @@ export type Database = {
           capacity?: number | null
           category?: string | null
           city?: string | null
+          country_code?: string | null
           created_at?: string | null
           deactivated_at?: string | null
           deactivated_by?: string | null
@@ -2750,8 +2763,10 @@ export type Database = {
           name?: string
           neighborhood_id?: string | null
           phone?: string | null
+          postal_code?: string | null
           price_level?: number | null
           rating?: number | null
+          region?: string | null
           timezone?: string
           verification_notes?: string | null
           verification_state?: string
@@ -3759,7 +3774,12 @@ export type Database = {
       geomfromewkt: { Args: { "": string }; Returns: unknown }
       get_current_user_age: { Args: never; Returns: number }
       get_happy_hours_happening_now: {
-        Args: { p_now?: string }
+        Args: {
+          p_lat?: number
+          p_lng?: number
+          p_now?: string
+          p_radius_m?: number
+        }
         Returns: {
           description: string
           drink_specials: string[]
@@ -3779,7 +3799,12 @@ export type Database = {
         }[]
       }
       get_happy_hours_upcoming_today: {
-        Args: { p_now?: string }
+        Args: {
+          p_lat?: number
+          p_lng?: number
+          p_now?: string
+          p_radius_m?: number
+        }
         Returns: {
           description: string
           drink_specials: string[]
@@ -4131,6 +4156,10 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      promotion_advance_campaign_status: {
+        Args: { p_now?: string }
+        Returns: Json
+      }
       promotion_effective_schedule: {
         Args: { p_at: string; p_venue_id: string }
         Returns: string

@@ -17,12 +17,12 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
-  DENVER_COORDS,
   getNearbyVenuesLive,
   metersToWalkMinutes,
   type NearbyVenue,
 } from '@/hooks/useNearbyVenues';
 import { SponsoredBadge } from '@/components/SponsoredBadge';
+import { NEARBY_RADIUS_M } from '@/services/venues';
 import {
   buildHappeningNowIndex,
   fetchHappyHoursHappeningNow,
@@ -134,7 +134,7 @@ export default function NearbyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { userLocation } = useMapLocation();
+  const { userLocation, hasResolved } = useMapLocation();
   const { onScroll } = useTabScroll();
 
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
@@ -151,10 +151,19 @@ export default function NearbyScreen() {
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
-  const lat = userLocation?.latitude ?? DENVER_COORDS.lat;
-  const lng = userLocation?.longitude ?? DENVER_COORDS.lng;
+  // "Near you" means near you: no stand-in coordinates. Without a real fix
+  // this screen asks for location instead of showing some other city.
+  const lat = userLocation?.latitude ?? null;
+  const lng = userLocation?.longitude ?? null;
 
   const loadVenues = useCallback(() => {
+    if (lat == null || lng == null) {
+      if (hasResolved) {
+        setNearbyVenues([]);
+        setIsLoadingVenues(false);
+      }
+      return;
+    }
     setIsLoadingVenues(true);
     getNearbyVenuesLive(lat, lng, 12).then((venues) => {
       if (isMountedRef.current) {
@@ -162,12 +171,13 @@ export default function NearbyScreen() {
         setIsLoadingVenues(false);
       }
     });
-    // Happy Hour Now runs in parallel; a failure leaves the map empty
-    // and the filter falls back to "no venues currently in HH".
-    void fetchHappyHoursHappeningNow().then((rows) => {
+    // Happy Hour Now runs in parallel over the same circle as the venue
+    // list; a failure leaves the map empty and the filter falls back to
+    // "no venues currently in HH".
+    void fetchHappyHoursHappeningNow({ lat, lng, radiusM: NEARBY_RADIUS_M }).then((rows) => {
       if (isMountedRef.current) setHappeningNow(buildHappeningNowIndex(rows));
     });
-  }, [lat, lng]);
+  }, [lat, lng, hasResolved]);
 
   // The server already ordered this list (organic_rank). Kept as a named
   // value so the happy-hour filter below reads the same way it did before;
@@ -271,7 +281,14 @@ export default function NearbyScreen() {
           />
         }
       >
-        {!isLoadingVenues && nearbyVenues.length === 0 ? (
+        {!isLoadingVenues && lat == null ? (
+          <View style={styles.emptyState}>
+            <MapPin color={colors.textSoft} size={32} />
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              Turn on location to see what&apos;s near you
+            </Text>
+          </View>
+        ) : !isLoadingVenues && nearbyVenues.length === 0 ? (
           <View style={styles.emptyState}>
             <MapPin color={colors.textSoft} size={32} />
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>

@@ -39,9 +39,6 @@ import {
 } from '@/services/happyHours';
 import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
-// Same fallback used by Nearby/Home when device location isn't available yet
-const DENVER_COORDS = { lat: 39.756, lng: -104.99 };
-
 const TABS = [
   { icon: Compass, route: '/(tabs)' },
   { icon: Radio, route: '/(tabs)/nearby' },
@@ -101,17 +98,23 @@ export default function VenueDetailScreen() {
     }, [params.venueId, venue?.id])
   );
 
-  // Happy hour: pull weekly schedule for this venue + city-wide
-  // now/upcoming, then filter to this venue. All three calls tolerate
-  // failure (empty arrays) so a schedule outage never blocks the page.
+  // Happy hour: pull weekly schedule for this venue + now/upcoming for the
+  // smallest circle the server allows (100 m) around the venue itself, then
+  // filter to this venue. Scoping by the venue's own coordinates keeps this
+  // from downloading every Happy Hour in the country to find one. All three
+  // calls tolerate failure (empty arrays) so a schedule outage never blocks
+  // the page.
+  const venueLat = venue?.latitude;
+  const venueLng = venue?.longitude;
   useEffect(() => {
     const venueId = venue?.id;
-    if (!venueId) return;
+    if (!venueId || venueLat == null || venueLng == null) return;
     let cancelled = false;
+    const here = { lat: venueLat, lng: venueLng, radiusM: 100 };
     void Promise.all([
       fetchVenueWeeklyHappyHours(venueId),
-      fetchHappyHoursHappeningNow(),
-      fetchHappyHoursUpcomingToday(),
+      fetchHappyHoursHappeningNow(here),
+      fetchHappyHoursUpcomingToday(here),
     ]).then(([weekly, nowList, upcomingList]) => {
       if (cancelled) return;
       setWeeklyHappyHours(weekly);
@@ -119,7 +122,7 @@ export default function VenueDetailScreen() {
       setHappyHourNext(upcomingList.find((r) => r.venue_id === venueId) ?? null);
     });
     return () => { cancelled = true; };
-  }, [venue?.id]);
+  }, [venue?.id, venueLat, venueLng]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -178,11 +181,13 @@ export default function VenueDetailScreen() {
   }
 
   const bookmarked = isFavorited(venue.id);
-  const lat = userLocation?.latitude ?? DENVER_COORDS.lat;
-  const lng = userLocation?.longitude ?? DENVER_COORDS.lng;
-  const walkEstimate = metersToWalkMinutes(
-    haversineMeters(lat, lng, venue.latitude, venue.longitude),
-  );
+  // Only from a real fix. A walk time measured from a stand-in point would
+  // tell someone in Charleston a Denver bar is "2 min" away.
+  const walkEstimate = userLocation
+    ? metersToWalkMinutes(
+        haversineMeters(userLocation.latitude, userLocation.longitude, venue.latitude, venue.longitude),
+      )
+    : '—';
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>

@@ -13,13 +13,14 @@ import { useRouter } from 'expo-router';
 import { Bell, MapPin } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-import { getDiscoverFeed, type DiscoverFilters, type FeedFacets } from '@/services/venues';
+import { getDiscoverFeed, type DiscoverFilters, type FeedArea, type FeedFacets } from '@/services/venues';
 import { SponsoredBadge } from '@/components/SponsoredBadge';
+import { CityWelcome } from '@/components/CityWelcome';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
-  DENVER_COORDS,
+  FALLBACK_BROWSE_CENTER,
   haversineMeters,
   metersToWalkMinutes,
 } from '@/hooks/useNearbyVenues';
@@ -84,13 +85,34 @@ function buildPills(facets: FeedFacets): FilterPillDef[] {
   return [...BUSYNESS_PILLS, ...nbhdPills, ...typePills];
 }
 
-function getTimeContext(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'Denver, today';
-  if (hour >= 12 && hour < 17) return 'Denver, afternoon';
-  if (hour >= 17 && hour < 21) return 'Denver, tonight';
-  if (hour >= 21 || hour < 3) return 'Denver, right now';
-  return 'Denver, late night';
+// Hour of day in the area being shown, not on the device: someone in
+// Charleston browsing Denver at 7pm Eastern is looking at Denver's 5pm.
+// Falls back to device time if the runtime lacks Intl time-zone data.
+function localHour(timeZone: string | null | undefined): number {
+  if (timeZone) {
+    try {
+      const h = parseInt(
+        new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone }).format(new Date()),
+        10,
+      );
+      if (Number.isFinite(h)) return h % 24;
+    } catch {
+      // Unknown zone or no Intl support -- device time below.
+    }
+  }
+  return new Date().getHours();
+}
+
+// The place name comes from the server's `area` (the nearest venue's city),
+// never from a constant. With nothing in range there is no honest city name.
+function getTimeContext(area: FeedArea | null): string {
+  const place = area?.city ?? 'Near you';
+  const hour = localHour(area?.timezone);
+  if (hour >= 5 && hour < 12) return `${place}, today`;
+  if (hour >= 12 && hour < 17) return `${place}, afternoon`;
+  if (hour >= 17 && hour < 21) return `${place}, tonight`;
+  if (hour >= 21 || hour < 3) return `${place}, right now`;
+  return `${place}, late night`;
 }
 
 export default function HomeScreen() {
@@ -98,12 +120,17 @@ export default function HomeScreen() {
   const { onScroll } = useTabScroll();
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { userLocation } = useMapLocation();
+  const { userLocation, hasResolved } = useMapLocation();
 
-  // Real location with the same Denver fallback Nearby uses, so walk-time
-  // estimates match across Home, Nearby, and Venue Detail.
-  const userLat = userLocation?.latitude ?? DENVER_COORDS.lat;
-  const userLng = userLocation?.longitude ?? DENVER_COORDS.lng;
+  // The area Discover shows: the device's location, or the launch-market
+  // fallback when there is none. Nothing is fetched until the location
+  // attempt resolves, so a Charleston user never briefly sees the fallback.
+  // Walk times use the REAL location only -- a distance from the fallback
+  // center would be fiction -- and are hidden without one.
+  const browseLat = userLocation?.latitude ?? FALLBACK_BROWSE_CENTER.lat;
+  const browseLng = userLocation?.longitude ?? FALLBACK_BROWSE_CENTER.lng;
+  const userLat = userLocation?.latitude ?? null;
+  const userLng = userLocation?.longitude ?? null;
 
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
@@ -111,6 +138,8 @@ export default function HomeScreen() {
   // Facet vocabulary from the server. Until the first response lands there are
   // no pills, which is correct: the app does not know what exists yet.
   const [facets, setFacets] = useState<FeedFacets>({ neighborhoods: [], categories: [] });
+  const [area, setArea] = useState<FeedArea | null>(null);
+  const [hasLoaded, setHasLoaded] = useState<boolean>(false);
   // Phase 6A-1: there is no client-side personalization state any more. The
   // discover-feed Edge Function derives auth.uid() server-side and
   // pulze_discover_feed applies the 70/30 live/preference blend before it
@@ -120,7 +149,7 @@ export default function HomeScreen() {
   const isMountedRef = useRef(true);
   useEffect(() => () => { isMountedRef.current = false; }, []);
 
-  const timeContext = useMemo(() => getTimeContext(), []);
+  const timeContext = useMemo(() => getTimeContext(area), [area]);
 
   const pills = useMemo(() => buildPills(facets), [facets]);
 
@@ -160,16 +189,20 @@ export default function HomeScreen() {
   }, [activeFilters]);
 
   const loadVenues = useCallback(() => {
-    // One authenticated call returning both the filtered venues and the facet
-    // vocabulary. Coordinates feed the proximity relevance term (6A-3).
-    getDiscoverFeed(userLat, userLng, serverFilters).then((res) => {
+    if (!hasResolved) return;
+    // One authenticated call returning the filtered venues, the facet
+    // vocabulary and the area name. The point scopes the candidate set to a
+    // metro-sized radius server-side (Nationwide N3) and feeds proximity.
+    getDiscoverFeed(browseLat, browseLng, serverFilters).then((res) => {
       if (!isMountedRef.current) return;
       setAllVenues(res.venues);
-      // Facets are computed over ALL active venues, not the filtered set, so
-      // the pill row does not collapse as the user narrows.
+      // Facets cover every venue in the area, not the filtered set, so the
+      // pill row does not collapse as the user narrows.
       setFacets(res.facets);
+      setArea(res.area);
+      setHasLoaded(true);
     });
-  }, [userLat, userLng, serverFilters]);
+  }, [hasResolved, browseLat, browseLng, serverFilters]);
 
   useEffect(() => { loadVenues(); }, [loadVenues]);
 
@@ -260,7 +293,14 @@ export default function HomeScreen() {
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.aqua} colors={[colors.aqua]} />
         }
       >
-        {filteredVenues.length === 0 ? (
+        {filteredVenues.length === 0 && hasLoaded && activeFilters.size === 0 ? (
+          // Nothing in range at all -- a place Pulze has no venues in yet.
+          // Distinct from "your filters matched nothing" below.
+          <View style={styles.emptyState}>
+            <MapPin color={colors.textSoft} size={32} />
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>No Pulze venues around here yet</Text>
+          </View>
+        ) : filteredVenues.length === 0 && hasLoaded ? (
           <View style={styles.emptyState}>
             <MapPin color={colors.textSoft} size={32} />
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>Nothing matching right now</Text>
@@ -275,6 +315,12 @@ export default function HomeScreen() {
         )}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Welcomes the user to the city they are physically in, named by the
+          server. Never shown for the no-location fallback area. */}
+      {userLocation && area?.city ? (
+        <CityWelcome cityName={area.city} cityTagline="See what's busy tonight" />
+      ) : null}
     </View>
   );
 }
@@ -286,14 +332,17 @@ const VenueCard = React.memo(function VenueCard({
   onPress,
 }: {
   venue: PulzeVenue;
-  userLat: number;
-  userLng: number;
+  userLat: number | null;
+  userLng: number | null;
   onPress: () => void;
 }) {
   const { colors, isDark } = useTheme();
   const photoUri = venue.photo ?? venue.photos[0];
   const displayTags = venue.tags.slice(0, 2);
-  const walkMins = metersToWalkMinutes(haversineMeters(userLat, userLng, venue.latitude, venue.longitude));
+  const walkMins =
+    userLat != null && userLng != null
+      ? metersToWalkMinutes(haversineMeters(userLat, userLng, venue.latitude, venue.longitude))
+      : '';
 
   return (
     <Pressable
@@ -312,7 +361,7 @@ const VenueCard = React.memo(function VenueCard({
         <View style={styles.cardRow1}>
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>{venue.name}</Text>
           <View style={styles.cardRow1Right}>
-            <Text style={[styles.walkMins, { color: colors.textMuted }]}>{walkMins}</Text>
+            {walkMins ? <Text style={[styles.walkMins, { color: colors.textMuted }]}>{walkMins}</Text> : null}
             <View style={[styles.typeChip, { backgroundColor: colors.aqua + '14' }]}>
               <Text style={[styles.typeChipText, { color: colors.aqua }]}>{venue.typeLabel}</Text>
             </View>

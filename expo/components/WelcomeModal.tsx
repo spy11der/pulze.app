@@ -142,7 +142,7 @@ export function WelcomeModal() {
                 <View style={styles.featureText}>
                   <Text style={styles.featureTitle}>Real-time busyness</Text>
                   <Text style={styles.featureSubtitle}>
-                    Every bar and club in Denver, updated live
+                    Every bar and club around you, updated live
                   </Text>
                 </View>
               </View>

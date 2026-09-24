@@ -73,6 +73,7 @@ export interface FeedVenueRow {
   legacy_mock_id: string | null;
   category: string | null;
   city: string | null;
+  region: string | null;
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -120,6 +121,22 @@ export interface FeedResponse {
   // the vocabulary (decision D8) -- it simply has no pilot venue yet, so it
   // produces no pill until it does.
   facets: FeedFacets;
+  // Nationwide N3. Absent from pre-N3 responses, hence optional.
+  area?: FeedArea | null;
+  radius_m?: number | null;
+  // 'location_required' when discover was called without coordinates: the
+  // server no longer ranks the whole country in that case.
+  reason?: string;
+}
+
+// The area a geo-scoped feed (discover/nearby) is showing, named by the
+// server from the nearest venue in range. Null when nothing is in range --
+// the UI says so rather than inventing a city.
+export interface FeedArea {
+  city: string | null;
+  region: string | null;
+  country_code: string | null;
+  timezone: string | null;
 }
 
 export const EMPTY_FACETS: FeedFacets = { neighborhoods: [], categories: [] };
@@ -276,7 +293,15 @@ export interface DiscoverResult {
   venues: PulzeVenue[];
   facets: FeedFacets;
   personalized: boolean;
+  area: FeedArea | null;
 }
+
+// Discover is scoped to a metro-sized circle around the point it is given:
+// the user's own location, or an area they chose to browse. 40 km covers a
+// metro (downtown Denver to Golden is ~20 km) without reaching the next one.
+// There is no city or state predicate anywhere -- a user near a state line
+// sees what is genuinely near them on both sides.
+export const DISCOVER_RADIUS_M = 40_000;
 
 // Discover: venues AND the facet vocabulary, in one call. The screen renders
 // its filter pills from `facets` so the pill row always reflects venues that
@@ -290,6 +315,7 @@ export async function getDiscoverFeed(
     surface: 'discover',
     lat,
     lng,
+    radiusM: DISCOVER_RADIUS_M,
     filters: toFilterPayload(filters),
     limit: 100,
   });
@@ -297,13 +323,21 @@ export async function getDiscoverFeed(
     venues: feed.venues.map(feedRowToVenue),
     facets: feed.facets ?? EMPTY_FACETS,
     personalized: feed.personalized,
+    area: feed.area ?? null,
   };
 }
 
+// Location-first like Discover: without a point the server returns nothing
+// rather than ranking every venue in the country.
 export async function getAllLiveVenues(lat?: number | null, lng?: number | null): Promise<PulzeVenue[]> {
-  const feed = await fetchFeed({ surface: 'discover', lat, lng, limit: 100 });
+  if (lat == null || lng == null) return [];
+  const feed = await fetchFeed({ surface: 'discover', lat, lng, radiusM: DISCOVER_RADIUS_M, limit: 100 });
   return feed.venues.map(feedRowToVenue);
 }
+
+// Nearby is the tighter "already out" radius. Happy Hour for the same screen
+// is fetched with the same circle so the two lists describe the same area.
+export const NEARBY_RADIUS_M = 20_000;
 
 export async function getNearbyLiveVenues(
   lat: number,
@@ -317,7 +351,7 @@ export async function getNearbyLiveVenues(
     surface: 'nearby',
     lat,
     lng,
-    radiusM: 20000,
+    radiusM: NEARBY_RADIUS_M,
     limit: maxResults,
   });
   return feed.venues.map((row) => ({
@@ -338,11 +372,22 @@ export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue
   return row ? feedRowToVenue(row) : null;
 }
 
-export async function searchLiveVenues(query: string, maxResults = 15): Promise<PulzeVenue[]> {
+// Search is deliberately NOT radius-bounded: typing a name is explicit intent,
+// and it is how someone in Charleston finds a Denver venue before a trip. When
+// a point is passed, distance feeds the server ranking so local matches sort
+// first.
+export async function searchLiveVenues(
+  query: string,
+  maxResults = 15,
+  lat?: number | null,
+  lng?: number | null,
+): Promise<PulzeVenue[]> {
   const q = query.trim();
   if (!q) return [];
   const feed = await fetchFeed({
     surface: 'search',
+    lat,
+    lng,
     filters: { query: q },
     limit: maxResults,
   });

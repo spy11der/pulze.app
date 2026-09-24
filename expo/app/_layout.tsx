@@ -16,7 +16,6 @@ import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 import { TabScrollProvider } from '@/providers/TabScrollProvider';
 import { LockScreen } from '@/components/LockScreen';
 import { PulseSplash } from '@/components/PulseSplash';
-import { CityWelcome } from '@/components/CityWelcome';
 import { AuthScreen } from '@/components/AuthScreen';
 import { PersistentFloatingTabBar } from '@/components/FloatingTabBar';
 import { setupNotificationCategories, registerNotificationResponseHandler } from '@/services/checkInNotifications';
@@ -302,12 +301,6 @@ function AppContent() {
             <RootLayoutNav />
             <PersistentFloatingTabBar />
             <LockScreen />
-            {splashDone && (
-              <CityWelcome
-                cityName="Denver"
-                cityTagline="See what's busy tonight"
-              />
-            )}
             {!splashDone && <PulseSplash onComplete={handleSplashComplete} />}
             <WelcomeModal />
           </TabScrollProvider>

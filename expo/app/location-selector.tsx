@@ -64,7 +64,7 @@ export default function LocationSelectorScreen() {
     // last stable value the user paused on.
     const timer = setTimeout(() => {
       const run = async () => {
-        const results = await searchVenuesLive(query);
+        const results = await searchVenuesLive(query, userLocation?.latitude, userLocation?.longitude);
         if (cancelled) return;
         let finalResults: NearbyVenue[];
         if (userLocation) {

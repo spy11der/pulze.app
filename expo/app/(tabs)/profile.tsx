@@ -379,7 +379,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <Text style={[styles.footer, { color: colors.textSoft }]}>Pulze · v1.0.0 · Denver</Text>
+        <Text style={[styles.footer, { color: colors.textSoft }]}>Pulze · v1.0.0</Text>
       </ScrollView>
 
       <BottomSheet visible={menuVisible} onClose={() => setMenuVisible(false)}>

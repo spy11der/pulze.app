@@ -7,8 +7,12 @@
 // discovery/enrichment data, not source-of-truth for a screen.
 //
 // Weekly is the one call that takes a venue id; the other two are
-// city-wide reads that the server already filters (active + fresh
-// + effective-range) via v_active_happy_hours.
+// area reads that the server already filters (active + fresh +
+// effective-range) via v_active_happy_hours. Pass the point and radius
+// the screen is showing (Nationwide N2): without them the server
+// returns every active Happy Hour in the country. Time evaluation is
+// always venue-local on the server, so a Charleston 5pm and a Denver
+// 5pm are each judged in their own zone.
 
 import { supabase } from '@/services/supabase';
 import type { Database } from '@/types/supabase';
@@ -22,9 +26,19 @@ export type HappyHourUpcoming =
 export type HappyHourWeekly =
   Database['public']['Functions']['get_venue_weekly_happy_hours']['Returns'][number];
 
-export async function fetchHappyHoursHappeningNow(): Promise<HappyHourNow[]> {
+export interface HappyHourArea {
+  lat: number;
+  lng: number;
+  radiusM: number;
+}
+
+export async function fetchHappyHoursHappeningNow(area: HappyHourArea): Promise<HappyHourNow[]> {
   try {
-    const { data, error } = await supabase.rpc('get_happy_hours_happening_now');
+    const { data, error } = await supabase.rpc('get_happy_hours_happening_now', {
+      p_lat: area.lat,
+      p_lng: area.lng,
+      p_radius_m: area.radiusM,
+    });
     if (error) {
       console.log('[HappyHours] happening_now rpc error:', error.message);
       return [];
@@ -36,9 +50,13 @@ export async function fetchHappyHoursHappeningNow(): Promise<HappyHourNow[]> {
   }
 }
 
-export async function fetchHappyHoursUpcomingToday(): Promise<HappyHourUpcoming[]> {
+export async function fetchHappyHoursUpcomingToday(area: HappyHourArea): Promise<HappyHourUpcoming[]> {
   try {
-    const { data, error } = await supabase.rpc('get_happy_hours_upcoming_today');
+    const { data, error } = await supabase.rpc('get_happy_hours_upcoming_today', {
+      p_lat: area.lat,
+      p_lng: area.lng,
+      p_radius_m: area.radiusM,
+    });
     if (error) {
       console.log('[HappyHours] upcoming_today rpc error:', error.message);
       return [];
