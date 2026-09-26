@@ -118,7 +118,11 @@ export default function SearchScreen() {
         lat != null && lng != null && item.latitude && item.longitude
           ? formatDistance(haversineMeters(lat, lng, item.latitude, item.longitude))
           : null;
-      const place = [item.neighborhood, item.city].filter((s) => s && s.length > 0).join(', ');
+      // Nationwide results: city and region are what tell two same-named
+      // venues apart ("Denver, CO" vs "Charleston, SC"), so they come before
+      // the neighborhood and survive truncation on a narrow screen.
+      const locality = [item.city, item.region].filter((s) => s && s.length > 0).join(', ');
+      const meta = [item.typeLabel, locality, item.neighborhood].filter((s) => s && s.length > 0).join(' · ');
       return (
         <Pressable
           onPress={() => handleSelect(item, index)}
@@ -136,8 +140,7 @@ export default function SearchScreen() {
               {item.name}
             </Text>
             <Text style={[styles.venueMeta, { color: colors.textSoft }]} numberOfLines={1}>
-              {item.typeLabel}
-              {place ? ` · ${place}` : ''}
+              {meta}
             </Text>
           </View>
           {distance && (
