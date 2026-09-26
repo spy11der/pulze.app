@@ -137,7 +137,8 @@ Deno.serve(async (req) => {
 
   // Latitude/longitude are required for `nearby` and are what the ST_DWithin
   // predicate runs against. Reject here with a clear code rather than letting
-  // the RPC raise, so the client can fall back to its Denver default.
+  // the RPC raise. (Nearby has no fallback location: without a fix the client
+  // asks the user to turn location on.)
   if (surface === 'nearby' && (lat === null || lng === null)) {
     return jsonResponse({ error: 'coordinates_required' }, 400);
   }
@@ -199,6 +200,42 @@ Deno.serve(async (req) => {
   if (error) {
     console.error('[discover-feed] rpc error:', error.message);
     return jsonResponse({ error: 'server_error' }, 500);
+  }
+
+  // Recommended R0: record what was actually served (post-placement order) for
+  // the two ranked feeds. Never delays or fails the response: it runs after
+  // the response via EdgeRuntime.waitUntil, and pulze_log_feed_served swallows
+  // its own errors. Only the ranking fields are sent -- never coordinates, and
+  // never placement ids. Consent and retention are enforced in the database.
+  if ((surface === 'discover' || surface === 'nearby') && data && Array.isArray(data.venues)) {
+    const items = (data.venues as Record<string, unknown>[]).map((v) => ({
+      venue_id: v.venue_id,
+      organic_rank: v.organic_rank,
+      organic_score: v.organic_score,
+      distance_m: v.distance_m,
+      busyness_percent: v.busyness_percent,
+      has_live_signal: v.has_live_signal,
+      open_state: v.open_state,
+      happy_hour: v.happy_hour,
+      is_sponsored: v.is_sponsored === true,
+      placement_reason: v.placement_reason ?? null,
+    }));
+    const logged = admin
+      .rpc('pulze_log_feed_served', {
+        p_user_id: userId,
+        p_surface: surface,
+        p_radius_m: typeof data.radius_m === 'number' ? data.radius_m : radiusM,
+        p_filters: filters,
+        p_personalized: data.personalized === true,
+        p_items: items,
+      })
+      .then(({ error: logErr }) => {
+        if (logErr) console.error('[discover-feed] feed log failed:', logErr.message);
+      }, (e: unknown) => console.error('[discover-feed] feed log failed:', e));
+    // deno-lint-ignore no-explicit-any
+    const runtime = (globalThis as any).EdgeRuntime;
+    if (runtime && typeof runtime.waitUntil === 'function') runtime.waitUntil(logged);
+    else await logged;
   }
 
   // The RPC already returns exactly the shape the client needs, including the

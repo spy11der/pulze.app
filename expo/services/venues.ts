@@ -259,6 +259,8 @@ function feedRowToVenue(row: FeedVenueRow): PulzeVenue {
     phone: row.phone ?? undefined,
     rating: num(row.rating),
     priceLevel: num(row.price_level),
+    city: row.city ?? undefined,
+    region: row.region ?? undefined,
     confidence,
     ...placement,
   };

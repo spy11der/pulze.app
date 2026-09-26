@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bell, Clock, MapPin } from 'lucide-react-native';
+import { Bell, Clock, MapPin, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/providers/ThemeProvider';
@@ -235,12 +235,23 @@ export default function NearbyScreen() {
               <Text style={[styles.timeLabel, { color: colors.textMuted }]}>Near you, right now</Text>
             </View>
           </View>
-          <Pressable
-            onPress={() => router.push('/activity')}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <Bell color={colors.textMuted} size={20} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => router.push('/search')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              hitSlop={8}
+              accessibilityLabel="Search venues"
+              testID="open-search"
+            >
+              <Search color={colors.textMuted} size={20} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/activity')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Bell color={colors.textMuted} size={20} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -331,6 +342,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { paddingHorizontal: 16, paddingBottom: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   brand: { fontSize: 22, fontWeight: '800' as const, letterSpacing: 2 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   liveDot: { width: 6, height: 6, borderRadius: 3 },

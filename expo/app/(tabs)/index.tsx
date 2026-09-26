@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bell, MapPin } from 'lucide-react-native';
+import { Bell, MapPin, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { getDiscoverFeed, recordSponsoredOpen, type DiscoverFilters, type FeedArea, type FeedFacets } from '@/services/venues';
@@ -250,12 +250,23 @@ export default function HomeScreen() {
               <Text style={[styles.timeLabel, { color: colors.textMuted }]}>{timeContext}</Text>
             </View>
           </View>
-          <Pressable
-            onPress={() => router.push('/activity')}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-          >
-            <Bell color={colors.textMuted} size={20} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => router.push('/search')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+              hitSlop={8}
+              accessibilityLabel="Search venues"
+              testID="open-search"
+            >
+              <Search color={colors.textMuted} size={20} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/activity')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Bell color={colors.textMuted} size={20} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -406,6 +417,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { paddingHorizontal: 16, paddingBottom: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   brandBlock: { gap: 2 },
   brand: { fontSize: 22, fontWeight: '800' as const, letterSpacing: 2 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

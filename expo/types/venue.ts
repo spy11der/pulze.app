@@ -26,6 +26,10 @@ export interface PulzeVenue {
   phone?: string;
   rating?: number;
   priceLevel?: number;
+  // Locality from the feed. Search is nationwide, so a result list needs the
+  // city to tell two same-named venues apart.
+  city?: string;
+  region?: string;
   // 0-100 from live_venue_scores.confidence_score. Absent (undefined) means
   // "not fetched" — treated as insufficient by `hasReliableBusyness` so we
   // never surface a busyness figure derived from no signal.

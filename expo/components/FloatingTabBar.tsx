@@ -15,7 +15,7 @@ const TABS = [
   { route: '/(tabs)/profile', Icon: UserRound },
 ] as const;
 
-const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture', 'venue-detail']);
+const HIDDEN_SEGMENTS = new Set(['settings', 'check-in-capture', 'venue-detail', 'search']);
 
 // SDK 57's expo-router forks react-navigation and no longer exposes its
 // types to app code — the tab-bar props shape is defined locally here.
