@@ -7,7 +7,7 @@ import { Shield } from 'lucide-react-native';
 import { useTheme } from '@/providers/ThemeProvider';
 import type { AppColors } from '@/constants/colors';
 
-const LAST_UPDATED = 'March 15, 2026';
+const LAST_UPDATED = 'September 26, 2026';
 
 export default function PrivacyPolicyScreen() {
   const insets = useSafeAreaInsets();
@@ -52,6 +52,9 @@ export default function PrivacyPolicyScreen() {
             <Bold colors={colors}>Usage Data:</Bold> How you interact with Pulze, including features used, time spent, and navigation patterns.
           </BulletPoint>
           <BulletPoint colors={colors}>
+            <Bold colors={colors}>Recommendation Records:</Bold> When Pulze shows you a list of venues, such as on Discover or Nearby, we record which venues were shown, the order they appeared in, and the information used to rank them at that moment. This includes each venue’s distance from you, whether it was open or running a Happy Hour, its live busyness level, any filters you applied, and whether a listing was sponsored. These records do not include your GPS coordinates. If “Use my activity to improve recommendations” is on, these records are linked to your account so we can evaluate how well recommendations work for you. If it is off, we still record which venues were shown, but without linking the record to your account.
+          </BulletPoint>
+          <BulletPoint colors={colors}>
             <Bold colors={colors}>Biometric Data:</Bold> If you enable Face ID or fingerprint lock, biometric authentication is processed locally on your device and never sent to our servers.
           </BulletPoint>
         </Section>
@@ -65,6 +68,7 @@ export default function PrivacyPolicyScreen() {
           <BulletPoint colors={colors}>Send notifications about events, friends, and account activity</BulletPoint>
           <BulletPoint colors={colors}>Detect and prevent fraud, abuse, and security issues</BulletPoint>
           <BulletPoint colors={colors}>Analyze usage patterns to improve the user experience</BulletPoint>
+          <BulletPoint colors={colors}>Measure and improve the quality of the venue recommendations and results we show you</BulletPoint>
         </Section>
 
         <Section title="3. How We Share Your Information" colors={colors}>
@@ -107,7 +111,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="6. Data Retention" colors={colors}>
           <Paragraph colors={colors}>
-            We retain your information for as long as your account is active or as needed to provide services. When you delete your account, we remove your personal data within 30 days, except where retention is required by law.
+            We retain your information for as long as your account is active or as needed to provide services. When you delete your account, we remove your personal data within 30 days, except where retention is required by law. Because recommendation records include distances that could indicate roughly where you were, we keep them only as long as we keep your location data (currently 30 days), then delete them.
           </Paragraph>
         </Section>
 
