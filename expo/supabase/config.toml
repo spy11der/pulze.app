@@ -28,7 +28,8 @@ verify_jwt = false
 verify_jwt = false
 
 # Phase 6B. The default, declared explicitly because this function records
-# CPC billable events: the gateway must reject an unauthenticated call before
-# the function runs. It re-derives the user with auth.getUser() regardless.
+# sponsored opens, which billing depends on: the gateway must reject an
+# unauthenticated call before the function runs. It re-derives the user with
+# auth.getUser() regardless.
 [functions.sponsored-open]
 verify_jwt = true

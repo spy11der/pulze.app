@@ -1,20 +1,20 @@
 // sponsored-open
 //
-// Records that the signed-in user opened venue detail from a sponsored card:
-// the CPC billable event (Phase 6B). One field comes in: the placement_id the
-// feed handed out, which is a server-issued impression id.
+// Records that the signed-in user opened venue detail from a sponsored card
+// (CPC since Phase 6B, Boost since 6C). One field comes in: the placement_id
+// the feed handed out, which is a server-issued impression id.
 //
 // Flow, identical in shape to discover-feed:
 //   1. The edge gateway verifies the JWT (verify_jwt = true, declared in
 //      supabase/config.toml). Missing or expired -> 401 before this code runs.
 //   2. Re-derive the user id via auth.getUser() with the caller's own
 //      Authorization header. A client-supplied user id is never trusted.
-//   3. Call promotion_record_sponsored_open as service_role. It derives the
-//      campaign from the stored impression, checks the impression belongs to
-//      this user, is unexpired and matches its campaign, and stamps the click
-//      with the SERVER's time. Billing (one billable open per user + campaign
-//      + venue-local day, venue-member exclusion, hard budget ceilings,
-//      velocity limits, rejection log) is decided entirely in the database.
+//   3. Call promotion_record_sponsored_open as service_role. It resolves the
+//      placement from the stored impression, checks the impression belongs to
+//      this user and is unexpired, and records the open with the SERVER's
+//      time. Whether it produces a CPC charge (dedupe, venue-member exclusion,
+//      budget ceilings and the other billing rules) is decided entirely in the
+//      database. A Boost open is never CPC-billed.
 //
 // NOTHING ELSE IS ACCEPTED. No campaign id, no venue id, no timestamp, no
 // price and no idempotency key: the body's other fields are ignored.
@@ -22,11 +22,12 @@
 // THE RESPONSE IS OPAQUE. Billable, non-billable, duplicate and rejected
 // outcomes all return the same 200 {ok:true}. Telling a caller which of its
 // taps were charged would hand a fraudster the signal it needs to tune.
-// Outcomes are observable where they belong: promotion_clicks,
-// promotion_click_rejections, and the portal and admin reports.
+// Outcomes are observable where they belong: in the database and in the
+// portal and admin reports.
 //
 // The client fires this and does not wait for it. Navigation to venue detail
-// never depends on it, and a failure here can only UNDER-bill.
+// never depends on it, and a failure here can only under-record, never
+// over-bill.
 //
 // CORS: same block and rationale as discover-feed. The web build calls this
 // from a browser origin, and headers go on every response, errors included.

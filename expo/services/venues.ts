@@ -379,13 +379,13 @@ export async function getNearbyLiveVenues(
   }));
 }
 
-// Phase 6B: the user opened venue detail from a sponsored card, which is the CPC
-// billable event. Fire-and-forget: navigation never waits on it, and the
-// server's answer is deliberately opaque (200 {ok:true} whatever happened).
-// Billing, dedupe and venue-member exclusion are decided server-side against
-// the server-issued impression. The client sends only its id. One retry with
-// the SAME placement_id is idempotent server-side. A lost call can only
-// under-bill.
+// The user opened venue detail from a sponsored card. The open is recorded
+// server-side, and billing eligibility is determined there against the
+// server-issued impression; a Boost open is never CPC-billed. Fire-and-forget:
+// navigation never waits on it, and the server's answer is deliberately opaque
+// (200 {ok:true} whatever happened). The client sends only its id. A retry with
+// the SAME placement_id never bills twice. A lost call can only under-record,
+// never over-bill.
 export function recordSponsoredOpen(placementId: string | null | undefined): void {
   if (!placementId) return;
   void (async () => {

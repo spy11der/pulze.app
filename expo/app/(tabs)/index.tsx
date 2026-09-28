@@ -217,8 +217,9 @@ export default function HomeScreen() {
   const handleVenuePress = useCallback(
     (venueId: string, sponsoredPlacementId?: string | null) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Opening detail from a sponsored card is the CPC billable event (6B).
-      // Fire-and-forget; navigation never waits on it.
+      // Opening detail from a sponsored card records a sponsored open; billing
+      // eligibility is determined server-side. Fire-and-forget; navigation
+      // never waits on it.
       recordSponsoredOpen(sponsoredPlacementId);
       router.push({ pathname: '/venue-detail', params: { venueId } });
     },

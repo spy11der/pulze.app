@@ -6,12 +6,12 @@ import { useTheme } from '@/providers/ThemeProvider';
 /**
  * The single disclosure surface for paid placement.
  *
- * Phase 6A-1 (decision A3) ships this inert: pulze_discover_feed hardcodes
- * is_sponsored = false on every row, and pulze_organic_score takes no
- * monetization input at all, so this component renders nowhere today. It
- * exists now so that 6B (CPC delivery) and 6C (boosted placement) plug into a
- * disclosure path that already exists and has already been reviewed, instead
- * of bolting labelling on at the same moment money starts moving.
+ * Phase 6A-1 (decision A3) shipped this before any paid placement existed, so
+ * that paid placement would plug into a disclosure path that had already been
+ * reviewed, instead of bolting labelling on at the same moment money starts
+ * moving. It renders whenever the feed marks a row sponsored, whichever paid
+ * product placed it (CPC or Boost). Whether any paid placement is delivered
+ * is decided server-side; organic ranking takes no monetization input.
  *
  * The rules this component encodes:
  *
