@@ -24,7 +24,7 @@ import {
   NewPasswordStep,
   ResetCodeStep,
 } from '@/components/AuthCodeSteps';
-import { AuthFlowError } from '@/services/authErrors';
+import { AUTH_FLOW_MESSAGES, AuthFlowError, MIN_PASSWORD_LENGTH } from '@/services/authErrors';
 
 type AuthMode = 'login' | 'signup';
 // The emailed-code steps replace the form until they finish or the user backs out.
@@ -118,8 +118,13 @@ export function AuthScreen() {
       setError('Please enter your email');
       return;
     }
-    if (!password.trim() || password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (!password) {
+      setError('Please enter your password');
+      return;
+    }
+    // New accounts only: existing accounts may have the old 6-character minimum.
+    if (mode === 'signup' && password.length < MIN_PASSWORD_LENGTH) {
+      setError(AUTH_FLOW_MESSAGES.weak_password);
       return;
     }
 

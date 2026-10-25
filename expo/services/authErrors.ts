@@ -11,8 +11,10 @@ import { isAuthApiError, isAuthWeakPasswordError } from '@supabase/supabase-js';
 // changes, this must change with it or every code is rejected client-side.
 export const CODE_LENGTH = 8;
 
-// The consumer signup rule, and Supabase Auth's server-side password_min_length.
-export const MIN_PASSWORD_LENGTH = 6;
+// For new passwords (signup and reset), matching the Venue Portal and
+// Supabase Auth's server-side password_min_length. Not applied at login:
+// accounts created under the old 6-character rule must still sign in.
+export const MIN_PASSWORD_LENGTH = 10;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

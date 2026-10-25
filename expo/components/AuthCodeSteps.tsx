@@ -339,6 +339,18 @@ export function NewPasswordStep() {
     }
   }, [password, confirm, completePasswordReset]);
 
+  const cancel = useCallback(async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await cancelPasswordReset();
+      // Signed out: the login form returns.
+    } catch (e) {
+      setError(toAuthFlowError(e).message);
+      setBusy(false);
+    }
+  }, [cancelPasswordReset]);
+
   const eye = (
     <Pressable onPress={() => setShow(!show)} hitSlop={12}>
       {show ? <EyeOff color={colors.textMuted} size={18} /> : <Eye color={colors.textMuted} size={18} />}
@@ -375,7 +387,7 @@ export function NewPasswordStep() {
       />
       <Messages error={error} notice="" />
       <PrimaryButton label="Save password" onPress={submit} busy={busy} testID="new-password-submit" />
-      <LinkButton label="Cancel" onPress={() => void cancelPasswordReset()} disabled={busy} testID="new-password-cancel" />
+      <LinkButton label="Cancel" onPress={cancel} disabled={busy} testID="new-password-cancel" />
     </View>
   );
 }

@@ -18,12 +18,14 @@ export type SignupResult =
 // can't be used to skip the second one.
 const RECOVERY_PENDING_KEY = 'pulze.auth.recoveryPending';
 
-async function readRecoveryPending(): Promise<boolean> {
+// null when the marker can't be read; the caller treats that as pending
+// whenever a session exists, so a storage fault can't open the gate.
+async function readRecoveryPending(): Promise<boolean | null> {
   try {
     return (await AsyncStorage.getItem(RECOVERY_PENDING_KEY)) === '1';
   } catch (e) {
     console.log('[Auth] Could not read recovery marker:', e);
-    return false;
+    return null;
   }
 }
 
@@ -105,7 +107,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           console.log('[Auth] Error getting session:', error.message);
         }
 
-        if (existingSession && recoveryPending) {
+        if (existingSession && recoveryPending !== false) {
           console.log('[Auth] Resuming an unfinished password reset');
           recoveryRef.current = true;
         } else if (recoveryPending) {
@@ -346,11 +348,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, [applySession]);
 
   const cancelPasswordReset = useCallback(async (): Promise<void> => {
+    // 'local' revokes only this recovery session, not the user's others.
+    // If it fails (offline, say), supabase-js keeps the session, so the gate
+    // and the marker must stay; otherwise the next token refresh or launch
+    // would let the recovery session into the app without a new password.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) {
+      console.log('[Auth] Recovery sign-out failed:', error.message);
+      throw authFlowError('unknown');
+    }
     recoveryRef.current = false;
     await clearRecoveryPending();
-    // 'local' revokes only this recovery session, not the user's others.
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) console.log('[Auth] Recovery sign-out error:', error.message);
     setIsRecoveringPassword(false);
     applySession(null);
   }, [applySession]);

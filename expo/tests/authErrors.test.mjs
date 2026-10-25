@@ -5,6 +5,7 @@ import { AuthApiError, AuthSessionMissingError, AuthWeakPasswordError } from '@s
 import {
   AuthFlowError,
   CODE_LENGTH,
+  MIN_PASSWORD_LENGTH,
   isCompleteCode,
   isValidEmail,
   normalizeCode,
@@ -49,6 +50,11 @@ test('anything else is generic and leaks nothing', () => {
 test('an AuthFlowError passes through unchanged', () => {
   const e = new AuthFlowError('email_not_confirmed', 'x', 'a@b.co');
   assert.equal(toAuthFlowError(e), e);
+});
+
+test('new passwords need 10 characters, matching the Portal and the server', () => {
+  assert.equal(MIN_PASSWORD_LENGTH, 10);
+  assert.match(toAuthFlowError(new AuthWeakPasswordError('Password should be at least 10 characters.', 422, ['length'])).message, /at least 10 characters/);
 });
 
 test('code input', () => {
