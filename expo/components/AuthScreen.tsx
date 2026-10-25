@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
   KeyboardAvoidingView,
   Platform,
@@ -18,13 +17,23 @@ import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
+import { InputField } from '@/components/AuthInputField';
+import {
+  ConfirmEmailStep,
+  ForgotPasswordStep,
+  NewPasswordStep,
+  ResetCodeStep,
+} from '@/components/AuthCodeSteps';
+import { AuthFlowError } from '@/services/authErrors';
 
 type AuthMode = 'login' | 'signup';
+// The emailed-code steps replace the form until they finish or the user backs out.
+type AuthStep = 'form' | 'confirm-email' | 'forgot-password' | 'reset-code';
 
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
-  const { login, signup } = useAuth();
+  const { login, signup, isRecoveringPassword } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState<string>('');
@@ -34,6 +43,21 @@ export function AuthScreen() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [step, setStep] = useState<AuthStep>('form');
+  const [stepEmail, setStepEmail] = useState<string>('');
+  const [stepNotice, setStepNotice] = useState<string>('');
+
+  // When a recovery session ends without the user signing in (Cancel, or the
+  // session expiring), go back to the login form, not the code step.
+  const wasRecovering = useRef(isRecoveringPassword);
+  React.useEffect(() => {
+    if (wasRecovering.current && !isRecoveringPassword) {
+      setStep('form');
+      setMode('login');
+      setPassword('');
+    }
+    wasRecovering.current = isRecoveringPassword;
+  }, [isRecoveringPassword]);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -111,10 +135,24 @@ export function AuthScreen() {
       if (mode === 'login') {
         await login(username.trim(), password);
       } else {
-        await signup(name.trim(), username.trim(), email.trim(), password);
+        const result = await signup(name.trim(), username.trim(), email.trim(), password);
+        if (result.status === 'confirmation_required') {
+          setPassword('');
+          setStepEmail(result.email);
+          setStepNotice('');
+          setStep('confirm-email');
+          return;
+        }
       }
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {
+      if (e instanceof AuthFlowError && e.kind === 'email_not_confirmed' && e.email) {
+        setPassword('');
+        setStepEmail(e.email);
+        setStepNotice(e.message);
+        setStep('confirm-email');
+        return;
+      }
       console.log('[Auth] Submit error:', e);
       const msg = e?.message || 'Something went wrong. Please try again.';
       setError(msg);
@@ -150,6 +188,25 @@ export function AuthScreen() {
             </Text>
           </Animated.View>
 
+          {/* A verified recovery code holds a session that is not yet allowed
+              into the app; until a new password is saved, this is the only step. */}
+          {isRecoveringPassword ? (
+            <NewPasswordStep />
+          ) : step === 'confirm-email' ? (
+            <ConfirmEmailStep
+              email={stepEmail}
+              initialNotice={stepNotice}
+              onBack={() => { setMode('login'); setStep('form'); }}
+            />
+          ) : step === 'forgot-password' ? (
+            <ForgotPasswordStep
+              initialEmail={stepEmail}
+              onCodeSent={(sentTo) => { setStepEmail(sentTo); setStep('reset-code'); }}
+              onBack={() => setStep('form')}
+            />
+          ) : step === 'reset-code' ? (
+            <ResetCodeStep email={stepEmail} onChangeEmail={() => setStep('forgot-password')} />
+          ) : (
           <Animated.View style={[styles.formSection, { opacity: formOpacity }]}>
             <View style={[styles.modeToggle, { backgroundColor: isDark ? colors.surface : colors.surfaceAlt }]}>
               <Pressable
@@ -258,7 +315,16 @@ export function AuthScreen() {
               />
 
               {mode === 'login' && (
-                <Pressable style={styles.forgotRow}>
+                <Pressable
+                  style={styles.forgotRow}
+                  onPress={() => {
+                    setError('');
+                    setStepEmail(username.includes('@') ? username.trim() : '');
+                    setStep('forgot-password');
+                  }}
+                  hitSlop={8}
+                  testID="forgot-password-link"
+                >
                   <Text style={[styles.forgotText, { color: accentColor }]}>Forgot password?</Text>
                 </Pressable>
               )}
@@ -296,6 +362,7 @@ export function AuthScreen() {
             </Animated.View>
 
           </Animated.View>
+          )}
 
           <View style={styles.footer}>
             <Zap color={accentColor} size={12} />
@@ -318,68 +385,6 @@ export function AuthScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
-  );
-}
-
-interface InputFieldProps {
-  icon: React.ReactNode;
-  placeholder: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  secureTextEntry?: boolean;
-  keyboardType?: TextInput['props']['keyboardType'];
-  autoCapitalize?: TextInput['props']['autoCapitalize'];
-  inputBg: string;
-  inputBorder: string;
-  inputFocusBorder: string;
-  textColor: string;
-  placeholderColor: string;
-  testID?: string;
-  rightIcon?: React.ReactNode;
-}
-
-function InputField({
-  icon,
-  placeholder,
-  value,
-  onChangeText,
-  secureTextEntry,
-  keyboardType,
-  autoCapitalize,
-  inputBg,
-  inputBorder,
-  inputFocusBorder,
-  textColor,
-  placeholderColor,
-  testID,
-  rightIcon,
-}: InputFieldProps) {
-  const [focused, setFocused] = useState<boolean>(false);
-
-  return (
-    <View
-      style={[
-        styles.inputWrap,
-        { backgroundColor: inputBg, borderColor: focused ? inputFocusBorder : inputBorder },
-      ]}
-    >
-      <View style={styles.inputIcon}>{icon}</View>
-      <TextInput
-        style={[styles.input, { color: textColor }]}
-        placeholder={placeholder}
-        placeholderTextColor={placeholderColor}
-        value={value}
-        onChangeText={onChangeText}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        autoCorrect={false}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        testID={testID}
-      />
-      {rightIcon && <View style={styles.inputRight}>{rightIcon}</View>}
     </View>
   );
 }
@@ -442,27 +447,6 @@ const styles = StyleSheet.create({
   },
   modeTabTextActive: {
     fontWeight: '700' as const,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: 14,
-    marginBottom: 14,
-    paddingHorizontal: 14,
-    height: 54,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500' as const,
-    height: '100%' as unknown as number,
-  },
-  inputRight: {
-    marginLeft: 8,
   },
   forgotRow: {
     alignSelf: 'flex-end',

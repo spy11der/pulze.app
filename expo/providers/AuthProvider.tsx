@@ -1,10 +1,39 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { supabase } from '@/services/supabase';
 import { signedUrlFor } from '@/services/storageUrls';
 import { clearLocalCachesForUser } from '@/services/localCleanup';
+import { authFlowError, toAuthFlowError } from '@/services/authErrors';
 import type { Session, User } from '@supabase/supabase-js';
 
+export type SignupResult =
+  | { status: 'signed_in' }
+  | { status: 'confirmation_required'; email: string };
+
+// Set before a recovery code is verified and cleared once the new password is
+// saved. Verifying the code signs the user in; while this is set the session
+// is held back from the app, so the only screen reachable is "choose a new
+// password". It is persisted so that killing the app between the two steps
+// can't be used to skip the second one.
+const RECOVERY_PENDING_KEY = 'pulze.auth.recoveryPending';
+
+async function readRecoveryPending(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(RECOVERY_PENDING_KEY)) === '1';
+  } catch (e) {
+    console.log('[Auth] Could not read recovery marker:', e);
+    return false;
+  }
+}
+
+async function clearRecoveryPending(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(RECOVERY_PENDING_KEY);
+  } catch (e) {
+    console.log('[Auth] Could not clear recovery marker:', e);
+  }
+}
 
 export interface AuthUser {
   id: string;
@@ -32,32 +61,68 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
   const initialized = useRef(false);
+  // The source of truth for the recovery gate. A ref, not state, because the
+  // auth listener fires inside verifyOtp, before any re-render.
+  const recoveryRef = useRef(false);
+
+  // Every session change goes through here. During recovery the session is
+  // kept (updateUser needs it) but the user is not treated as signed in.
+  const applySession = useCallback((newSession: Session | null) => {
+    setSession(newSession);
+    if (recoveryRef.current && newSession) {
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsRecoveringPassword(true);
+      return;
+    }
+    if (recoveryRef.current && !newSession) {
+      // The recovery session ended underneath us (revoked or expired).
+      recoveryRef.current = false;
+      setIsRecoveringPassword(false);
+      void clearRecoveryPending();
+    }
+    const mapped = mapSessionUser(newSession);
+    setUser(mapped);
+    setIsAuthenticated(!!mapped);
+  }, []);
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    // Events that arrive before the recovery marker has been read are
+    // ignored; getSession below reports the same session once it has.
+    let ready = false;
 
     const initAuth = async () => {
       try {
         console.log('[Auth] Checking existing session...');
+        const recoveryPending = await readRecoveryPending();
         const { data: { session: existingSession }, error } = await supabase.auth.getSession();
 
         if (error) {
           console.log('[Auth] Error getting session:', error.message);
         }
 
+        if (existingSession && recoveryPending) {
+          console.log('[Auth] Resuming an unfinished password reset');
+          recoveryRef.current = true;
+        } else if (recoveryPending) {
+          await clearRecoveryPending();
+        }
+
         if (existingSession) {
           if (__DEV__) console.log('[Auth] Restored session for', existingSession.user.email);
-          setSession(existingSession);
-          setUser(mapSessionUser(existingSession));
-          setIsAuthenticated(true);
         } else {
           console.log('[Auth] No existing session found');
         }
+        ready = true;
+        applySession(existingSession);
       } catch (e) {
         console.log('[Auth] Error initializing auth:', e);
       } finally {
+        ready = true;
         setIsLoading(false);
       }
     };
@@ -67,10 +132,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         console.log('[Auth] Auth state changed:', _event);
-        setSession(newSession);
-        const mapped = mapSessionUser(newSession);
-        setUser(mapped);
-        setIsAuthenticated(!!mapped);
+        if (!ready) return;
+        applySession(newSession);
       }
     );
 
@@ -106,6 +169,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       // custom on top; a matching email that fails auth returns a generic
       // "Invalid login credentials" upstream.
       const { data, error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
+      // Supabase Auth checks the password before confirmation, so this is
+      // only reached with the right password.
+      if (error?.code === 'email_not_confirmed') {
+        console.log('[Auth] Email login needs confirmation');
+        throw authFlowError('email_not_confirmed', trimmed);
+      }
       if (error || !data.session) {
         console.log('[Auth] Email login failed');
         throw new Error('Invalid email/username or password');
@@ -155,7 +224,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     username: string,
     email: string,
     password: string
-  ): Promise<boolean> => {
+  ): Promise<SignupResult> => {
     console.log('[Auth] Signup attempt for', username);
 
     const { data, error } = await supabase.auth.signUp({
@@ -166,6 +235,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     if (error) {
       console.log('[Auth] Signup failed:', error.message);
+      if (error.status === 429) throw authFlowError('rate_limited');
       throw new Error(error.message);
     }
 
@@ -176,7 +246,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       // best-effort upsert below only succeeds if RLS allows anon inserts —
       // it's a fallback, not the guarantee.
       void createProfile(data.user, name, username);
-      throw new Error('Check your email to confirm your account, then log in.');
+      return { status: 'confirmation_required', email: email.trim() };
     }
 
     if (!data.session) {
@@ -188,8 +258,102 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setUser(mapSessionUser(data.session));
     setIsAuthenticated(true);
     void createProfile(data.user!, name, username);
-    return true;
+    return { status: 'signed_in' };
   }, []);
+
+  // ---- emailed 8-digit codes ------------------------------------------
+  // Consumer auth emails carry a code, never a link, so no token ever
+  // appears in a URL. The emails are chosen by the shared Supabase
+  // templates, which give the consumer branch to any request without a
+  // Venue Portal redirect; none of these calls sends one.
+
+  const verifySignupCode = useCallback(async (email: string, code: string): Promise<void> => {
+    const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: 'email' });
+    if (error || !data.session) {
+      console.log('[Auth] Signup code rejected:', error?.code ?? 'no session');
+      throw toAuthFlowError(error);
+    }
+    console.log('[Auth] Email confirmed');
+    applySession(data.session);
+  }, [applySession]);
+
+  const resendSignupCode = useCallback(async (email: string): Promise<void> => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+    if (!error) return;
+    const mapped = toAuthFlowError(error);
+    // Anything other than a rate limit stays silent, so the response doesn't
+    // reveal whether the address has an account.
+    if (mapped.kind === 'send_limited' || mapped.kind === 'rate_limited') throw mapped;
+    console.log('[Auth] Resend failed:', error.code ?? error.message);
+  }, []);
+
+  const requestPasswordReset = useCallback(async (email: string): Promise<void> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    if (!error) return;
+    const mapped = toAuthFlowError(error);
+    if (mapped.kind === 'send_limited' || mapped.kind === 'rate_limited') throw mapped;
+    console.log('[Auth] Reset request failed:', error.code ?? error.message);
+  }, []);
+
+  const verifyRecoveryCode = useCallback(async (email: string, code: string): Promise<void> => {
+    // Fail closed: without the marker, a restart after this point would
+    // drop the user into the app with a session but no new password.
+    try {
+      await AsyncStorage.setItem(RECOVERY_PENDING_KEY, '1');
+    } catch (e) {
+      console.log('[Auth] Could not write recovery marker:', e);
+      throw authFlowError('unknown');
+    }
+    recoveryRef.current = true;
+
+    const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: 'recovery' });
+    if (error || !data.session) {
+      recoveryRef.current = false;
+      await clearRecoveryPending();
+      console.log('[Auth] Recovery code rejected:', error?.code ?? 'no session');
+      throw toAuthFlowError(error);
+    }
+    console.log('[Auth] Recovery code accepted; waiting for a new password');
+    applySession(data.session);
+  }, [applySession]);
+
+  const completePasswordReset = useCallback(async (newPassword: string): Promise<void> => {
+    if (!recoveryRef.current) throw authFlowError('session_expired');
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      const mapped = toAuthFlowError(error);
+      console.log('[Auth] New password rejected:', mapped.kind);
+      if (mapped.kind === 'session_expired') {
+        recoveryRef.current = false;
+        await clearRecoveryPending();
+        await supabase.auth.signOut({ scope: 'local' });
+        setIsRecoveringPassword(false);
+      }
+      throw mapped;
+    }
+
+    recoveryRef.current = false;
+    await clearRecoveryPending();
+    // Whoever knew the old password is signed out everywhere else.
+    const { error: othersError } = await supabase.auth.signOut({ scope: 'others' });
+    if (othersError) console.log('[Auth] Could not revoke other sessions:', othersError.message);
+
+    const { data: { session: current } } = await supabase.auth.getSession();
+    setIsRecoveringPassword(false);
+    console.log('[Auth] Password reset complete');
+    applySession(current);
+  }, [applySession]);
+
+  const cancelPasswordReset = useCallback(async (): Promise<void> => {
+    recoveryRef.current = false;
+    await clearRecoveryPending();
+    // 'local' revokes only this recovery session, not the user's others.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) console.log('[Auth] Recovery sign-out error:', error.message);
+    setIsRecoveringPassword(false);
+    applySession(null);
+  }, [applySession]);
 
   const logout = useCallback(async () => {
     console.log('[Auth] Logging out');
@@ -212,12 +376,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   return useMemo(() => ({
     isAuthenticated,
     isLoading,
+    isRecoveringPassword,
     user,
     session,
     login,
     signup,
     logout,
-  }), [isAuthenticated, isLoading, user, session, login, signup, logout]);
+    verifySignupCode,
+    resendSignupCode,
+    requestPasswordReset,
+    verifyRecoveryCode,
+    completePasswordReset,
+    cancelPasswordReset,
+  }), [
+    isAuthenticated, isLoading, isRecoveringPassword, user, session, login, signup, logout,
+    verifySignupCode, resendSignupCode, requestPasswordReset, verifyRecoveryCode,
+    completePasswordReset, cancelPasswordReset,
+  ]);
 });
 
 async function createProfile(user: User, displayName: string, username: string) {
