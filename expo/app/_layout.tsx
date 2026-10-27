@@ -44,7 +44,9 @@ function RootLayoutNav() {
   const { colors } = useTheme();
 
   return (
-    <Stack screenOptions={{ headerBackTitle: 'Back', contentStyle: { backgroundColor: colors.background } }}>
+    // SDK 58 makes iOS headers transparent by default, which would draw
+    // screen content under the header; keep the SDK 57 opaque header.
+    <Stack screenOptions={{ headerBackTitle: 'Back', headerTransparent: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="friends" options={{ presentation: 'card' }} />
       <Stack.Screen name="checkin-history" options={{ presentation: 'card' }} />

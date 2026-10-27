@@ -44,6 +44,17 @@ export async function setupNotificationCategories(): Promise<void> {
     },
   ]);
 
+  // SDK 58 shows notifications that arrive while the app is open unless a
+  // handler says otherwise. Keep the SDK 57 behavior: none while open.
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: false,
+      shouldShowList: false,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('check-in', {
       name: 'Check-in Alerts',

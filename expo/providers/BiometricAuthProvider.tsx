@@ -12,7 +12,7 @@ export const [BiometricAuthProvider, useBiometricAuth] = createContextHook(() =>
   const [biometricAvailable, setBiometricAvailable] = useState<boolean>(false);
   const [biometricType, setBiometricType] = useState<string>('Biometrics');
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  const appState = useRef<AppStateStatus>(AppState.currentState as AppStateStatus);
   const hasCheckedInitial = useRef<boolean>(false);
 
   useEffect(() => {

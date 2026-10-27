@@ -7,6 +7,7 @@ import {
   Text,
   View,
   ListRenderItem,
+  type ViewInstance,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,7 +70,7 @@ export default function ActivityScreen() {
   const [nearby, setNearby] = useState<NearbyRow[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownY, setDropdownY] = useState(0);
-  const triggerRef = useRef<View>(null);
+  const triggerRef = useRef<ViewInstance>(null);
 
   const loadFriendRequests = useCallback(async () => {
     if (!user?.id) return;

@@ -102,7 +102,7 @@ export default function CheckinHistoryScreen() {
                 Check in at a venue and it&apos;ll show up here.
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </View>

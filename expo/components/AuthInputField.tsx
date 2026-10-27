@@ -9,8 +9,8 @@ export interface InputFieldProps {
   value: string;
   onChangeText: (text: string) => void;
   secureTextEntry?: boolean;
-  keyboardType?: TextInput['props']['keyboardType'];
-  autoCapitalize?: TextInput['props']['autoCapitalize'];
+  keyboardType?: TextInputProps['keyboardType'];
+  autoCapitalize?: TextInputProps['autoCapitalize'];
   inputBg: string;
   inputBorder: string;
   inputFocusBorder: string;

@@ -12,6 +12,8 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
+  type ViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -68,8 +70,8 @@ export default function CheckInCaptureScreen() {
   const [captionPos, setCaptionPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const stampOffset = useRef({ x: 0, y: 0 });
   const captionOffset = useRef({ x: 0, y: 0 });
-  const captionInputRef = useRef<TextInput>(null);
-  const stampViewRef = useRef<View>(null);
+  const captionInputRef = useRef<TextInputInstance>(null);
+  const stampViewRef = useRef<ViewInstance>(null);
 
   // Gesture handler refs for simultaneous pinch + pan coordination
   const stampPinchRef = useRef<any>(null);

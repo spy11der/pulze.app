@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -42,7 +43,7 @@ export default function SearchScreen() {
   // shown (or labelled) against the text currently in the box. "Searching" is
   // derived: there is a query and no answer for it yet.
   const [answer, setAnswer] = useState<{ query: string; venues: PulzeVenue[] }>({ query: '', venues: [] });
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // Same dedupe as the picker: pause, resume typing and re-tap collapse into
   // one recorded query.
   const lastRecordedQueryRef = useRef<string>('');
@@ -208,7 +209,7 @@ export default function SearchScreen() {
             <Text style={[styles.sectionLabel, { color: colors.textSoft }]}>
               {results.length === 1 ? '1 result' : `${results.length} results`}
             </Text>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           trimmed.length === 0 ? (

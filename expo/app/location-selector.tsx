@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -38,7 +39,7 @@ export default function LocationSelectorScreen() {
   const [query, setQuery] = useState<string>('');
   const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
   const [searchResults, setSearchResults] = useState<NearbyVenue[]>([]);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // Skip recording the same executed query twice in a row — pause,
   // resume-typing, and same-key-retap should collapse into one
   // event, not three.
@@ -283,7 +284,7 @@ export default function LocationSelectorScreen() {
                 Try a different name or use your current location
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </View>
