@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 import type { Database } from '@/types/supabase';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+/** The URL the client below was created with (for the backend indicator). */
+export const SUPABASE_URL = supabaseUrl;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 const ExpoSecureStoreAdapter = {

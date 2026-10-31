@@ -18,6 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTheme } from '@/providers/ThemeProvider';
 import { InputField } from '@/components/AuthInputField';
+import { BackendBadge } from '@/components/BackendBadge';
 import {
   ConfirmEmailStep,
   ForgotPasswordStep,
@@ -191,6 +192,7 @@ export function AuthScreen() {
             <Text style={[styles.tagline, { color: colors.textMuted }]}>
               {mode === 'login' ? 'Welcome back. Your city awaits.' : 'Find your vibe. Join the pulse.'}
             </Text>
+            <BackendBadge />
           </Animated.View>
 
           {/* A verified recovery code holds a session that is not yet allowed
