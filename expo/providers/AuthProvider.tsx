@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { supabase } from '@/services/supabase';
+import { clearStoredSession, supabase } from '@/services/supabase';
 import { signedUrlFor } from '@/services/storageUrls';
 import { clearLocalCachesForUser } from '@/services/localCleanup';
-import { authFlowError, toAuthFlowError } from '@/services/authErrors';
+import { authFlowError, toAuthFlowError, toLoginError } from '@/services/authErrors';
 import type { Session, User } from '@supabase/supabase-js';
 
 export type SignupResult =
@@ -178,8 +178,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         throw authFlowError('email_not_confirmed', trimmed);
       }
       if (error || !data.session) {
-        console.log('[Auth] Email login failed');
-        throw new Error('Invalid email/username or password');
+        const mapped = toLoginError(error);
+        console.log('[Auth] Email login failed:', mapped.kind, error?.code ?? error?.status ?? 'no session');
+        throw mapped;
       }
       console.log('[Auth] Email login successful');
       setSession(data.session);
@@ -201,8 +202,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }>('login-with-username', { body: { username: trimmed, password } });
 
     if (fnError || !fnData?.session?.access_token || !fnData?.session?.refresh_token) {
-      console.log('[Auth] Username login failed');
-      throw new Error('Invalid email/username or password');
+      const mapped = fnError ? toLoginError(fnError) : authFlowError('unknown');
+      console.log('[Auth] Username login failed:', mapped.kind, fnError?.name ?? 'no session');
+      throw mapped;
     }
 
     const { data: setData, error: setErr } = await supabase.auth.setSession({
@@ -210,8 +212,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       refresh_token: fnData.session.refresh_token,
     });
     if (setErr || !setData?.session) {
+      // The password was right; installing the session failed (usually the network).
       console.log('[Auth] setSession failed after username login');
-      throw new Error('Invalid email/username or password');
+      throw authFlowError('unknown');
     }
 
     console.log('[Auth] Username login successful');
@@ -370,7 +373,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     const departingUserId = user?.id ?? null;
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.log('[Auth] Logout error:', error.message);
+      // The server couldn't be reached, and supabase-js kept the stored
+      // session. Clear it on this device so the logout sticks.
+      console.log('[Auth] Server sign-out failed, clearing the session on this device:', error.message);
+      await clearStoredSession();
     }
     // Wipe per-account AsyncStorage entries so the next account on
     // this device can't see the previous account's queued check-ins,

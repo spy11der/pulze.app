@@ -272,6 +272,8 @@ export function AuthScreen() {
                 onChangeText={setUsername}
                 autoCapitalize="none"
                 keyboardType={mode === 'login' ? 'email-address' : 'default'}
+                autoComplete={mode === 'login' ? 'username' : 'username-new'}
+                textContentType="username"
                 inputBg={inputBg}
                 inputBorder={inputBorder}
                 inputFocusBorder={inputFocusBorder}
@@ -288,6 +290,8 @@ export function AuthScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
                   inputBg={inputBg}
                   inputBorder={inputBorder}
                   inputFocusBorder={inputFocusBorder}
@@ -303,6 +307,12 @@ export function AuthScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                // iOS capitalizes the first letter of a visible ("eye" on) field
+                // unless told not to, so the same typing could save one
+                // password at signup and send another at login.
+                autoCapitalize="none"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                textContentType={mode === 'signup' ? 'newPassword' : 'password'}
                 inputBg={inputBg}
                 inputBorder={inputBorder}
                 inputFocusBorder={inputFocusBorder}

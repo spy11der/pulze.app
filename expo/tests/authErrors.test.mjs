@@ -1,7 +1,14 @@
 // node --test tests/authErrors.test.mjs   (Node 22.18+ strips the types from the imported .ts module)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AuthApiError, AuthSessionMissingError, AuthWeakPasswordError } from '@supabase/supabase-js';
+import {
+  AuthApiError,
+  AuthRetryableFetchError,
+  AuthSessionMissingError,
+  AuthWeakPasswordError,
+  FunctionsFetchError,
+  FunctionsHttpError,
+} from '@supabase/supabase-js';
 import {
   AuthFlowError,
   CODE_LENGTH,
@@ -10,6 +17,7 @@ import {
   isValidEmail,
   normalizeCode,
   toAuthFlowError,
+  toLoginError,
 } from '../services/authErrors.ts';
 
 const kind = (e) => toAuthFlowError(e).kind;
@@ -71,4 +79,24 @@ test('email shape', () => {
   assert.ok(isValidEmail(' someone@example.com '));
   assert.ok(!isValidEmail('someone'));
   assert.ok(!isValidEmail('a@b'));
+});
+
+const loginKind = (e) => toLoginError(e).kind;
+
+test('a wrong password, unknown email or unknown username share one message', () => {
+  assert.equal(loginKind(new AuthApiError('Invalid login credentials', 400, 'invalid_credentials')), 'invalid_credentials');
+  assert.equal(loginKind(new AuthApiError('Invalid login credentials', 400, undefined)), 'invalid_credentials');
+  assert.equal(loginKind(new FunctionsHttpError(new Response('{}', { status: 401 }))), 'invalid_credentials');
+  assert.equal(toLoginError(new FunctionsHttpError(new Response('{}', { status: 401 }))).message, 'Invalid email/username or password');
+});
+
+test('login problems that are not a wrong password say so', () => {
+  assert.equal(loginKind(new AuthApiError('Request rate limit reached', 429, 'over_request_rate_limit')), 'rate_limited');
+  assert.equal(loginKind(new FunctionsHttpError(new Response('{}', { status: 429 }))), 'rate_limited');
+  assert.equal(loginKind(new FunctionsHttpError(new Response('{}', { status: 500 }))), 'unknown');
+  assert.equal(loginKind(new FunctionsFetchError(new Error('Network request failed'))), 'unknown');
+  assert.equal(loginKind(new AuthRetryableFetchError('Network request failed', 0)), 'unknown');
+  assert.equal(loginKind(new AuthApiError('Database error', 500, 'unexpected_failure')), 'unknown');
+  assert.equal(loginKind(null), 'unknown');
+  assert.equal(loginKind(new AuthApiError('Email not confirmed', 400, 'email_not_confirmed')), 'email_not_confirmed');
 });

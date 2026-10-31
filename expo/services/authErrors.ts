@@ -5,7 +5,7 @@
 // error (otp_expired, "Token has expired or is invalid"), so the app can't
 // tell them apart and shows one message for all three.
 
-import { isAuthApiError, isAuthWeakPasswordError } from '@supabase/supabase-js';
+import { FunctionsHttpError, isAuthApiError, isAuthWeakPasswordError } from '@supabase/supabase-js';
 
 // Matches mailer_otp_length on both Supabase projects. If that setting
 // changes, this must change with it or every code is rejected client-side.
@@ -40,6 +40,7 @@ export type AuthFlowErrorKind =
   | 'same_password'
   | 'session_expired'
   | 'email_not_confirmed'
+  | 'invalid_credentials'
   | 'unknown';
 
 export class AuthFlowError extends Error {
@@ -64,6 +65,7 @@ export const AUTH_FLOW_MESSAGES: Record<AuthFlowErrorKind, string> = {
   same_password: 'Choose a password different from your current one.',
   session_expired: 'Your reset has expired. Request a new code.',
   email_not_confirmed: 'Confirm your email to log in. Enter the code from your email, or request a new one.',
+  invalid_credentials: 'Invalid email/username or password',
   unknown: 'Something went wrong. Check your connection and try again.',
 };
 
@@ -112,4 +114,36 @@ export function toAuthFlowError(error: unknown): AuthFlowError {
   }
 
   return authFlowError('unknown');
+}
+
+/**
+ * Maps a failed login, from signInWithPassword (email) or the
+ * login-with-username Edge Function. Wrong password, unknown account and
+ * unknown username share one message, so the screen reveals nothing about
+ * which accounts exist. Everything else (offline, rate limit, server error)
+ * gets its own message instead of looking like a wrong password.
+ */
+export function toLoginError(error: unknown): AuthFlowError {
+  if (error instanceof AuthFlowError) return error;
+
+  if (error instanceof FunctionsHttpError) {
+    const status = (error.context as { status?: number } | undefined)?.status;
+    if (status === 400 || status === 401) return authFlowError('invalid_credentials');
+    if (status === 429) return authFlowError('rate_limited');
+    return authFlowError('unknown');
+  }
+
+  if (isAuthApiError(error)) {
+    if (error.code === 'invalid_credentials') return authFlowError('invalid_credentials');
+    if (error.status === 400 && /invalid login credentials/i.test(error.message)) {
+      return authFlowError('invalid_credentials');
+    }
+  }
+
+  const mapped = toAuthFlowError(error);
+  // Only the login-relevant kinds pass through; anything else is reported as
+  // a problem reaching the server, not as a wrong password.
+  return mapped.kind === 'rate_limited' || mapped.kind === 'email_not_confirmed'
+    ? mapped
+    : authFlowError('unknown');
 }
