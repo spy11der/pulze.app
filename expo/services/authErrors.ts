@@ -41,6 +41,8 @@ export type AuthFlowErrorKind =
   | 'session_expired'
   | 'email_not_confirmed'
   | 'invalid_credentials'
+  | 'email_taken'
+  | 'username_unavailable'
   | 'unknown';
 
 export class AuthFlowError extends Error {
@@ -66,6 +68,8 @@ export const AUTH_FLOW_MESSAGES: Record<AuthFlowErrorKind, string> = {
   session_expired: 'Your reset has expired. Request a new code.',
   email_not_confirmed: 'Confirm your email to log in. Enter the code from your email, or request a new one.',
   invalid_credentials: 'Invalid email/username or password',
+  email_taken: 'An account with this email already exists. Log in, or use Forgot password.',
+  username_unavailable: 'That username is taken. Choose a different one.',
   unknown: 'Something went wrong. Check your connection and try again.',
 };
 
@@ -144,6 +148,31 @@ export function toLoginError(error: unknown): AuthFlowError {
   // Only the login-relevant kinds pass through; anything else is reported as
   // a problem reaching the server, not as a wrong password.
   return mapped.kind === 'rate_limited' || mapped.kind === 'email_not_confirmed'
+    ? mapped
+    : authFlowError('unknown');
+}
+
+/**
+ * Maps a failed signUp. With email confirmation off, Supabase reports a
+ * registered email directly (user_already_exists). A taken username fails
+ * inside the profile trigger, which Supabase reports only as
+ * "Database error saving new user"; that trigger has no other failure a
+ * signup can cause, so it is reported as a taken username.
+ */
+export function toSignupError(error: unknown): AuthFlowError {
+  if (error instanceof AuthFlowError) return error;
+
+  if (isAuthApiError(error)) {
+    if (error.code === 'user_already_exists' || error.code === 'email_exists') {
+      return authFlowError('email_taken');
+    }
+    if (error.code === 'unexpected_failure' || /database error saving new user/i.test(error.message)) {
+      return authFlowError('username_unavailable');
+    }
+  }
+
+  const mapped = toAuthFlowError(error);
+  return mapped.kind === 'rate_limited' || mapped.kind === 'weak_password' || mapped.kind === 'leaked_password'
     ? mapped
     : authFlowError('unknown');
 }

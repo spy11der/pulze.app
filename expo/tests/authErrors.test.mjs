@@ -18,6 +18,7 @@ import {
   normalizeCode,
   toAuthFlowError,
   toLoginError,
+  toSignupError,
 } from '../services/authErrors.ts';
 
 const kind = (e) => toAuthFlowError(e).kind;
@@ -99,4 +100,18 @@ test('login problems that are not a wrong password say so', () => {
   assert.equal(loginKind(new AuthApiError('Database error', 500, 'unexpected_failure')), 'unknown');
   assert.equal(loginKind(null), 'unknown');
   assert.equal(loginKind(new AuthApiError('Email not confirmed', 400, 'email_not_confirmed')), 'email_not_confirmed');
+});
+
+const signupKind = (e) => toSignupError(e).kind;
+
+test('signup explains a registered email or a taken username', () => {
+  assert.equal(signupKind(new AuthApiError('User already registered', 422, 'user_already_exists')), 'email_taken');
+  assert.equal(signupKind(new AuthApiError('Database error saving new user', 500, 'unexpected_failure')), 'username_unavailable');
+  assert.equal(signupKind(new AuthApiError('Database error saving new user', 500, undefined)), 'username_unavailable');
+});
+
+test('other signup failures keep their own message', () => {
+  assert.equal(signupKind(new AuthApiError('Request rate limit reached', 429, 'over_request_rate_limit')), 'rate_limited');
+  assert.equal(signupKind(new AuthWeakPasswordError('weak', 422, ['pwned'])), 'leaked_password');
+  assert.equal(signupKind(new AuthRetryableFetchError('Network request failed', 0)), 'unknown');
 });

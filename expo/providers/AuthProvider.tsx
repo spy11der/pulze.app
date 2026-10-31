@@ -4,7 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { clearStoredSession, supabase } from '@/services/supabase';
 import { signedUrlFor } from '@/services/storageUrls';
 import { clearLocalCachesForUser } from '@/services/localCleanup';
-import { authFlowError, toAuthFlowError, toLoginError } from '@/services/authErrors';
+import { authFlowError, toAuthFlowError, toLoginError, toSignupError } from '@/services/authErrors';
 import type { Session, User } from '@supabase/supabase-js';
 
 export type SignupResult =
@@ -239,11 +239,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     });
 
     if (error) {
-      console.log('[Auth] Signup failed:', error.message);
-      if (error.status === 429) throw authFlowError('rate_limited');
-      throw new Error(error.message);
+      const mapped = toSignupError(error);
+      console.log('[Auth] Signup failed:', mapped.kind, error.code ?? error.status);
+      throw mapped;
     }
 
+    // Email confirmation is off, so signUp returns a session and the user is
+    // signed in. The code step below is only a fallback for a project that
+    // still requires confirmation.
     if (data.user && !data.session) {
       console.log('[Auth] Email confirmation required');
       // The DB trigger (on_auth_user_created) already created the profile row
