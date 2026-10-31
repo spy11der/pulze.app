@@ -165,7 +165,7 @@ export function ConfirmEmailStep({ email, initialNotice, onBack }: {
     startCooldown();
     try {
       await resendSignupCode(email);
-      setNotice(`If ${email} still needs confirming, we've sent a new code.`);
+      setNotice(`If ${email} still needs confirming, we've sent a new code. Already confirmed accounts don't get one; use Forgot password instead.`);
     } catch (e) {
       setError(toAuthFlowError(e).message);
     }
@@ -175,7 +175,7 @@ export function ConfirmEmailStep({ email, initialNotice, onBack }: {
     <View testID="confirm-email-step">
       <StepHeader
         title="Confirm your email"
-        body={`Enter the ${CODE_LENGTH}-digit code we sent to ${email}. It can take a minute to arrive.`}
+        body={`Enter the ${CODE_LENGTH}-digit code we sent to ${email}. It can take a minute to arrive. If this email already has a Pulze account, no code is sent: go back and log in, or use Forgot password.`}
       />
       <CodeField value={code} onChange={setCode} />
       <Messages error={error} notice={notice} />
