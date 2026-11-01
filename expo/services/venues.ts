@@ -1,6 +1,5 @@
 import { supabase } from '@/services/supabase';
-import { pulzeVenues } from '@/mocks/venues';
-import type { PulzeVenue, VenueType, BusynessLevel } from '@/types/venue';
+import { vibeTagLabel, type PulzeVenue, type VenueType, type BusynessLevel } from '@/types/venue';
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -29,8 +28,9 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 // 6A-3 COMPLETED THAT MOVE. Category/neighborhood filtering and the Discover
 // pill vocabulary are both server-side now: the feed applies filters as hard
 // predicates and returns the facet list the pills are rendered from. The one
-// remaining mock dependency is presentational — photo, photos, tags and vibe
-// — and that boundary is stated in full at feedRowToVenue below.
+// last mock dependency (photos, tags, vibe copy) is gone too: photos come from
+// the venue's own uploads (venue-media), tags from the venue's vibe_tags, and
+// there is no vibe copy until a venue writes one (see withVenueMedia).
 
 function busynessLevelFromScore(score: number): BusynessLevel {
   if (score >= 75) return 'packed';
@@ -214,15 +214,13 @@ function num(v: unknown): number | undefined {
 // in RiNo (actually Golden, Colorado). 6A-2 backfilled all 11 active venues
 // with verified addresses and neighborhoods, each carrying provenance.
 //
-// WHAT THE MOCK STILL SUPPLIES, EXPLICITLY AND ONLY: photo, photos, tags and
-// vibe copy. Per decision A1 that content was deliberately NOT migrated into
-// the database -- it is unsourced presentational filler and the goal is an
-// authoritative database, not a database full of tidied-up mock data. Until
-// properly sourced imagery exists, this is the one remaining mock dependency
-// in the product, and it is confined to these four presentational fields.
-// It is named here rather than left implicit so it cannot go unnoticed again.
+// Photos, tags and vibe copy used to come from the mock catalogue (decision
+// A1: unsourced presentational filler, kept until properly sourced imagery
+// existed). Venues now upload their own logo and cover and choose their own
+// vibe tags, so the mock is no longer used at all: withVenueMedia() fills
+// these from the database, and a venue with none shows the placeholder rather
+// than a photo of somewhere else.
 function feedRowToVenue(row: FeedVenueRow): PulzeVenue {
-  const mock = pulzeVenues.find((v) => v.id === row.legacy_mock_id);
   const busynessPercent = Math.round(num(row.busyness_percent) ?? 0);
   const busyness = busynessLevelFromScore(busynessPercent);
   const confidence = num(row.confidence_score);
@@ -235,12 +233,8 @@ function feedRowToVenue(row: FeedVenueRow): PulzeVenue {
 
   const { type, typeLabel } = normalizeVenueType(row.category);
 
-  // Presentation-only fallback to the mock, never geography. An absent photo
-  // or empty tag list is rendered as absence by the UI (icon placeholder,
-  // hidden vibe block) rather than filled in.
-  const presentation = mock
-    ? { photo: mock.photo, photos: mock.photos ?? [], tags: mock.tags ?? [], vibe: mock.vibe ?? '' }
-    : { photo: undefined, photos: [] as string[], tags: [] as string[], vibe: '' };
+  // Filled by withVenueMedia(). Absent = rendered as absence by the UI.
+  const presentation = { photo: undefined as string | undefined, photos: [] as string[], tags: [] as string[], vibe: '' };
 
   return {
     id: row.venue_id,
@@ -303,6 +297,30 @@ export interface DiscoverResult {
   area: FeedArea | null;
 }
 
+/**
+ * Adds each venue's own images and vibe tags (one query for the whole list).
+ * Cover first, then logo, as the main photo; nothing at all when the venue
+ * has uploaded neither. Failures leave the venues as they were.
+ */
+async function withVenueMedia<T extends PulzeVenue>(venues: T[]): Promise<T[]> {
+  if (venues.length === 0) return venues;
+  const { data, error } = await supabase
+    .from('venues')
+    .select('id, cover_path, logo_path, vibe_tags' as any)
+    .in('id', venues.map((v) => v.id));
+  if (error || !data) return venues;
+  const url = (path: string | null) => (path ? supabase.storage.from('venue-media').getPublicUrl(path).data.publicUrl : null);
+  const byId = new Map((data as any[]).map((r) => [r.id as string, r]));
+  return venues.map((v) => {
+    const r = byId.get(v.id);
+    if (!r) return v;
+    const cover = url(r.cover_path);
+    const logo = url(r.logo_path);
+    const tags = ((r.vibe_tags ?? []) as string[]).map(vibeTagLabel);
+    return { ...v, photo: cover ?? logo ?? undefined, photos: [cover, logo].filter((x): x is string => !!x), logo: logo ?? undefined, tags };
+  });
+}
+
 // Discover is scoped to a metro-sized circle around the point it is given:
 // the user's own location, or an area they chose to browse. 40 km covers a
 // metro (downtown Denver to Golden is ~20 km) without reaching the next one.
@@ -328,7 +346,7 @@ export async function getDiscoverFeed(
     placements: true,
   });
   return {
-    venues: feed.venues.map(feedRowToVenue),
+    venues: await withVenueMedia(feed.venues.map(feedRowToVenue)),
     facets: feed.facets ?? EMPTY_FACETS,
     personalized: feed.personalized,
     area: feed.area ?? null,
@@ -340,7 +358,7 @@ export async function getDiscoverFeed(
 export async function getAllLiveVenues(lat?: number | null, lng?: number | null): Promise<PulzeVenue[]> {
   if (lat == null || lng == null) return [];
   const feed = await fetchFeed({ surface: 'discover', lat, lng, radiusM: DISCOVER_RADIUS_M, limit: 100 });
-  return feed.venues.map(feedRowToVenue);
+  return withVenueMedia(feed.venues.map(feedRowToVenue));
 }
 
 // Nearby is the tighter "already out" radius. Happy Hour for the same screen
@@ -373,10 +391,10 @@ export async function getNearbyLiveVenues(
     filters: options.happyHourNow ? { happy_hour_now: true } : {},
     placements: options.placements === true,
   });
-  return feed.venues.map((row) => ({
+  return withVenueMedia(feed.venues.map((row) => ({
     ...feedRowToVenue(row),
     distanceMeters: num(row.distance_m) ?? 0,
-  }));
+  })));
 }
 
 // Phase 6B: the user opened venue detail from a sponsored card, which is the CPC
@@ -411,7 +429,7 @@ export async function resolveVenueById(idOrLegacyId: string): Promise<PulzeVenue
     limit: 1,
   });
   const row = feed.venues[0];
-  return row ? feedRowToVenue(row) : null;
+  return row ? (await withVenueMedia([feedRowToVenue(row)]))[0] : null;
 }
 
 // Search is deliberately NOT radius-bounded: typing a name is explicit intent,
@@ -433,7 +451,7 @@ export async function searchLiveVenues(
     filters: { query: q },
     limit: maxResults,
   });
-  return feed.venues.map(feedRowToVenue);
+  return withVenueMedia(feed.venues.map(feedRowToVenue));
 }
 
 // Real cross-user check-in count for a venue. `realVenueId` must already be

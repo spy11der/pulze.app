@@ -29,7 +29,7 @@ import {
   formatLocalTimeLabel,
   type HappyHourNow,
 } from '@/services/happyHours';
-import { hasReliableBusyness } from '@/types/venue';
+import { activityA11yLabel, formatActivity, hasReliableBusyness } from '@/types/venue';
 import { recordSponsoredOpen } from '@/services/venues';
 
 function NearbyCard({
@@ -102,8 +102,8 @@ function NearbyCard({
         ) : null}
 
         {hasReliableBusyness(venue) ? (
-          <Text style={[styles.busynessPercent, { color: colors.text }]}>
-            {busynessPercent}%
+          <Text style={[styles.busynessPercent, { color: colors.text }]} accessibilityLabel={activityA11yLabel(busynessPercent)}>
+            {formatActivity(busynessPercent)}
           </Text>
         ) : (
           <Text style={[styles.busynessPercent, { color: colors.textMuted }]}>

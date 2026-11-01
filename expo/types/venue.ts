@@ -34,6 +34,8 @@ export interface PulzeVenue {
   // "not fetched" — treated as insufficient by `hasReliableBusyness` so we
   // never surface a busyness figure derived from no signal.
   confidence?: number;
+  // Public URL of the venue's own logo (venue-media), when it uploaded one.
+  logo?: string;
 
   // --- Placement contract (Phase 6A-1, decision A3) ---
   //
@@ -70,6 +72,16 @@ export function hasReliableBusyness(v: { confidence?: number }): boolean {
   return typeof v.confidence === 'number' && v.confidence >= MIN_BUSYNESS_CONFIDENCE;
 }
 
+// busynessPercent is a relative ACTIVITY score (0-100) built from live
+// signals, not a share of capacity: Pulze does not measure occupancy. Show it
+// as "Activity 72", never as "72%" or "72% full".
+export function formatActivity(score: number): string {
+  return `Activity ${Math.round(score)}`;
+}
+export function activityA11yLabel(score: number): string {
+  return `Activity score ${Math.round(score)} out of 100`;
+}
+
 export interface CheckIn {
   id: string;
   userId: string;
@@ -79,6 +91,17 @@ export interface CheckIn {
   photoUri: string;
   caption: string;
   createdAt: string;
+}
+
+// The vibe tags a venue can choose in the Portal (venues.vibe_tags).
+export const VIBE_TAG_LABELS: Record<string, string> = {
+  live_music: 'Live music', dj: 'DJ', dancing: 'Dancing', karaoke: 'Karaoke', trivia: 'Trivia',
+  sports: 'Sports', rooftop: 'Rooftop', patio: 'Patio', cocktails: 'Cocktails', craft_beer: 'Craft beer',
+  wine: 'Wine', late_night: 'Late night', lgbtq_friendly: 'LGBTQ+ friendly', date_night: 'Date night',
+  chill: 'Chill', upscale: 'Upscale', dive: 'Dive', games: 'Games',
+};
+export function vibeTagLabel(tag: string): string {
+  return VIBE_TAG_LABELS[tag] ?? tag;
 }
 
 export function getBusynessLabel(level: BusynessLevel): string {

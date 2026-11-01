@@ -25,7 +25,7 @@ import {
   metersToWalkMinutes,
 } from '@/hooks/useNearbyVenues';
 
-import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
+import { activityA11yLabel, formatActivity, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 type FilterCategory = 'busyness' | 'neighborhood' | 'type';
 
@@ -392,7 +392,7 @@ const VenueCard = React.memo(function VenueCard({
         <SponsoredBadge isSponsored={venue.isSponsored} />
 
         {hasReliableBusyness(venue) ? (
-          <Text style={[styles.busynessPercent, { color: colors.text }]}>{venue.busynessPercent}%</Text>
+          <Text style={[styles.busynessPercent, { color: colors.text }]} accessibilityLabel={activityA11yLabel(venue.busynessPercent)}>{formatActivity(venue.busynessPercent)}</Text>
         ) : (
           <Text style={[styles.busynessPercent, { color: colors.textMuted }]}>No live data</Text>
         )}

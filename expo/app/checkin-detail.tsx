@@ -17,7 +17,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { type FriendCheckInFeedItem } from '@/mocks/friends';
 import { getCheckInById } from '@/services/crewFeed';
 import { resolveVenueById } from '@/services/venues';
-import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
+import { formatActivity, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   blockUser,
@@ -168,7 +168,7 @@ export default function CheckinDetailScreen() {
   }
 
   // Only a figure backed by live signal; otherwise nothing (see hasReliableBusyness).
-  const busynessPercent = venue && hasReliableBusyness(venue) ? `${venue.busynessPercent}%` : '';
+  const busynessPercent = venue && hasReliableBusyness(venue) ? formatActivity(venue.busynessPercent) : '';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   friendName: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.3, flexShrink: 1 },
   spacer: { flex: 1 },
   menuBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  busynessPercent: { fontSize: 28, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.5 },
+  busynessPercent: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.2 },
   subRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 5 },
   venueName: { fontSize: 13, fontWeight: '600' as const },
   subDot: { fontSize: 13, fontWeight: '500' as const },

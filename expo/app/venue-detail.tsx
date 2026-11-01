@@ -37,7 +37,8 @@ import {
   type HappyHourUpcoming,
   type HappyHourWeekly,
 } from '@/services/happyHours';
-import { getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
+import { getUpcomingVenueEvents, type VenueEvent } from '@/services/venueEvents';
+import { activityA11yLabel, formatActivity, getBusynessLabel, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 const TABS = [
   { icon: Compass, route: '/(tabs)' },
@@ -59,6 +60,7 @@ export default function VenueDetailScreen() {
   const [weeklyHappyHours, setWeeklyHappyHours] = useState<HappyHourWeekly[]>([]);
   const [happyHourNow, setHappyHourNow] = useState<HappyHourNow | null>(null);
   const [happyHourNext, setHappyHourNext] = useState<HappyHourUpcoming | null>(null);
+  const [events, setEvents] = useState<VenueEvent[]>([]);
 
   useEffect(() => {
     if (!params.venueId) return;
@@ -123,6 +125,16 @@ export default function VenueDetailScreen() {
     });
     return () => { cancelled = true; };
   }, [venue?.id, venueLat, venueLng]);
+
+  // Events the venue published in the Portal. A failed load shows nothing
+  // rather than an error: the rest of the page is still useful.
+  useEffect(() => {
+    const venueId = venue?.id;
+    if (!venueId) return;
+    let cancelled = false;
+    void getUpcomingVenueEvents(venueId).then((list) => { if (!cancelled) setEvents(list ?? []); });
+    return () => { cancelled = true; };
+  }, [venue?.id]);
 
   const handleBack = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -223,8 +235,8 @@ export default function VenueDetailScreen() {
           </View>
 
           {hasReliableBusyness(venue) ? (
-            <Text style={[styles.busynessText, { color: colors.text }]}>
-              {getBusynessLabel(venue.busyness)} · {venue.busynessPercent}% full
+            <Text style={[styles.busynessText, { color: colors.text }]} accessibilityLabel={`${getBusynessLabel(venue.busyness)}, ${activityA11yLabel(venue.busynessPercent)}`}>
+              {getBusynessLabel(venue.busyness)} · {formatActivity(venue.busynessPercent)}
             </Text>
           ) : (
             <Text style={[styles.busynessText, { color: colors.textMuted }]}>
@@ -319,6 +331,25 @@ export default function VenueDetailScreen() {
             </View>
           )}
 
+          {events.length > 0 && (
+            <View style={[styles.vibeCard, { backgroundColor: colors.surface, borderColor: colors.border }]} testID="venue-events">
+              <Text style={[styles.vibeLabel, { color: colors.textMuted }]}>UPCOMING EVENTS</Text>
+              {events.map((e) => (
+                <View key={e.id} style={styles.eventRow} accessible accessibilityLabel={`${e.title}, ${e.whenLabel}${e.cancelled ? ', cancelled' : ''}`}>
+                  <Text style={[styles.eventTitle, { color: e.cancelled ? colors.textMuted : colors.text, textDecorationLine: e.cancelled ? 'line-through' : 'none' }]}>
+                    {e.title}
+                  </Text>
+                  <Text style={[styles.eventWhen, { color: e.cancelled ? colors.danger : colors.textMuted }]}>
+                    {e.cancelled ? `Cancelled · ${e.whenLabel}` : e.whenLabel}
+                  </Text>
+                  {e.description && !e.cancelled ? (
+                    <Text style={[styles.eventDesc, { color: colors.textSoft }]}>{e.description}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          )}
+
           {venue.photos.length > 1 && (
             <View>
               <Text style={[styles.photosHeading, { color: colors.text }]}>Photos</Text>
@@ -367,6 +398,10 @@ const styles = StyleSheet.create({
   vibeCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 6 },
   vibeLabel: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1 },
   vibeText: { fontSize: 14, lineHeight: 20 },
+  eventRow: { gap: 2, paddingTop: 6 },
+  eventTitle: { fontSize: 15, fontWeight: '700' as const },
+  eventWhen: { fontSize: 12, fontWeight: '600' as const },
+  eventDesc: { fontSize: 13, lineHeight: 18 },
   addressCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, borderWidth: 1 },
   addressText: { fontSize: 14, flex: 1 },
   happyHourCard: { borderRadius: 14, padding: 14, borderWidth: 1, gap: 10 },
