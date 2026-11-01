@@ -26,6 +26,7 @@ import { hasCompletedAgeGate, hasSeenOptionalDemographicsStep } from '@/services
 import { AgeGateScreen } from '@/components/AgeGateScreen';
 import { DemographicsOnboardingScreen } from '@/components/DemographicsOnboardingScreen';
 import { drainAnalyticsQueue } from '@/services/analytics';
+import { markNotificationsRead } from '@/services/notifications';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   console.log('[SplashScreen] preventAutoHideAsync failed');
@@ -181,6 +182,20 @@ function AppContent() {
               quip: null,
             });
             console.log('[App] Skip check-in result:', result.status);
+          }
+        },
+        // A Pulze notice (push from the notification center): mark it read and
+        // open what it is about. Account notices open the notifications list.
+        (data) => {
+          const id = data.notification_id as string;
+          void markNotificationsRead([id]);
+          const kind = data.kind as string;
+          if ((kind === 'friend_request' || kind === 'friend_accepted') && typeof data.actor_id === 'string') {
+            router.push({ pathname: '/user/[id]', params: { id: data.actor_id } });
+          } else if (kind === 'inner_circle_check_in' && typeof data.check_in_id === 'string') {
+            router.push({ pathname: '/checkin-detail', params: { checkInId: data.check_in_id } });
+          } else {
+            router.push('/activity');
           }
         },
       );

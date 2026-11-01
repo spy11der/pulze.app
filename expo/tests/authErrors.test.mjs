@@ -118,7 +118,10 @@ test('other signup failures keep their own message', () => {
   assert.equal(signupKind(new AuthRetryableFetchError('Network request failed', 0)), 'unknown');
 });
 
-test('a suspended account is told so on email sign-in (Supabase Auth reports it); username sign-in stays generic', () => {
+test('a suspended account is told so on email sign-in (only with the right password); username sign-in stays generic', () => {
+  // B19: the access-token hook's refusal, which comes after the password check
+  assert.equal(loginKind(new AuthApiError('account_suspended', 403, 'unknown')), 'account_suspended');
+  assert.equal(loginKind(new AuthApiError('Invalid login credentials', 400, 'invalid_credentials')), 'invalid_credentials');
   assert.equal(loginKind(new AuthApiError('User is banned', 400, 'user_banned')), 'account_suspended');
   assert.equal(loginKind(new FunctionsHttpError(new Response('{}', { status: 401 }))), 'invalid_credentials');
 });

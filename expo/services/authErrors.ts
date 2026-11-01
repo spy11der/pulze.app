@@ -141,6 +141,13 @@ export function toLoginError(error: unknown): AuthFlowError {
     return authFlowError('unknown');
   }
 
+  // A suspended account with the RIGHT password: Pulze's access-token hook
+  // refuses the token with 403 account_suspended (B19). A wrong password
+  // gets invalid_credentials like anyone else, so this discloses nothing.
+  // user_banned is Supabase's own ban flag (dashboard bans; see B19).
+  const e = error as { status?: number; message?: string } | null;
+  if (e && e.status === 403 && /account_suspended/.test(e.message ?? '')) return authFlowError('account_suspended');
+
   if (isAuthApiError(error)) {
     if (error.code === 'user_banned') return authFlowError('account_suspended');
     if (error.code === 'invalid_credentials') return authFlowError('invalid_credentials');

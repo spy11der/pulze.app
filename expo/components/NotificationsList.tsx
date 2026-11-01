@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -6,9 +6,11 @@ import { Bell, CheckCheck, MapPin, ShieldAlert, ShieldCheck, UserCheck, UserPlus
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useNotifications } from '@/hooks/useNotifications';
+import { AppealSheet } from '@/components/AppealSheet';
 import {
   dismissNotification,
   isAccountNotice,
+  isAppealable,
   markNotificationsRead,
   notificationText,
   type AppNotification,
@@ -23,6 +25,8 @@ const ICONS: Record<NotificationKind, React.ComponentType<{ color: string; size:
   moderation_content_removed: ShieldAlert,
   account_suspended: ShieldAlert,
   account_reinstated: ShieldCheck,
+  appeal_upheld: ShieldAlert,
+  appeal_overturned: ShieldCheck,
 };
 
 function timeAgo(iso: string): string {
@@ -39,6 +43,7 @@ export function NotificationsList({ userId, bottomInset }: { userId: string | un
   const { colors } = useTheme();
   const { items, setItems, status, reload } = useNotifications(userId);
   const unread = items.filter((n) => !n.read).length;
+  const [appealing, setAppealing] = useState<AppNotification | null>(null);
 
   const open = useCallback(async (n: AppNotification) => {
     void Haptics.selectionAsync();
@@ -51,7 +56,10 @@ export function NotificationsList({ userId, bottomInset }: { userId: string | un
     } else if (n.kind === 'inner_circle_check_in' && n.checkInId) {
       router.push({ pathname: '/checkin-detail', params: { checkInId: n.checkInId } });
     } else if (isAccountNotice(n.kind)) {
-      Alert.alert('From Pulze', `${notificationText(n)}\n\nWe don't share who reported something, and moderators' notes stay private.`);
+      const text = `${notificationText(n)}\n\nWe don't share who reported something, and moderators' notes stay private.`;
+      Alert.alert('From Pulze', text, isAppealable(n.kind)
+        ? [{ text: 'OK', style: 'cancel' }, { text: 'Appeal this decision', onPress: () => setAppealing(n) }]
+        : undefined);
     }
   }, [router, setItems]);
 
@@ -86,6 +94,8 @@ export function NotificationsList({ userId, bottomInset }: { userId: string | un
   }
 
   return (
+    <>
+    <AppealSheet notificationId={appealing?.id ?? null} summary={appealing ? notificationText(appealing) : ''} onClose={() => setAppealing(null)} />
     <FlatList
       data={items}
       keyExtractor={(n) => n.id}
@@ -107,7 +117,7 @@ export function NotificationsList({ userId, bottomInset }: { userId: string | un
       renderItem={({ item }) => {
         const Icon = ICONS[item.kind] ?? Bell;
         const account = isAccountNotice(item.kind);
-        const tint = account && item.kind !== 'account_reinstated' ? colors.amber : colors.aqua;
+        const tint = account && item.kind !== 'account_reinstated' && item.kind !== 'appeal_overturned' ? colors.amber : colors.aqua;
         return (
           <Pressable
             onPress={() => void open(item)}
@@ -128,6 +138,7 @@ export function NotificationsList({ userId, bottomInset }: { userId: string | un
         );
       }}
     />
+    </>
   );
 }
 

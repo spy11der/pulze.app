@@ -65,6 +65,8 @@ export default function CheckInCaptureScreen() {
   const [stampedPhoto, setStampedPhoto] = useState<string | null>(null);
   const [quip, setQuip] = useState<string>('');
   const [isSharing, setIsSharing] = useState<boolean>(false);
+  // One check-in per tap, whichever button: a double tap must not send two.
+  const submittingRef = useRef<boolean>(false);
   const [caption, setCaption] = useState<string>('');
   const [showCaption, setShowCaption] = useState<boolean>(false);
   const [stampPos, setStampPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -287,6 +289,8 @@ export default function CheckInCaptureScreen() {
   }, [capturedPhoto]);
 
   const handleShareWithCrew = useCallback(async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     if (isSharing) return;
     setIsSharing(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -316,6 +320,8 @@ export default function CheckInCaptureScreen() {
   }, [isSharing, stampedPhoto, capturedPhoto, user, params.venueId, venueName, neighborhood, quip, router]);
 
   const handleJustCheckInChoice = useCallback(async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const userId = user?.id ?? 'unknown';
@@ -340,6 +346,8 @@ export default function CheckInCaptureScreen() {
   }, [user, params.venueId, venueName, neighborhood, router]);
 
   const handleSkip = useCallback(async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const userId = user?.id ?? 'unknown';

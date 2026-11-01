@@ -112,10 +112,18 @@ export async function scheduleCheckInNotification(venue: CheckInNotificationVenu
 export function registerNotificationResponseHandler(
   onLetsGo: (data: Record<string, unknown>) => void,
   onSkip: (data: Record<string, unknown>) => void,
+  onPulzeNotice?: (data: Record<string, unknown>) => void,
 ): Notifications.EventSubscription {
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data ?? {};
     const actionId = response.actionIdentifier;
+
+    // A push from the notification center (B21) carries its notice id: open
+    // it rather than treating the tap as a check-in prompt.
+    if (typeof (data as Record<string, unknown>).notification_id === 'string') {
+      onPulzeNotice?.(data as Record<string, unknown>);
+      return;
+    }
 
     if (actionId === 'lets_go') {
       onLetsGo(data as Record<string, unknown>);

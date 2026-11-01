@@ -40,6 +40,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { getNotificationPreferences, setNotificationPreference, type NotificationPreferences } from '@/services/notifications';
+import { disablePushNotifications, enablePushNotifications, getPushEnabled } from '@/services/pushTokens';
 import { clearLocalCachesForUser, clearDeviceAccountBindings } from '@/services/localCleanup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -82,6 +83,8 @@ export default function SettingsScreen() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ checkInPrompt: true });
   // Server-side preferences for the in-app notification center (B15).
   const [socialPrefs, setSocialPrefs] = useState<NotificationPreferences>({ friend_requests: true, friend_accepted: true, inner_circle_check_ins: true });
+  const [pushOn, setPushOn] = useState<boolean>(false);
+  const [pushBusy, setPushBusy] = useState<boolean>(false);
   const [locationConsent, setLocationConsentState] = useState<boolean>(false);
   // Personalization consent (Batch 4B). Separate from demographic
   // analytics + location + location-based check-ins. Default OFF
@@ -98,6 +101,7 @@ export default function SettingsScreen() {
     getMyPersonalizationConsent().then((granted) => { if (!cancelled) setPersonalizationConsentState(granted); });
     getMyCheckInVerificationConsent().then(({ granted }) => { if (!cancelled) setVerifyConsentState(granted); });
     getNotificationPreferences().then((prefs) => { if (!cancelled) setSocialPrefs(prefs); });
+    getPushEnabled().then((on) => { if (!cancelled) setPushOn(on); });
     return () => { cancelled = true; };
   }, [user?.id]);
 
@@ -304,6 +308,49 @@ export default function SettingsScreen() {
     }
   }, [notifPrefs]);
 
+  // Push: explained first, then the system prompt. Off removes this phone's
+  // token, so nothing more is sent to it.
+  const togglePush = useCallback(async () => {
+    if (!user?.id || pushBusy) return;
+    void Haptics.selectionAsync();
+    if (pushOn) {
+      setPushBusy(true);
+      setPushOn(false);
+      if (!(await disablePushNotifications(user.id))) {
+        setPushOn(true);
+        Alert.alert("Couldn't update", 'Please try again.');
+      }
+      setPushBusy(false);
+      return;
+    }
+    const proceed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Turn on push notifications?',
+        'Pulze will alert this phone about the notifications you chose above. Notices about your account appear on the lock screen without details.',
+        [{ text: 'Not now', style: 'cancel', onPress: () => resolve(false) }, { text: 'Continue', onPress: () => resolve(true) }],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      );
+    });
+    if (!proceed) return;
+    setPushBusy(true);
+    const result = await enablePushNotifications(user.id);
+    setPushBusy(false);
+    if (result.ok) {
+      setPushOn(true);
+      return;
+    }
+    if (result.reason === 'denied') {
+      Alert.alert('Notifications are off for Pulze', 'Allow them in iOS Settings > Pulze > Notifications, then try again.', [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+      ]);
+    } else if (result.reason === 'unsupported') {
+      Alert.alert('Not available here', 'Push notifications need the Pulze app on a phone (not Expo Go or a simulator). Notifications still appear in the app.');
+    } else {
+      Alert.alert("Couldn't turn on push", 'Please try again.');
+    }
+  }, [user?.id, pushBusy, pushOn]);
+
   const updateSocialPref = useCallback(async (key: keyof NotificationPreferences) => {
     if (!user?.id) return;
     void Haptics.selectionAsync();
@@ -489,6 +536,13 @@ export default function SettingsScreen() {
               value={notifPrefs.checkInPrompt}
               onToggle={() => updateNotif('checkInPrompt')}
               testID="notif-checkin-prompt"
+            />
+            <NotifToggleRow
+              icon={BellRing}
+              label="Push notifications on this phone"
+              value={pushOn}
+              onToggle={() => void togglePush()}
+              testID="notif-push"
             />
             <NotifToggleRow
               icon={BellRing}

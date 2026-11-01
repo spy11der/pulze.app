@@ -11,7 +11,9 @@ export type NotificationKind =
   | 'moderation_warning'
   | 'moderation_content_removed'
   | 'account_suspended'
-  | 'account_reinstated';
+  | 'account_reinstated'
+  | 'appeal_upheld'
+  | 'appeal_overturned';
 
 export interface AppNotification {
   id: string;
@@ -19,7 +21,7 @@ export interface AppNotification {
   actorId: string | null;
   actorName: string | null;
   checkInId: string | null;
-  data: { venue_name?: string; category?: string; until?: string };
+  data: { venue_name?: string; category?: string; until?: string; effect?: string };
   createdAt: string;
   read: boolean;
 }
@@ -61,11 +63,36 @@ export function notificationText(n: AppNotification): string {
       return `Your account was suspended${until ? ` until ${until}` : ''} (${category(n)}).`;
     }
     case 'account_reinstated': return 'Your account suspension was lifted. Welcome back.';
+    case 'appeal_upheld': return 'Your appeal was reviewed. The original decision stands.';
+    case 'appeal_overturned':
+      return n.data.effect === 'check_in_restored' ? 'Your appeal was accepted. Your check-in is visible again.'
+        : n.data.effect === 'suspension_ended' ? 'Your appeal was accepted. Your suspension has ended.'
+        : 'Your appeal was accepted. The warning was withdrawn.';
   }
 }
 
+/** Notices about a decision that can be appealed (submit_appeal decides if it still can). */
+export function isAppealable(kind: NotificationKind): boolean {
+  return kind === 'moderation_warning' || kind === 'moderation_content_removed' || kind === 'account_suspended';
+}
+
+const APPEAL_ERRORS: Record<string, string> = {
+  appeal_already_submitted: 'You already appealed this decision. You will be notified of the outcome.',
+  appeal_window_closed: 'Appeals can be sent within 30 days of a decision; this one is older.',
+  appeal_not_available: 'This decision can no longer be appealed.',
+  appeal_message_too_short: 'Tell us a little more (at least 10 characters).',
+  appeal_message_too_long: 'Keep it under 1000 characters.',
+};
+
+export async function submitAppeal(notificationId: string, message: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await (supabase.rpc as any)('submit_appeal', { p_notification_id: notificationId, p_message: message.trim() });
+  if (!error) return { ok: true };
+  const code = Object.keys(APPEAL_ERRORS).find((k) => (error.message ?? '').includes(k));
+  return { ok: false, error: code ? APPEAL_ERRORS[code] : 'Something went wrong. Check your connection and try again.' };
+}
+
 export function isAccountNotice(kind: NotificationKind): boolean {
-  return kind.startsWith('moderation_') || kind.startsWith('account_');
+  return kind.startsWith('moderation_') || kind.startsWith('account_') || kind.startsWith('appeal_');
 }
 
 /** null = could not load (offline / server error), not "no notifications". */

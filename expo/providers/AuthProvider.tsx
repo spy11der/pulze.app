@@ -4,6 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { clearStoredSession, supabase } from '@/services/supabase';
 import { signedUrlFor } from '@/services/storageUrls';
 import { clearLocalCachesForUser } from '@/services/localCleanup';
+import { unregisterThisDevice } from '@/services/pushTokens';
 import { authFlowError, toAuthFlowError, toLoginError, toSignupError } from '@/services/authErrors';
 import type { Session, User } from '@supabase/supabase-js';
 
@@ -382,6 +383,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     // Capture the current user id before signOut fires the SIGNED_OUT
     // event and setUser(null) races the cleanup.
     const departingUserId = user?.id ?? null;
+    // Before the session ends: this phone stops receiving the departing
+    // account's pushes (needs the session to call the server).
+    await unregisterThisDevice();
     const { error } = await supabase.auth.signOut();
     if (error) {
       // The server couldn't be reached, and supabase-js kept the stored
