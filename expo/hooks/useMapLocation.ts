@@ -8,14 +8,14 @@ interface UserLocation {
 
 export function useMapLocation() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [isLocating, setIsLocating] = useState<boolean>(false);
+  // The first lookup starts on mount, so the hook starts out locating.
+  const [isLocating, setIsLocating] = useState<boolean>(true);
   // True once the first attempt has finished, whether it produced a fix, was
   // denied, or failed. Screens wait for this before their first venue query,
   // so they never fetch a placeholder area and then swap to the real one.
   const [hasResolved, setHasResolved] = useState<boolean>(false);
 
-  const requestLocation = useCallback(async () => {
-    setIsLocating(true);
+  const locate = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -37,9 +37,17 @@ export function useMapLocation() {
     }
   }, []);
 
+  /** A fresh lookup on request (e.g. a "locate me" tap). */
+  const requestLocation = useCallback(async () => {
+    setIsLocating(true);
+    await locate();
+  }, [locate]);
+
   useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
+    void (async () => {
+      await locate();
+    })();
+  }, [locate]);
 
   return { userLocation, isLocating, hasResolved, requestLocation };
 }

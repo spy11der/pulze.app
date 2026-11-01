@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { BarChart3, Camera, MapPin, Users, Zap } from 'lucide-react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -31,8 +31,8 @@ export function WelcomeModal() {
   const [visible, setVisible] = useState<boolean>(false);
   const [step, setStep] = useState<Step>(0);
   const [locationRequesting, setLocationRequesting] = useState<boolean>(false);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(0));
+  const [fadeAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     let cancelled = false;

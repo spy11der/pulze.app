@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -26,7 +26,6 @@ import {
 } from 'lucide-react-native';
 import { PanGestureHandler, PinchGestureHandler, TapGestureHandler, State } from 'react-native-gesture-handler';
 
-import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { insertCheckIn } from '@/services/checkInDatabase';
 import { verificationFixForCheckIn } from '@/services/checkInVerification';
@@ -48,7 +47,6 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function CheckInCaptureScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const params = useLocalSearchParams<{
     venueId: string;
@@ -57,9 +55,9 @@ export default function CheckInCaptureScreen() {
   }>();
 
   const cameraRef = useRef<CameraView>(null);
-  const countdownAnim = useRef(new Animated.Value(COUNTDOWN_SECONDS)).current;
-  const quipOpacity = useRef(new Animated.Value(0)).current;
-  const resultOpacity = useRef(new Animated.Value(0)).current;
+  const [countdownAnim] = useState(() => new Animated.Value(COUNTDOWN_SECONDS));
+  const [quipOpacity] = useState(() => new Animated.Value(0));
+  const [resultOpacity] = useState(() => new Animated.Value(0));
   const [phase, setPhase] = useState<CapturePhase>('choice');
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [stampedPhoto, setStampedPhoto] = useState<string | null>(null);
@@ -199,6 +197,30 @@ export default function CheckInCaptureScreen() {
     return () => subscription.remove();
   }, [hasCameraPermission, getCamPermission]);
 
+  // The latest handleSkip (declared further down), for capturePhoto's error
+  // path; updated after each render, never during it.
+  const handleSkipRef = useRef<() => Promise<void>>(async () => {});
+
+  // Stable (refs and setters only), so the countdown below never restarts.
+  const capturePhoto = useCallback(async () => {
+    if (!cameraRef.current) return;
+
+    try {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.9,
+        base64: false,
+      });
+      setCapturedPhoto(photo.uri);
+      // The quip for the captured phase (venueType is fixed for this screen).
+      setQuip(getQuip(venueType));
+      setPhase('captured');
+    } catch (e) {
+      console.log('[Capture] Error taking photo:', e);
+      void handleSkipRef.current();
+    }
+  }, []);
+
   // Countdown animation
   useEffect(() => {
     if (phase !== 'countdown') return;
@@ -223,30 +245,8 @@ export default function CheckInCaptureScreen() {
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [phase]);
+  }, [phase, capturePhoto, countdownAnim]);
 
-  const capturePhoto = useCallback(async () => {
-    if (!cameraRef.current) return;
-
-    try {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.9,
-        base64: false,
-      });
-      setCapturedPhoto(photo.uri);
-      setPhase('captured');
-    } catch (e) {
-      console.log('[Capture] Error taking photo:', e);
-      void handleSkip();
-    }
-  }, []);
-
-  // Set quip when entering captured phase
-  useEffect(() => {
-    if (phase !== 'captured' || !capturedPhoto) return;
-    setQuip(getQuip(venueType));
-  }, [phase, capturedPhoto]);
 
   // User taps Continue after positioning stamp + caption
   const handleContinue = useCallback(async () => {
@@ -286,7 +286,7 @@ export default function CheckInCaptureScreen() {
         }),
       ]).start(() => setPhase('result'));
     }, QUIP_DISPLAY_MS);
-  }, [capturedPhoto]);
+  }, [capturedPhoto, quipOpacity, resultOpacity]);
 
   const handleShareWithCrew = useCallback(async () => {
     if (submittingRef.current) return;
@@ -317,7 +317,7 @@ export default function CheckInCaptureScreen() {
 
     // Dismiss camera and go back
     router.back();
-  }, [isSharing, stampedPhoto, capturedPhoto, user, params.venueId, venueName, neighborhood, quip, router]);
+  }, [isSharing, stampedPhoto, capturedPhoto, user, params.venueId, venueName, neighborhood, caption, quip, router]);
 
   const handleJustCheckInChoice = useCallback(async () => {
     if (submittingRef.current) return;
@@ -370,6 +370,9 @@ export default function CheckInCaptureScreen() {
 
     router.back();
   }, [user, params.venueId, venueName, neighborhood, router]);
+  useEffect(() => {
+    handleSkipRef.current = handleSkip;
+  }, [handleSkip]);
 
   // Permission check in flight / iOS system prompt showing
   if (hasCameraPermission === null || isPermissionUndetermined) {

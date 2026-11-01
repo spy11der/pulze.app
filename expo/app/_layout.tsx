@@ -89,51 +89,52 @@ function AppContent() {
   //   complete so a legitimately-declining user isn't re-prompted.
   //   Also retroactive: any pre-Batch-3 row has NULL
   //   optional_step_completed_at and the user sees the screen once.
-  const [ageGateStatus, setAgeGateStatus] = useState<'unknown' | 'needed' | 'passed'>('unknown');
-  const [demographicsStepStatus, setDemographicsStepStatus] = useState<'unknown' | 'needed' | 'passed'>('unknown');
+  // Each answer is stored with the user it belongs to and only counts for
+  // that user: signing out (or in as someone else) reads as 'unknown' at once,
+  // exactly as before, without resetting state from inside an effect.
+  const gateUserId = isAuthenticated ? user?.id ?? null : null;
+  const [ageGate, setAgeGate] = useState<{ userId: string; status: 'needed' | 'passed' } | null>(null);
+  const [demographicsStep, setDemographicsStep] = useState<{ userId: string; status: 'needed' | 'passed' } | null>(null);
+  const ageGateStatus: 'unknown' | 'needed' | 'passed' =
+    gateUserId && ageGate?.userId === gateUserId ? ageGate.status : 'unknown';
+  const demographicsStepStatus: 'unknown' | 'needed' | 'passed' =
+    ageGateStatus === 'passed' && demographicsStep?.userId === gateUserId ? demographicsStep.status : 'unknown';
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true);
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
-      setAgeGateStatus('unknown');
-      setDemographicsStepStatus('unknown');
-      return;
-    }
+    if (!gateUserId) return;
     let cancelled = false;
     void (async () => {
       const done = await hasCompletedAgeGate();
       if (cancelled) return;
-      setAgeGateStatus(done ? 'passed' : 'needed');
+      setAgeGate({ userId: gateUserId, status: done ? 'passed' : 'needed' });
     })();
     return () => { cancelled = true; };
-  }, [isAuthenticated, user?.id]);
+  }, [gateUserId]);
 
   // Chained after the age gate: once the DOB row exists, check
   // whether the demographic step still needs to be shown.
   useEffect(() => {
-    if (ageGateStatus !== 'passed') {
-      setDemographicsStepStatus('unknown');
-      return;
-    }
+    if (ageGateStatus !== 'passed' || !gateUserId) return;
     let cancelled = false;
     void (async () => {
       const seen = await hasSeenOptionalDemographicsStep();
       if (cancelled) return;
-      setDemographicsStepStatus(seen ? 'passed' : 'needed');
+      setDemographicsStep({ userId: gateUserId, status: seen ? 'passed' : 'needed' });
     })();
     return () => { cancelled = true; };
-  }, [ageGateStatus]);
+  }, [ageGateStatus, gateUserId]);
 
   const handleAgeGateComplete = useCallback(() => {
-    setAgeGateStatus('passed');
-  }, []);
+    if (gateUserId) setAgeGate({ userId: gateUserId, status: 'passed' });
+  }, [gateUserId]);
 
   const handleDemographicsComplete = useCallback(() => {
-    setDemographicsStepStatus('passed');
-  }, []);
+    if (gateUserId) setDemographicsStep({ userId: gateUserId, status: 'passed' });
+  }, [gateUserId]);
 
   // Initialize notifications and geofence when authenticated AND
   // both onboarding gates have cleared. Holding the effect back

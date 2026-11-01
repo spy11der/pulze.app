@@ -9,7 +9,7 @@ import { getBackendInfo } from '@/services/backendInfo';
 
 export function BackendBadge() {
   const { colors } = useTheme();
-  const info = useMemo(getBackendInfo, []);
+  const info = useMemo(() => getBackendInfo(), []);
   const isStaging = info.environment === 'staging';
 
   if (!isStaging && !__DEV__) return null;

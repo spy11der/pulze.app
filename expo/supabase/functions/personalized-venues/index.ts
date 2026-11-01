@@ -103,11 +103,11 @@ Deno.serve(async (req) => {
   const personalized = payload.personalized === true;
   const generatedAt = payload.generated_at ?? null;
 
-  const rawRankings = Array.isArray(payload.rankings) ? (payload.rankings as Array<Record<string, unknown>>) : [];
+  const rawRankings = Array.isArray(payload.rankings) ? (payload.rankings as Record<string, unknown>[]) : [];
 
   const rankings = rawRankings.map((r) => {
     const components = Array.isArray(r.score_components)
-      ? (r.score_components as Array<Record<string, unknown>>)
+      ? (r.score_components as Record<string, unknown>[])
       : [];
     // primary_reason: the highest-magnitude component's reason label.
     // This is a compact debugging hint the app doesn't render today —

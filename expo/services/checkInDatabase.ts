@@ -125,7 +125,7 @@ export async function insertCheckIn(
   let realVenueId: string | null;
   try {
     realVenueId = await resolveRealVenueId(record.venueId);
-  } catch (e) {
+  } catch {
     await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending' });
     return { id: localId, status: 'pending', error: 'Offline — venue lookup failed, queued for retry' };
   }
@@ -140,7 +140,7 @@ export async function insertCheckIn(
     try {
       const uploaded = await uploadCheckInPhoto(record.userId, record.photoUri);
       photoPath = uploaded.path;
-    } catch (e) {
+    } catch {
       await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending' });
       return { id: localId, status: 'pending', error: 'Photo upload failed — queued for retry' };
     }
@@ -197,7 +197,7 @@ export async function insertCheckIn(
       void locationFix.then((fix) => submitCheckInVerification(inserted.id, fix));
     }
     return { id: inserted.id, status: 'synced' };
-  } catch (e) {
+  } catch {
     // Ambiguous — network dropped between request and response, insert may
     // have actually succeeded server-side. Do NOT delete the photo here;
     // an automatic delete could remove a photo a successful check-in is

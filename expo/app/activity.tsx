@@ -9,7 +9,7 @@ import {
   ListRenderItem,
   type ViewInstance,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
@@ -65,13 +65,15 @@ export default function ActivityScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
   const { userLocation } = useMapLocation();
   const nearLat = userLocation?.latitude ?? null;
   const nearLng = userLocation?.longitude ?? null;
 
   // The bell opens here, so notifications come first.
   const [tab, setTab] = useState<TabKey>('notifications');
-  const unreadNotifications = useUnreadNotificationCount(user?.id);
+  const unreadNotifications = useUnreadNotificationCount(userId);
   const [friendReqs, setFriendReqs] = useState<RealFriendRequest[]>([]);
   const [nearby, setNearby] = useState<NearbyRow[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -79,12 +81,13 @@ export default function ActivityScreen() {
   const triggerRef = useRef<ViewInstance>(null);
 
   const loadFriendRequests = useCallback(async () => {
-    if (!user?.id) return;
-    const { requests } = await getFriendsAndRequests(user.id);
+    if (!userId) return;
+    const { requests } = await getFriendsAndRequests(userId);
     setFriendReqs(requests);
-  }, [user?.id]);
+  }, [userId]);
 
-  useEffect(() => { void loadFriendRequests(); }, [loadFriendRequests]);
+  // On focus (first load included): requests may have changed while away.
+  useFocusEffect(useCallback(() => { void loadFriendRequests(); }, [loadFriendRequests]));
 
   // "Nearby" activity is venues around the user's real location. Without a
   // fix the list stays empty rather than showing some other city's venues.
@@ -255,7 +258,7 @@ export default function ActivityScreen() {
       </Pressable>
 
       {tab === 'notifications' ? (
-        <NotificationsList userId={user?.id} bottomInset={insets.bottom} />
+        <NotificationsList userId={userId} bottomInset={insets.bottom} />
       ) : tab === 'nearby' ? (
         <FlatList data={nearby} keyExtractor={(it) => it.venue.id} renderItem={renderNearby} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />
       ) : (

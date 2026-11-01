@@ -1,6 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Animated } from 'react-native';
+import { Pressable, StyleSheet, View, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSegments, useRouter } from 'expo-router';
 import { Compass, Radio, UserRound, Users } from 'lucide-react-native';

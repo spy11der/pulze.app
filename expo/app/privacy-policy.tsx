@@ -61,7 +61,7 @@ export default function PrivacyPolicyScreen() {
 
         <Section title="2. How We Use Your Information" colors={colors}>
           <Paragraph colors={colors}>We use the information we collect to:</Paragraph>
-          <BulletPoint colors={colors}>Provide, maintain, and improve Pulze's features and services</BulletPoint>
+          <BulletPoint colors={colors}>Provide, maintain, and improve Pulze’s features and services</BulletPoint>
           <BulletPoint colors={colors}>Show you relevant events, venues, and experiences near you</BulletPoint>
           <BulletPoint colors={colors}>Connect you with friends and other users</BulletPoint>
           <BulletPoint colors={colors}>Process ticket purchases and wallet transactions</BulletPoint>

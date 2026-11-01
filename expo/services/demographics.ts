@@ -143,7 +143,7 @@ export type GenderIdentity =
   | 'other'
   | 'prefer_not_to_say';
 
-export const GENDER_IDENTITY_OPTIONS: Array<{ value: GenderIdentity; label: string }> = [
+export const GENDER_IDENTITY_OPTIONS: { value: GenderIdentity; label: string }[] = [
   { value: 'man',               label: 'Man' },
   { value: 'woman',             label: 'Woman' },
   { value: 'trans_man',         label: 'Transgender Man' },
@@ -164,7 +164,7 @@ export type RaceEthnicity =
   | 'other'
   | 'prefer_not_to_say';
 
-export const RACE_ETHNICITY_OPTIONS: Array<{ value: RaceEthnicity; label: string }> = [
+export const RACE_ETHNICITY_OPTIONS: { value: RaceEthnicity; label: string }[] = [
   { value: 'american_indian_or_alaska_native',        label: 'American Indian or Alaska Native' },
   { value: 'asian',                                   label: 'Asian' },
   { value: 'black_or_african_american',               label: 'Black or African American' },

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScanFace, Fingerprint } from 'lucide-react-native';
@@ -12,9 +12,9 @@ export function LockScreen() {
   const { colors, isDark } = useTheme();
   const { isLocked, authenticate, biometricType } = useBiometricAuth();
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const ringAnim = useRef(new Animated.Value(0.4)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(1));
+  const [pulseAnim] = useState(() => new Animated.Value(1));
+  const [ringAnim] = useState(() => new Animated.Value(0.4));
 
   useEffect(() => {
     if (isLocked) {

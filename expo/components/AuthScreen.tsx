@@ -60,12 +60,12 @@ export function AuthScreen() {
     wasRecovering.current = isRecoveringPassword;
   }, [isRecoveringPassword]);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.6)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const formOpacity = useRef(new Animated.Value(0)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(1));
+  const [slideAnim] = useState(() => new Animated.Value(0));
+  const [logoScale] = useState(() => new Animated.Value(0.6));
+  const [logoOpacity] = useState(() => new Animated.Value(0));
+  const [formOpacity] = useState(() => new Animated.Value(0));
+  const [buttonScale] = useState(() => new Animated.Value(1));
 
   const hasAnimated = useRef(false);
 

@@ -49,7 +49,7 @@ const FSQ_NIGHTLIFE_CATEGORY_IDS = [
   '4bf58dd8d48988d11f941735', // Nightclub — directly confirmed from Foursquare's own docs
 ];
 
-function mapFoursquareCategory(categories: Array<{ id?: number; name?: string }> | undefined): PulzeCategory {
+function mapFoursquareCategory(categories: { id?: number; name?: string }[] | undefined): PulzeCategory {
   const names = (categories ?? []).map((c) => (c.name ?? '').toLowerCase());
   if (names.some((n) => n.includes('nightclub') || n.includes('dance club'))) return 'nightclub';
   return 'bar'; // default for anything else in the bar/nightlife family

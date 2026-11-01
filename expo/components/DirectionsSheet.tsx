@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Animated,
   Linking,
@@ -99,8 +99,8 @@ export function DirectionsSheet({
   venueId,
 }: DirectionsSheetProps) {
   const { colors, isDark } = useTheme();
-  const slideAnim = useRef(new Animated.Value(500)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(500));
+  const [backdropOpacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (visible) {

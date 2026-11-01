@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -106,9 +106,9 @@ interface BottomSheetProps {
 function BottomSheet({ visible, onClose, children }: BottomSheetProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(SCREEN_HEIGHT));
+  const [backdropOpacity] = useState(() => new Animated.Value(0));
+  const [dragY] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (visible) {
@@ -203,20 +203,22 @@ export default function ProfileScreen() {
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { onScroll } = useTabScroll();
   const { user, logout } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
   const { favoriteVenues } = useFavorites();
 
   const [realCheckInCount, setRealCheckInCount] = useState<number>(0);
 
   useFocusEffect(
     useCallback(() => {
-      if (!user?.id) {
+      if (!userId) {
         setRealCheckInCount(0);
         return;
       }
-      getMyCheckIns(user.id)
+      getMyCheckIns(userId)
         .then((items) => setRealCheckInCount(items.length))
         .catch(() => {});
-    }, [user?.id]),
+    }, [userId]),
   );
 
   // Age comes from the SECURITY DEFINER RPC get_current_user_age()
@@ -226,7 +228,7 @@ export default function ProfileScreen() {
   const [age, setAge] = useState<number | null>(null);
   useFocusEffect(
     useCallback(() => {
-      if (!user?.id) {
+      if (!userId) {
         setAge(null);
         return;
       }
@@ -235,7 +237,7 @@ export default function ProfileScreen() {
         if (!cancelled) setAge(a);
       });
       return () => { cancelled = true; };
-    }, [user?.id]),
+    }, [userId]),
   );
 
   // Only the friends count is displayed on Profile now — the tier
@@ -243,14 +245,14 @@ export default function ProfileScreen() {
   const [friendsCount, setFriendsCount] = useState<number>(0);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
     let cancelled = false;
-    getFriendsAndRequests(user.id).then(({ friends }) => {
+    getFriendsAndRequests(userId).then(({ friends }) => {
       if (cancelled) return;
       setFriendsCount(friends.length);
     });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [userId]);
 
   // No fabricated fallbacks — if the auth-derived record is briefly
   // unavailable, the row renders empty until it lands. Empty strings

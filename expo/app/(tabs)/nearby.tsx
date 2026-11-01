@@ -23,7 +23,7 @@ import {
   type NearbyVenue,
 } from '@/hooks/useNearbyVenues';
 import { SponsoredBadge } from '@/components/SponsoredBadge';
-import { NEARBY_RADIUS_M } from '@/services/venues';
+import { NEARBY_RADIUS_M, recordSponsoredOpen } from '@/services/venues';
 import {
   buildHappeningNowIndex,
   fetchHappyHoursHappeningNow,
@@ -31,7 +31,6 @@ import {
   type HappyHourNow,
 } from '@/services/happyHours';
 import { activityA11yLabel, formatActivity, hasReliableBusyness } from '@/types/venue';
-import { recordSponsoredOpen } from '@/services/venues';
 
 function NearbyCard({
   venue,
@@ -140,8 +139,9 @@ export default function NearbyScreen() {
   const { onScroll } = useTabScroll();
 
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
-  const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
-  const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(true);
+  // The last answer, tagged with the request it answers. Loading = the
+  // current request (location + Happy Hour filter) hasn't been answered yet.
+  const [loaded, setLoaded] = useState<{ key: string; venues: NearbyVenue[] } | null>(null);
   // Phase 6A-1: no client-side personalization state. pulze_discover_feed
   // applies the limit and then the 70/30 blend server-side, in that order --
   // which is exactly what this screen used to do by slicing and only then
@@ -158,24 +158,18 @@ export default function NearbyScreen() {
   const lat = userLocation?.latitude ?? null;
   const lng = userLocation?.longitude ?? null;
 
+  const requestKey = lat == null || lng == null ? null : `${lat},${lng},${showOnlyHappyHour}`;
+  const nearbyVenues = requestKey == null ? [] : loaded?.venues ?? [];
+  const isLoadingVenues = requestKey == null ? !hasResolved : loaded?.key !== requestKey;
+
   const loadVenues = useCallback(() => {
-    if (lat == null || lng == null) {
-      if (hasResolved) {
-        setNearbyVenues([]);
-        setIsLoadingVenues(false);
-      }
-      return;
-    }
-    setIsLoadingVenues(true);
+    if (lat == null || lng == null || requestKey == null) return;
     // Phase 6B: this screen renders SponsoredBadge on every card, so it may
     // receive disclosed placements. The Happy Hour filter is applied by the
     // SERVER (a hard filter, like category), so a client-side filter can never
     // drop or shift a sponsored row out of its disclosed position.
     getNearbyVenuesLive(lat, lng, 12, { placements: true, happyHourNow: showOnlyHappyHour }).then((venues) => {
-      if (isMountedRef.current) {
-        setNearbyVenues(venues);
-        setIsLoadingVenues(false);
-      }
+      if (isMountedRef.current) setLoaded({ key: requestKey, venues });
     });
     // Happy Hour Now runs in parallel over the same circle as the venue
     // list; a failure leaves the map empty and the filter falls back to
@@ -183,7 +177,7 @@ export default function NearbyScreen() {
     void fetchHappyHoursHappeningNow({ lat, lng, radiusM: NEARBY_RADIUS_M }).then((rows) => {
       if (isMountedRef.current) setHappeningNow(buildHappeningNowIndex(rows));
     });
-  }, [lat, lng, hasResolved, showOnlyHappyHour]);
+  }, [lat, lng, requestKey, showOnlyHappyHour]);
 
   // The server already ordered this list (organic_rank). Kept as a named
   // value so the happy-hour filter below reads the same way it did before;

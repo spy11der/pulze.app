@@ -31,15 +31,17 @@ export default function CrewScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
   const { onScroll } = useTabScroll();
 
   const [feedItems, setFeedItems] = useState<FriendCheckInFeedItem[]>([]);
 
   const loadFeed = useCallback(async () => {
-    if (!user?.id) return;
-    const items = await getCrewFeed(user.id);
+    if (!userId) return;
+    const items = await getCrewFeed(userId);
     setFeedItems(items);
-  }, [user?.id]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {

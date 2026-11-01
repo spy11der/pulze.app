@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MapPin, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -18,8 +18,17 @@ export function CityWelcome({ cityName, cityTagline }: CityWelcomeProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const [visible, setVisible] = useState<boolean>(false);
-  const slideAnim = useRef(new Animated.Value(-120)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(() => new Animated.Value(-120));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
+
+  // Declared before the effect that auto-dismisses after 6 s. Both animated
+  // values are stable for the component's life, so this callback is too.
+  const dismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: -120, duration: 250, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(() => setVisible(false));
+  }, [slideAnim, opacityAnim]);
 
   useEffect(() => {
     let mounted = true;
@@ -50,7 +59,7 @@ export function CityWelcome({ cityName, cityTagline }: CityWelcomeProps) {
 
         setTimeout(() => {
           if (!mounted) return;
-          dismissRef.current();
+          dismiss();
         }, 6000);
       } catch (e) {
         console.log('[CityWelcome] Error checking city:', e);
@@ -65,19 +74,8 @@ export function CityWelcome({ cityName, cityTagline }: CityWelcomeProps) {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [cityName, slideAnim, opacityAnim]);
+  }, [cityName, slideAnim, opacityAnim, dismiss]);
 
-  const dismissRef = useRef(() => {});
-  dismissRef.current = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, { toValue: -120, duration: 250, useNativeDriver: true }),
-      Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => setVisible(false));
-  };
-
-  const dismiss = useCallback(() => {
-    dismissRef.current();
-  }, []);
 
   if (!visible) return null;
 

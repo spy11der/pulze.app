@@ -32,19 +32,18 @@ export default function SavedVenuesScreen() {
   const { colors } = useTheme();
   const { favoriteVenues, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
 
-  const [rows, setRows] = useState<SavedRow[]>([]);
-  const [isResolving, setIsResolving] = useState<boolean>(false);
+  // The last resolved list, tagged with the favourites it was resolved from:
+  // resolving = the current favourites haven't been resolved yet (the previous
+  // rows stay on screen meanwhile, as before).
+  const [resolved, setResolved] = useState<{ source: typeof favoriteVenues; rows: SavedRow[] } | null>(null);
+  const rows = favoriteVenues.length === 0 ? [] : resolved?.rows ?? [];
+  const isResolving = favoriteVenues.length > 0 && resolved?.source !== favoriteVenues;
 
   useEffect(() => {
     let cancelled = false;
-    if (favoriteVenues.length === 0) {
-      setRows([]);
-      setIsResolving(false);
-      return;
-    }
-    setIsResolving(true);
+    if (favoriteVenues.length === 0) return;
     void (async () => {
-      const resolved = await Promise.all(
+      const lookups = await Promise.all(
         favoriteVenues.map(async (fav) => ({
           favId: fav.id,
           favName: fav.name,
@@ -55,8 +54,7 @@ export default function SavedVenuesScreen() {
       // Skip favourites the authoritative feed cannot resolve (a deactivated
       // or deleted venue) rather than showing placeholder content. Since 6A-1
       // this is a feed lookup, not a mock-catalogue match.
-      setRows(resolved.filter((r): r is SavedRow => r.venue !== null));
-      setIsResolving(false);
+      setResolved({ source: favoriteVenues, rows: lookups.filter((r): r is SavedRow => r.venue !== null) });
     })();
     return () => { cancelled = true; };
   }, [favoriteVenues]);

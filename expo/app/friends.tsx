@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -47,6 +47,8 @@ export default function FriendsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
 
   const [friends, setFriends] = useState<RealFriend[]>([]);
   const [requests, setRequests] = useState<RealFriendRequest[]>([]);
@@ -58,8 +60,8 @@ export default function FriendsScreen() {
   const [reportTarget, setReportTarget] = useState<{ id: string; label: string } | null>(null);
 
   const reload = useCallback(async () => {
-    if (!user?.id) return;
-    const snapshot = await getFriendsAndRequests(user.id);
+    if (!userId) return;
+    const snapshot = await getFriendsAndRequests(userId);
     if (!snapshot.loaded) {
       // Keep whatever was on screen; say it couldn't refresh.
       setStatus((prev) => (prev === 'ready' ? 'ready' : 'error'));
@@ -69,13 +71,13 @@ export default function FriendsScreen() {
     setRequests(snapshot.requests);
     setSent(snapshot.sent);
     setStatus('ready');
-  }, [user?.id]);
+  }, [userId]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  // Focus covers the first load too.
   // Back from another screen or from the background: refresh, since a
   // realtime event may have been missed while away.
   useFocusEffect(useCallback(() => { void reload(); }, [reload]));
-  useFriendshipChanges(user?.id, reload);
+  useFriendshipChanges(userId, reload);
 
   const run = useCallback(async (action: () => Promise<boolean>, failureTitle: string) => {
     const ok = await action();
@@ -99,7 +101,7 @@ export default function FriendsScreen() {
   }, [run]);
 
   const handleAddFriend = useCallback(async () => {
-    if (!user?.id || !addUsername.trim() || adding) return;
+    if (!userId || !addUsername.trim() || adding) return;
     setAdding(true);
     try {
       const target = await findUserByUsername(addUsername.trim());
@@ -107,11 +109,11 @@ export default function FriendsScreen() {
         Alert.alert('Not found', `No user @${addUsername.trim().replace(/^@/, '')}`);
         return;
       }
-      if (target.id === user.id) {
+      if (target.id === userId) {
         Alert.alert("That's you", "You can't send a friend request to yourself.");
         return;
       }
-      const result = await sendFriendRequest(user.id, target.id);
+      const result = await sendFriendRequest(userId, target.id);
       if (result.success) {
         setAddUsername('');
         void reload();
@@ -122,7 +124,7 @@ export default function FriendsScreen() {
     } finally {
       setAdding(false);
     }
-  }, [user?.id, addUsername, adding, reload]);
+  }, [userId, addUsername, adding, reload]);
 
   const handleToggleClose = useCallback(async (friend: RealFriend) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -143,7 +145,7 @@ export default function FriendsScreen() {
   }, [run]);
 
   const handleBlock = useCallback((otherId: string, name: string) => {
-    if (!user?.id) return;
+    if (!userId) return;
     Alert.alert(
       `Block ${name}?`,
       "They won't be able to send you friend requests, and you won't see each other's check-ins. Any friendship between you ends. They aren't notified.",
@@ -153,7 +155,7 @@ export default function FriendsScreen() {
           text: 'Block',
           style: 'destructive',
           onPress: async () => {
-            const result = await blockUser(user.id, otherId);
+            const result = await blockUser(userId, otherId);
             if (!result.ok) Alert.alert('Could not block', result.error);
             else void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             void reload();
@@ -161,7 +163,7 @@ export default function FriendsScreen() {
         },
       ],
     );
-  }, [user?.id, reload]);
+  }, [userId, reload]);
 
   const sheetActions = useMemo((): SheetAction[] => {
     if (!sheet) return [];
@@ -192,12 +194,12 @@ export default function FriendsScreen() {
     const innerCircle = friends.filter((f) => f.tier === 'inner_circle');
     const friendsList = friends.filter((f) => f.tier === 'friends');
 
-    const data: Array<{
+    const data: {
       title: string;
       data: RealFriend[];
       tier?: TierInfo;
       requests?: RealFriendRequest[];
-    }> = [];
+    }[] = [];
 
     // Requests stay contextual — only shown when someone actually
     // sent one. Friends and Inner Circle are always visible so the

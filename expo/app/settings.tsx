@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BarChart3,
@@ -38,11 +38,9 @@ import {
   X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
 import { getNotificationPreferences, setNotificationPreference, type NotificationPreferences } from '@/services/notifications';
 import { disablePushNotifications, enablePushNotifications, getPushEnabled } from '@/services/pushTokens';
 import { clearLocalCachesForUser, clearDeviceAccountBindings } from '@/services/localCleanup';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useTheme, type ThemeMode } from '@/providers/ThemeProvider';
 import { useBiometricAuth } from '@/providers/BiometricAuthProvider';
@@ -78,6 +76,8 @@ export default function SettingsScreen() {
   const { colors, isDark, mode, setThemeMode } = useTheme();
   const { biometricEnabled, biometricAvailable, biometricType, toggleBiometric } = useBiometricAuth();
   const { logout, user } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
   const router = useRouter();
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ checkInPrompt: true });
@@ -95,15 +95,15 @@ export default function SettingsScreen() {
   const [verifyBusy, setVerifyBusy] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
     let cancelled = false;
-    getLocationConsent(user.id).then((granted) => { if (!cancelled) setLocationConsentState(granted); });
+    getLocationConsent(userId).then((granted) => { if (!cancelled) setLocationConsentState(granted); });
     getMyPersonalizationConsent().then((granted) => { if (!cancelled) setPersonalizationConsentState(granted); });
     getMyCheckInVerificationConsent().then(({ granted }) => { if (!cancelled) setVerifyConsentState(granted); });
     getNotificationPreferences().then((prefs) => { if (!cancelled) setSocialPrefs(prefs); });
     getPushEnabled().then((on) => { if (!cancelled) setPushOn(on); });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [userId]);
 
   const togglePersonalizationConsent = useCallback(async () => {
     if (personalizationBusy) return;
@@ -142,7 +142,7 @@ export default function SettingsScreen() {
   const [locationBusy, setLocationBusy] = useState<boolean>(false);
 
   const toggleLocationConsent = useCallback(async () => {
-    if (!user?.id) return;
+    if (!userId) return;
     if (locationBusy) return;
     void Haptics.selectionAsync();
     const next = !locationConsent;
@@ -156,7 +156,7 @@ export default function SettingsScreen() {
         // then request permissions and start the background task. If
         // any step below fails we roll consent back so the persisted
         // state never claims monitoring is active when it isn't.
-        const persisted = await setLocationConsent(user.id, true);
+        const persisted = await setLocationConsent(userId, true);
         if (!persisted) {
           setLocationConsentState(false);
           Alert.alert('Could not update', 'Please try again.');
@@ -168,12 +168,12 @@ export default function SettingsScreen() {
         // just won't see the OS ping.
         await ensureNotificationPermission();
 
-        const result = await startGeofenceMonitoring(user.id);
+        const result = await startGeofenceMonitoring(userId);
         if (!result.started) {
           // Roll consent back so Settings never displays ON while
           // monitoring is actually off. Different reasons get
           // different copy so the user knows what to do.
-          await setLocationConsent(user.id, false);
+          await setLocationConsent(userId, false);
           setLocationConsentState(false);
           if (result.reason === 'foreground_denied' || result.reason === 'background_denied') {
             Alert.alert(
@@ -200,7 +200,7 @@ export default function SettingsScreen() {
         // the server still says ON due to the failure we couldn't
         // recover from) or by not starting (once the retry succeeds).
         await stopGeofenceMonitoring();
-        const persisted = await setLocationConsent(user.id, false);
+        const persisted = await setLocationConsent(userId, false);
         if (!persisted) {
           Alert.alert('Could not save', 'Location monitoring was stopped but the preference didn’t save. Please try again.');
         }
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
     } finally {
       setLocationBusy(false);
     }
-  }, [user?.id, locationConsent, locationBusy]);
+  }, [userId, locationConsent, locationBusy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -311,12 +311,12 @@ export default function SettingsScreen() {
   // Push: explained first, then the system prompt. Off removes this phone's
   // token, so nothing more is sent to it.
   const togglePush = useCallback(async () => {
-    if (!user?.id || pushBusy) return;
+    if (!userId || pushBusy) return;
     void Haptics.selectionAsync();
     if (pushOn) {
       setPushBusy(true);
       setPushOn(false);
-      if (!(await disablePushNotifications(user.id))) {
+      if (!(await disablePushNotifications(userId))) {
         setPushOn(true);
         Alert.alert("Couldn't update", 'Please try again.');
       }
@@ -333,7 +333,7 @@ export default function SettingsScreen() {
     });
     if (!proceed) return;
     setPushBusy(true);
-    const result = await enablePushNotifications(user.id);
+    const result = await enablePushNotifications(userId);
     setPushBusy(false);
     if (result.ok) {
       setPushOn(true);
@@ -349,18 +349,18 @@ export default function SettingsScreen() {
     } else {
       Alert.alert("Couldn't turn on push", 'Please try again.');
     }
-  }, [user?.id, pushBusy, pushOn]);
+  }, [userId, pushBusy, pushOn]);
 
   const updateSocialPref = useCallback(async (key: keyof NotificationPreferences) => {
-    if (!user?.id) return;
+    if (!userId) return;
     void Haptics.selectionAsync();
     const next = !socialPrefs[key];
     setSocialPrefs((prev) => ({ ...prev, [key]: next }));
-    if (!(await setNotificationPreference(user.id, key, next))) {
+    if (!(await setNotificationPreference(userId, key, next))) {
       setSocialPrefs((prev) => ({ ...prev, [key]: !next }));
       Alert.alert("Couldn't update", 'Please try again.');
     }
-  }, [socialPrefs, user?.id]);
+  }, [socialPrefs, userId]);
 
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -409,7 +409,7 @@ export default function SettingsScreen() {
                     }
                     // Capture the user id BEFORE the RPC so we can address
                     // per-user local keys after the auth row is gone.
-                    const uid = user?.id ?? null;
+                    const uid = userId ?? null;
                     // Server delete first — the SECURITY DEFINER RPC removes
                     // the auth row (cascading every user-scoped table) and
                     // the user's Storage objects in one transaction. Only
@@ -453,7 +453,7 @@ export default function SettingsScreen() {
                     onPress: async () => {
                       // Same order-of-ops as the iOS branch: server delete
                       // must succeed before we clear local state or log out.
-                      const uid = user?.id ?? null;
+                      const uid = userId ?? null;
                       const { error } = await supabase.rpc('delete_my_account');
                       if (error) {
                         console.log('[Settings] delete_my_account failed:', error.message);
@@ -476,7 +476,7 @@ export default function SettingsScreen() {
         },
       ]
     );
-  }, [logout]);
+  }, [logout, userId]);
 
   const BiometricIcon = biometricType === 'Face ID' ? ScanFace : Fingerprint;
 
@@ -581,7 +581,7 @@ export default function SettingsScreen() {
               <View style={styles.settingBody}>
                 <Text style={[styles.settingValue, { color: colors.text }]}>Location-based check-ins</Text>
                 <Text style={[styles.settingLabel, { color: colors.textMuted }]}>
-                  Lets Pulze detect when you're near a venue to suggest a check-in. Off by default.
+                  Lets Pulze detect when you’re near a venue to suggest a check-in. Off by default.
                 </Text>
               </View>
               <Switch
@@ -846,30 +846,6 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
-  );
-}
-
-function SettingRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Lock;
-  label: string;
-  value: string;
-}) {
-  const { colors, isDark } = useTheme();
-  return (
-    <View style={[styles.settingRow, { backgroundColor: colors.card }]}>
-      <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
-        <Icon color={colors.aqua} size={18} />
-      </View>
-      <View style={styles.settingBody}>
-        <Text style={[styles.settingLabel, { color: colors.textMuted }]}>{label}</Text>
-        <Text style={[styles.settingValue, { color: colors.text }]}>{value}</Text>
-      </View>
-      <ChevronDown color={colors.textSoft} size={16} />
     </View>
   );
 }

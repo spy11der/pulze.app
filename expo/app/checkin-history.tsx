@@ -27,16 +27,18 @@ export default function CheckinHistoryScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  // The id alone (not the whole user object) is what these callbacks depend on.
+  const userId = user?.id;
 
   const [checkIns, setCheckIns] = useState<FriendCheckInFeedItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const loadCheckIns = useCallback(async () => {
-    if (!user?.id) return;
-    const items = await getMyCheckIns(user.id);
+    if (!userId) return;
+    const items = await getMyCheckIns(userId);
     setCheckIns(items);
     setIsLoading(false);
-  }, [user?.id]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {

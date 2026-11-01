@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { clearStoredSession, supabase } from '@/services/supabase';
@@ -143,7 +143,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   // Resolve the avatar path stored in auth metadata to a signed URL.
   // The `avatars` bucket is private, so a raw `/object/public/...` URL

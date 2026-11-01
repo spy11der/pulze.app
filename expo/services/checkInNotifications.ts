@@ -58,6 +58,9 @@ export async function setupNotificationCategories(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('check-in', {
       name: 'Check-in Alerts',
+      // False positive below: AndroidImportance is a real runtime export
+      // (build/NotificationChannelManager.types.js `export var`) that eslint-plugin-import can't parse.
+      // eslint-disable-next-line import/namespace
       importance: Notifications.AndroidImportance.HIGH,
       sound: 'default',
       vibrationPattern: [0, 250, 250, 250],

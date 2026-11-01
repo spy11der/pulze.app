@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, StyleSheet, View, Text, Dimensions, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -12,17 +12,17 @@ const TOTAL_DURATION = 2800;
 export function PulseSplash({ onComplete }: PulseSplashProps) {
   const [visible, setVisible] = useState<boolean>(true);
 
-  const ring1Scale = useRef(new Animated.Value(0.8)).current;
-  const ring1Opacity = useRef(new Animated.Value(0)).current;
-  const ring2Scale = useRef(new Animated.Value(0.8)).current;
-  const ring2Opacity = useRef(new Animated.Value(0)).current;
-  const ring3Scale = useRef(new Animated.Value(0.8)).current;
-  const ring3Opacity = useRef(new Animated.Value(0)).current;
+  const [ring1Scale] = useState(() => new Animated.Value(0.8));
+  const [ring1Opacity] = useState(() => new Animated.Value(0));
+  const [ring2Scale] = useState(() => new Animated.Value(0.8));
+  const [ring2Opacity] = useState(() => new Animated.Value(0));
+  const [ring3Scale] = useState(() => new Animated.Value(0.8));
+  const [ring3Opacity] = useState(() => new Animated.Value(0));
 
-  const logoScale = useRef(new Animated.Value(1)).current;
-  const containerOpacity = useRef(new Animated.Value(1)).current;
-  const progressWidth = useRef(new Animated.Value(0)).current;
-  const wordmarkOpacity = useRef(new Animated.Value(0)).current;
+  const [logoScale] = useState(() => new Animated.Value(1));
+  const [containerOpacity] = useState(() => new Animated.Value(1));
+  const [progressWidth] = useState(() => new Animated.Value(0));
+  const [wordmarkOpacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const buildRingAnim = (scale: Animated.Value, opacity: Animated.Value) =>

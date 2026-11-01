@@ -91,13 +91,14 @@ export default function VenueDetailScreen() {
     return () => { cancelled = true; };
   }, [params.venueId]);
 
+  const loadedVenueId = venue?.id;
   useFocusEffect(
     useCallback(() => {
       if (!params.venueId) return;
-      if (venue?.id) {
-        void getRealCheckInCount(venue.id).then(setRealCheckInCount);
+      if (loadedVenueId) {
+        void getRealCheckInCount(loadedVenueId).then(setRealCheckInCount);
       }
-    }, [params.venueId, venue?.id])
+    }, [params.venueId, loadedVenueId])
   );
 
   // Happy hour: pull weekly schedule for this venue + now/upcoming for the

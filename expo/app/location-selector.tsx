@@ -39,6 +39,10 @@ export default function LocationSelectorScreen() {
   const [query, setQuery] = useState<string>('');
   const [nearbyVenues, setNearbyVenues] = useState<NearbyVenue[]>([]);
   const [searchResults, setSearchResults] = useState<NearbyVenue[]>([]);
+  const onQueryChange = useCallback((text: string) => {
+    setQuery(text);
+    if (text.trim().length === 0) setSearchResults([]);
+  }, []);
   const inputRef = useRef<TextInputInstance>(null);
   // Skip recording the same executed query twice in a row — pause,
   // resume-typing, and same-key-retap should collapse into one
@@ -53,7 +57,7 @@ export default function LocationSelectorScreen() {
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length === 0) {
-      setSearchResults([]);
+      // Results are cleared where the query is cleared (onQueryChange).
       lastRecordedQueryRef.current = '';
       return;
     }
@@ -176,9 +180,9 @@ export default function LocationSelectorScreen() {
   }, [userLocation, router, requestLocation]);
 
   const clearQuery = useCallback(() => {
-    setQuery('');
+    onQueryChange('');
     inputRef.current?.focus();
-  }, []);
+  }, [onQueryChange]);
 
   const renderVenueItem = useCallback(
     ({ item }: { item: NearbyVenue }) => {
@@ -223,7 +227,7 @@ export default function LocationSelectorScreen() {
             placeholder="Search venues..."
             placeholderTextColor={colors.textSoft}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={onQueryChange}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
@@ -278,7 +282,7 @@ export default function LocationSelectorScreen() {
             <View style={styles.emptyWrap}>
               <MapPin color={colors.textSoft} size={32} />
               <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                No venues match "{query}"
+                No venues match “{query}”
               </Text>
               <Text style={[styles.emptyHint, { color: colors.textSoft }]}>
                 Try a different name or use your current location
@@ -304,7 +308,7 @@ function VenueRow({
   showDistance: boolean;
   onPress: () => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const handlePressIn = useCallback(() => {
     Animated.timing(scaleAnim, {

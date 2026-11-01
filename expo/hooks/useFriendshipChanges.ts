@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/services/supabase';
 
 let instance = 0;
-import { supabase } from '@/services/supabase';
 
 /**
  * Calls onChange whenever one of MY friendships changes (a request arrives,

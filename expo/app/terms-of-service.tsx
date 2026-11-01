@@ -37,7 +37,7 @@ export default function TermsOfServiceScreen() {
 
         <Section title="1. Acceptance of Terms" colors={colors}>
           <Paragraph colors={colors}>
-            By downloading, installing, or using the Pulze mobile application ("App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App. We reserve the right to modify these Terms at any time, and your continued use of Pulze constitutes acceptance of any changes.
+            By downloading, installing, or using the Pulze mobile application (“App”), you agree to be bound by these Terms of Service (“Terms”). If you do not agree to these Terms, do not use the App. We reserve the right to modify these Terms at any time, and your continued use of Pulze constitutes acceptance of any changes.
           </Paragraph>
         </Section>
 
@@ -60,9 +60,9 @@ export default function TermsOfServiceScreen() {
           <BulletPoint colors={colors}>Post content that is illegal, harmful, threatening, abusive, harassing, defamatory, or otherwise objectionable.</BulletPoint>
           <BulletPoint colors={colors}>Impersonate any person or entity, or falsely represent your affiliation with any person or entity.</BulletPoint>
           <BulletPoint colors={colors}>Use the App to spam, phish, or distribute malware.</BulletPoint>
-          <BulletPoint colors={colors}>Attempt to gain unauthorized access to other users' accounts or our systems.</BulletPoint>
+          <BulletPoint colors={colors}>Attempt to gain unauthorized access to other users’ accounts or our systems.</BulletPoint>
           <BulletPoint colors={colors}>Use automated means (bots, scrapers) to access or interact with the App.</BulletPoint>
-          <BulletPoint colors={colors}>Interfere with or disrupt the App's functionality or servers.</BulletPoint>
+          <BulletPoint colors={colors}>Interfere with or disrupt the App’s functionality or servers.</BulletPoint>
           <BulletPoint colors={colors}>Violate any applicable local, state, national, or international law.</BulletPoint>
         </Section>
 
@@ -80,7 +80,7 @@ export default function TermsOfServiceScreen() {
           <BulletPoint colors={colors}>Ticket prices are set by event organizers and may include service fees.</BulletPoint>
           <BulletPoint colors={colors}>Pulze acts as a platform facilitating ticket sales and is not the event organizer.</BulletPoint>
           <BulletPoint colors={colors}>Refund policies are determined by individual event organizers. Pulze will facilitate refund requests where applicable.</BulletPoint>
-          <BulletPoint colors={colors}>Resale or transfer of tickets is subject to the event organizer's policies.</BulletPoint>
+          <BulletPoint colors={colors}>Resale or transfer of tickets is subject to the event organizer’s policies.</BulletPoint>
         </Section>
 
         <Section title="7. Wallet & Digital Assets" colors={colors}>
@@ -91,13 +91,13 @@ export default function TermsOfServiceScreen() {
 
         <Section title="8. Location Services" colors={colors}>
           <Paragraph colors={colors}>
-            Certain features of Pulze require access to your device's location services. You can control location permissions through your device settings and within the App. Pulze uses location data in accordance with our Privacy Policy.
+            Certain features of Pulze require access to your device’s location services. You can control location permissions through your device settings and within the App. Pulze uses location data in accordance with our Privacy Policy.
           </Paragraph>
         </Section>
 
         <Section title="9. Disclaimer of Warranties" colors={colors}>
           <Paragraph colors={colors}>
-            Pulze is provided "as is" and "as available" without warranties of any kind, either express or implied. We do not guarantee that the App will be uninterrupted, error-free, or free of viruses or other harmful components. Your use of Pulze is at your sole risk.
+            Pulze is provided “as is” and “as available” without warranties of any kind, either express or implied. We do not guarantee that the App will be uninterrupted, error-free, or free of viruses or other harmful components. Your use of Pulze is at your sole risk.
           </Paragraph>
         </Section>
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useCallback, useState } from 'react';
 import { Animated } from 'react-native';
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 
@@ -10,7 +10,7 @@ interface TabScrollContextValue {
 const TabScrollContext = createContext<TabScrollContextValue | null>(null);
 
 export function TabScrollProvider({ children }: { children: React.ReactNode }) {
-  const scrollAnim = useRef(new Animated.Value(1)).current;
+  const [scrollAnim] = useState(() => new Animated.Value(1));
   const lastScrollY = useRef(0);
   const scrollDir = useRef<'up' | 'down'>('up');
 

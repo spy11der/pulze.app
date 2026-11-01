@@ -33,15 +33,13 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState<string>(user?.username ?? '');
   const [bio, setBio] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
+  // Nothing to load without a signed-in user.
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(() => !!user?.id);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!user?.id) {
-      setIsLoadingProfile(false);
-      return;
-    }
+    if (!user?.id) return;
     let cancelled = false;
     const loadProfile = async () => {
       try {
