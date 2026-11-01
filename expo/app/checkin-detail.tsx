@@ -15,7 +15,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { type FriendCheckInFeedItem } from '@/mocks/friends';
 import { getCheckInById } from '@/services/crewFeed';
 import { resolveVenueById } from '@/services/venues';
-import type { PulzeVenue } from '@/types/venue';
+import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 export default function CheckinDetailScreen() {
   const { height: screenHeight } = useWindowDimensions();
@@ -84,7 +84,8 @@ export default function CheckinDetailScreen() {
     );
   }
 
-  const busynessPercent = venue ? `${venue.busynessPercent}%` : '';
+  // Only a figure backed by live signal; otherwise nothing (see hasReliableBusyness).
+  const busynessPercent = venue && hasReliableBusyness(venue) ? `${venue.busynessPercent}%` : '';
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -104,7 +105,7 @@ export default function CheckinDetailScreen() {
             )}
             <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>{checkIn.friendName}</Text>
             <View style={styles.spacer} />
-            {venue ? <Text style={styles.busynessPercent}>{busynessPercent}</Text> : null}
+            {busynessPercent ? <Text style={styles.busynessPercent}>{busynessPercent}</Text> : null}
           </View>
 
           <View style={styles.subRow}>

@@ -25,7 +25,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { getAllLiveVenues, getVenueActivitySummaries } from '@/services/venues';
 import { getFriendsAndRequests, acceptFriendRequest, declineFriendRequest, type RealFriendRequest } from '@/services/friends';
-import type { PulzeVenue } from '@/types/venue';
+import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 type TabKey = 'nearby' | 'friendRequests';
 
@@ -138,7 +138,8 @@ export default function ActivityScreen() {
   }, [loadFriendRequests]);
 
   const renderNearby: ListRenderItem<NearbyRow> = useCallback(({ item }) => {
-    const dotColor = getVibeDotColor(item.venue.busynessPercent);
+    // Without live signal the dot is neutral, not a red "dead" reading.
+    const dotColor = hasReliableBusyness(item.venue) ? getVibeDotColor(item.venue.busynessPercent) : colors.textMuted;
     return (
       <Pressable
         onPress={() => router.push({ pathname: '/venue-detail', params: { venueId: item.venue.id } })}

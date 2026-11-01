@@ -16,7 +16,7 @@ import { Bookmark, MapPin } from 'lucide-react-native';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useFavorites } from '@/providers/FavoritesProvider';
 import { resolveVenueById } from '@/services/venues';
-import { getBusynessLabel, getBusynessColor, type PulzeVenue } from '@/types/venue';
+import { getBusynessLabel, getBusynessColor, hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 
 // One saved venue: the AsyncStorage favorite (favId/favName) plus its
 // resolved, enriched PulzeVenue (real id, live busyness, photos).
@@ -101,12 +101,18 @@ export default function SavedVenuesScreen() {
               <Text style={[styles.venueMeta, { color: colors.textMuted }]} numberOfLines={1}>
                 {item.venue.typeLabel} · {item.venue.neighborhood}
               </Text>
-              <View style={styles.busyRow}>
-                <View style={[styles.busyDot, { backgroundColor: getBusynessColor(item.venue.busyness) }]} />
-                <Text style={[styles.busyText, { color: colors.textSoft }]}>
-                  {getBusynessLabel(item.venue.busyness)} · {item.venue.busynessPercent}%
-                </Text>
-              </View>
+              {hasReliableBusyness(item.venue) ? (
+                <View style={styles.busyRow}>
+                  <View style={[styles.busyDot, { backgroundColor: getBusynessColor(item.venue.busyness) }]} />
+                  <Text style={[styles.busyText, { color: colors.textSoft }]}>
+                    {getBusynessLabel(item.venue.busyness)} · {item.venue.busynessPercent}%
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.busyRow}>
+                  <Text style={[styles.busyText, { color: colors.textMuted }]}>No live data</Text>
+                </View>
+              )}
             </View>
           </Pressable>
           <Pressable
