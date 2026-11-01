@@ -214,6 +214,13 @@ Deno.serve(async (req) => {
     password,
   });
 
+  // A suspended account with the RIGHT password: say so, as email login does
+  // (Supabase Auth only reports a ban after the password checks out, so this
+  // reveals nothing to someone guessing).
+  if (signInErr && (signInErr as { code?: string }).code === 'user_banned') {
+    return jsonResponse({ error: 'account_suspended' }, 403);
+  }
+
   if (signInErr || !signInData?.session) {
     // signInErr.message can indicate 'Invalid login credentials' or
     // similar — deliberately do not forward it to the caller.

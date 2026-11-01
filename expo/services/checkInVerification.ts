@@ -3,8 +3,11 @@
 // venue's stored coordinates, accuracy, freshness); nothing here can mark a
 // check-in verified. No background tracking: this only runs when the user
 // taps to check in, and the coordinates are not stored by the server.
+import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { supabase } from '@/services/supabase';
+import { getMyCheckInVerificationConsent, setMyCheckInVerificationConsent } from '@/services/consent';
 
 export interface CheckInFix {
   latitude: number;
@@ -68,4 +71,43 @@ export async function submitCheckInVerification(checkInId: string, fix: CheckInF
   });
   if (error) console.log('[CheckInVerify] Not evaluated:', error.message);
   else if (__DEV__) console.log('[CheckInVerify] Outcome:', data);
+}
+
+const ASKED_KEY = 'pulze_checkin_verify_asked_v1';
+
+function ask(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Verify check-ins with your location?',
+      "When you check in, Pulze can take one location reading to confirm you're at the venue. "
+        + "Your exact location isn't stored, and nothing is collected in the background. "
+        + 'Only verified check-ins count toward live activity. You can change this in Settings.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Verify my check-ins', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
+/**
+ * Called when the user taps to check in. Returns a reading in progress when
+ * the user has given Pulze's check-in verification consent (asking once, the
+ * first time, before any OS prompt), otherwise undefined: the check-in is
+ * then an ordinary unverified check-in and no location is read at all.
+ */
+export async function verificationFixForCheckIn(userId: string): Promise<{ fix: Promise<CheckInFix | null> } | undefined> {
+  let { granted, decided } = await getMyCheckInVerificationConsent();
+  if (!granted && !decided) {
+    const askedKey = `${ASKED_KEY}_${userId}`;
+    if ((await AsyncStorage.getItem(askedKey)) === null) {
+      await AsyncStorage.setItem(askedKey, '1');
+      granted = await ask();
+      await setMyCheckInVerificationConsent(granted);
+    }
+  }
+  // Wrapped so awaiting the consent decision doesn't also wait for the GPS
+  // reading: the reading keeps running in parallel with the upload.
+  return granted ? { fix: captureCheckInFix() } : undefined;
 }

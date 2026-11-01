@@ -42,6 +42,7 @@ async function rowToFeedItem(row: any): Promise<FriendCheckInFeedItem> {
     photoUri: photoUri ?? '',
     timeAgo: getTimeAgo(row.created_at),
     caption: row.caption ?? undefined,
+    visibility: row.visibility === 'private' ? 'private' : 'public',
   };
 }
 
@@ -101,4 +102,19 @@ export async function getMyCheckIns(userId: string): Promise<FriendCheckInFeedIt
     return [];
   }
   return Promise.all((rows as any[]).map(rowToFeedItem));
+}
+
+// Someone else's check-ins, exactly as check_ins' read policy allows: public
+// ones, plus private ones only if they have put the viewer in their Inner
+// Circle. Opening a profile never reveals more than that.
+export async function getUserCheckIns(userId: string): Promise<FriendCheckInFeedItem[] | null> {
+  const { data: rows, error } = await supabase
+    .from('check_ins')
+    .select(CHECKIN_SELECT)
+    .eq('user_id', userId)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) return null;
+  return Promise.all(((rows ?? []) as any[]).map(rowToFeedItem));
 }

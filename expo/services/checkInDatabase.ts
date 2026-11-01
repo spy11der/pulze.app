@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
 import { submitCheckInVerification, type CheckInFix } from '@/services/checkInVerification';
@@ -43,6 +44,14 @@ export interface CheckInRecord {
   photoVisibility: boolean;
   capturedAt: string;
   quip: string | null;
+  /**
+   * The app's own id for this check-in, kept across retries. The server
+   * refuses a second check-in with the same id, so a retry after a dropped
+   * connection can never create a duplicate.
+   */
+  clientRef?: string;
+  /** Set once the photo is uploaded, so a retry reuses it instead of uploading again. */
+  uploadedPhotoPath?: string;
 }
 
 export type CheckInSyncStatus = 'synced' | 'pending' | 'failed';
@@ -109,8 +118,9 @@ async function deleteUploadedPhoto(path: string): Promise<void> {
 export async function insertCheckIn(
   input: CheckInRecord & { locationFix?: Promise<CheckInFix | null> },
 ): Promise<CheckInResult> {
-  const { locationFix, ...record } = input;
-  const localId = `ci_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const { locationFix, ...given } = input;
+  const record: CheckInRecord = { ...given, clientRef: given.clientRef ?? Crypto.randomUUID() };
+  const localId = record.clientRef as string;
 
   let realVenueId: string | null;
   try {
@@ -125,8 +135,8 @@ export async function insertCheckIn(
     return { id: localId, status: 'failed', error: 'Venue not recognized' };
   }
 
-  let photoPath: string | undefined;
-  if (record.photoUri) {
+  let photoPath: string | undefined = record.uploadedPhotoPath;
+  if (record.photoUri && !photoPath) {
     try {
       const uploaded = await uploadCheckInPhoto(record.userId, record.photoUri);
       photoPath = uploaded.path;
@@ -145,22 +155,43 @@ export async function insertCheckIn(
         photo_url: photoPath ?? null,
         caption: record.quip,
         visibility: record.photoVisibility ? 'public' : 'private',
+        client_ref: record.clientRef,
       } as any)
       .select('id')
       .single();
+
+    if (error && /check_in_already_recorded/.test(error.message)) {
+      // A retry of a check-in the server already has (the first attempt's
+      // response was lost). Not a failure: adopt the existing row. It is NOT
+      // verified now: a late upload is not fresh evidence of presence.
+      const { data: existing } = await supabase
+        .from('check_ins')
+        .select('id')
+        .eq('user_id', record.userId)
+        .eq('client_ref' as any, record.clientRef as string)
+        .maybeSingle();
+      if (existing) {
+        const id = (existing as { id: string }).id;
+        await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'synced', uploadedPhotoPath: photoPath });
+        return { id, status: 'synced' };
+      }
+    }
 
     if (error) {
       // Confirmed failure (server responded, rejected it) — the photo is
       // now orphaned, safe to clean up immediately.
       if (photoPath) await deleteUploadedPhoto(photoPath);
-      await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'failed' });
-      return { id: localId, status: 'failed', error: error.message };
+      await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'failed', uploadedPhotoPath: undefined });
+      if (/check_in_duplicate/.test(error.message)) {
+        return { id: localId, status: 'failed', error: 'You checked in here a few minutes ago.' };
+      }
+      return { id: localId, status: 'failed', error: 'The check-in could not be saved. Try again.' };
     }
 
     // The generated Supabase types don't cover this table — `.insert(as any)`
     // resolves the select result to `never`, so cast the returned row.
     const inserted = data as { id: string };
-    await storeLocalCheckIn({ ...record, id: inserted.id, syncStatus: 'synced' });
+    await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'synced', uploadedPhotoPath: photoPath });
     if (locationFix) {
       // Finishes in the background; the server rejects it if it arrives late.
       void locationFix.then((fix) => submitCheckInVerification(inserted.id, fix));
@@ -204,7 +235,10 @@ export async function getLocalCheckIns(): Promise<LocalCheckInEntry[]> {
 // designed but never implemented; it now is.
 export async function retryPendingCheckIns(): Promise<void> {
   const all = await getLocalCheckIns();
-  const outstanding = all.filter((c) => c.syncStatus !== 'synced');
+  // Only check-ins that never reached the server. One the server rejected
+  // ('failed': unknown venue, duplicate) would be rejected again; it stays in
+  // local storage rather than being retried forever or silently discarded.
+  const outstanding = all.filter((c) => c.syncStatus === 'pending');
   if (outstanding.length === 0) return;
 
   for (const entry of outstanding) {
@@ -217,12 +251,14 @@ export async function retryPendingCheckIns(): Promise<void> {
       photoVisibility: entry.photoVisibility,
       capturedAt: entry.capturedAt,
       quip: entry.quip,
+      // Same identity and photo as the first attempt: no duplicate row, no second upload.
+      clientRef: entry.clientRef ?? (UUID_RE.test(entry.id) ? entry.id : undefined),
+      uploadedPhotoPath: entry.uploadedPhotoPath,
     });
     console.log('[CheckIn DB] Retry result for', entry.id, ':', result.status);
 
-    if (result.status === 'synced') {
-      // insertCheckIn wrote a new entry under result.id; remove the stale
-      // pre-retry entry so it doesn't linger forever in local storage.
+    // Entries from before client refs keep their old local id; drop the stale one.
+    if (result.status === 'synced' && !UUID_RE.test(entry.id)) {
       await removeLocalCheckIn(entry.id);
     }
   }

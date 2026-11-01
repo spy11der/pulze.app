@@ -117,3 +117,8 @@ test('other signup failures keep their own message', () => {
   assert.equal(signupKind(new AuthWeakPasswordError('weak', 422, ['pwned'])), 'leaked_password');
   assert.equal(signupKind(new AuthRetryableFetchError('Network request failed', 0)), 'unknown');
 });
+
+test('a suspended account is told so, by email or by username', () => {
+  assert.equal(loginKind(new AuthApiError('User is banned', 400, 'user_banned')), 'account_suspended');
+  assert.equal(loginKind(new FunctionsHttpError(new Response('{}', { status: 403 }))), 'account_suspended');
+});

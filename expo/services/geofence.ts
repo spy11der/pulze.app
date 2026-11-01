@@ -44,7 +44,8 @@ if (Platform.OS !== 'web') {
       const userLoc = locations[locations.length - 1];
       if (!userLoc) return;
 
-      console.log('[Geofence] Background location update:', userLoc.coords.latitude, userLoc.coords.longitude);
+      // Coordinates are never logged.
+      if (__DEV__) console.log('[Geofence] Background location update');
 
       await checkProximityAndNotify(userLoc.coords.latitude, userLoc.coords.longitude);
     });
@@ -82,6 +83,14 @@ async function checkProximityAndNotify(lat: number, lng: number): Promise<void> 
     p_lat: lat,
     p_lng: lng,
   });
+
+  if (error && /location_consent_required/.test(error.message)) {
+    // Consent was withdrawn (perhaps on another device): stop collecting on
+    // this one too, instead of reading location the server will refuse.
+    console.log('[Geofence] Location consent withdrawn; stopping background monitoring');
+    await stopGeofenceMonitoring();
+    return;
+  }
 
   if (error) {
     // presence_rate_limited / presence_rate_limited_venue are expected under

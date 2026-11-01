@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Bell, MapPin, Search } from 'lucide-react-native';
+import { MapPin, Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { getDiscoverFeed, recordSponsoredOpen, type DiscoverFilters, type FeedArea, type FeedFacets } from '@/services/venues';
 import { SponsoredBadge } from '@/components/SponsoredBadge';
 import { CityWelcome } from '@/components/CityWelcome';
 import { useTheme } from '@/providers/ThemeProvider';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import {
@@ -260,12 +261,7 @@ export default function HomeScreen() {
             >
               <Search color={colors.textMuted} size={20} />
             </Pressable>
-            <Pressable
-              onPress={() => router.push('/activity')}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <Bell color={colors.textMuted} size={20} />
-            </Pressable>
+            <NotificationBell />
           </View>
         </View>
 

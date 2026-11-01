@@ -25,6 +25,8 @@ export interface FriendCheckInFeedItem {
   photoUri: string;
   timeAgo: string;
   caption?: string;
+  /** 'private' = Inner Circle only. */
+  visibility?: 'public' | 'private';
 }
 
 export const tierDefinitions: TierInfo[] = [

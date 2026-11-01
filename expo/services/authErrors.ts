@@ -44,6 +44,7 @@ export type AuthFlowErrorKind =
   | 'email_taken'
   | 'username_unavailable'
   | 'username_invalid'
+  | 'account_suspended'
   | 'unknown';
 
 export class AuthFlowError extends Error {
@@ -72,6 +73,7 @@ export const AUTH_FLOW_MESSAGES: Record<AuthFlowErrorKind, string> = {
   email_taken: 'An account with this email already exists. Log in, or use Forgot password.',
   username_unavailable: 'That username is taken. Choose a different one.',
   username_invalid: 'Usernames are 3 to 30 characters, with no spaces, @ or /.',
+  account_suspended: 'This account is suspended. You can sign in again when the suspension ends; any notice about it will be waiting in Notifications.',
   unknown: 'Something went wrong. Check your connection and try again.',
 };
 
@@ -134,12 +136,14 @@ export function toLoginError(error: unknown): AuthFlowError {
 
   if (error instanceof FunctionsHttpError) {
     const status = (error.context as { status?: number } | undefined)?.status;
+    if (status === 403) return authFlowError('account_suspended');
     if (status === 400 || status === 401) return authFlowError('invalid_credentials');
     if (status === 429) return authFlowError('rate_limited');
     return authFlowError('unknown');
   }
 
   if (isAuthApiError(error)) {
+    if (error.code === 'user_banned') return authFlowError('account_suspended');
     if (error.code === 'invalid_credentials') return authFlowError('invalid_credentials');
     if (error.status === 400 && /invalid login credentials/i.test(error.message)) {
       return authFlowError('invalid_credentials');

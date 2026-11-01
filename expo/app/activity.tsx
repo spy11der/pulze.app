@@ -13,6 +13,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
+  Bell,
   Camera,
   ChevronDown,
   MapPin,
@@ -26,10 +27,13 @@ import { useMapLocation } from '@/hooks/useMapLocation';
 import { getAllLiveVenues, getVenueActivitySummaries } from '@/services/venues';
 import { getFriendsAndRequests, acceptFriendRequest, declineFriendRequest, type RealFriendRequest } from '@/services/friends';
 import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
+import { NotificationsList } from '@/components/NotificationsList';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
-type TabKey = 'nearby' | 'friendRequests';
+type TabKey = 'notifications' | 'nearby' | 'friendRequests';
 
 const TAB_LABELS: Record<TabKey, string> = {
+  notifications: 'Notifications',
   nearby: 'Nearby',
   friendRequests: 'Friend requests',
 };
@@ -65,7 +69,9 @@ export default function ActivityScreen() {
   const nearLat = userLocation?.latitude ?? null;
   const nearLng = userLocation?.longitude ?? null;
 
-  const [tab, setTab] = useState<TabKey>('nearby');
+  // The bell opens here, so notifications come first.
+  const [tab, setTab] = useState<TabKey>('notifications');
+  const unreadNotifications = useUnreadNotificationCount(user?.id);
   const [friendReqs, setFriendReqs] = useState<RealFriendRequest[]>([]);
   const [nearby, setNearby] = useState<NearbyRow[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -105,9 +111,10 @@ export default function ActivityScreen() {
   }, [nearLat, nearLng]);
 
   const unreadByTab = useMemo<Record<TabKey, number>>(() => ({
+    notifications: unreadNotifications,
     nearby: 0,
     friendRequests: friendReqs.length,
-  }), [friendReqs]);
+  }), [friendReqs, unreadNotifications]);
 
   const hasAnyUnread = useMemo(() => Object.values(unreadByTab).some((v) => v > 0), [unreadByTab]);
   const chevronColor = hasAnyUnread ? colors.aqua : colors.textMuted;
@@ -216,6 +223,7 @@ export default function ActivityScreen() {
                   const tabIcons: Record<TabKey, React.ReactNode> = {
                     nearby: <Navigation color={iconColor} size={16} />,
                     friendRequests: <UserPlus color={iconColor} size={16} />,
+                    notifications: <Bell color={iconColor} size={16} />,
                   };
                   return (
                     <Pressable key={t} onPress={() => handleSelectTab(t)} style={({ pressed }) => [styles.dropdownItem, { backgroundColor: pressed ? colors.aqua + '0F' : 'transparent' }]} testID={`dropdown-${t}`}>
@@ -246,7 +254,9 @@ export default function ActivityScreen() {
         <Text style={[styles.manualCheckinText, { color: colors.aqua }]}>Check in manually</Text>
       </Pressable>
 
-      {tab === 'nearby' ? (
+      {tab === 'notifications' ? (
+        <NotificationsList userId={user?.id} bottomInset={insets.bottom} />
+      ) : tab === 'nearby' ? (
         <FlatList data={nearby} keyExtractor={(it) => it.venue.id} renderItem={renderNearby} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />
       ) : (
         <FlatList data={friendReqs} keyExtractor={(it) => it.friendshipId} renderItem={renderFriendReq} contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} ListEmptyComponent={empty} showsVerticalScrollIndicator={false} />

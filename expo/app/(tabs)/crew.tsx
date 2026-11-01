@@ -12,9 +12,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Bell } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useAuth } from '@/providers/AuthProvider';
 import { useTabScroll } from '@/providers/TabScrollProvider';
 import { type FriendCheckInFeedItem } from '@/mocks/friends';
@@ -105,9 +105,7 @@ export default function CrewScreen() {
             <Text style={[styles.brand, { color: colors.aqua }]}>PULZE</Text>
             <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Crew check-ins</Text>
           </View>
-          <Pressable onPress={() => router.push('/activity')} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-            <Bell color={colors.textMuted} size={20} />
-          </Pressable>
+          <NotificationBell />
         </View>
       </View>
 

@@ -186,7 +186,15 @@ export default function CheckinDetailScreen() {
                 </Text>
               </View>
             )}
-            <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>{checkIn.friendName}</Text>
+            <Pressable
+              onPress={() => router.push({ pathname: '/user/[id]', params: { id: checkIn.friendId } })}
+              accessibilityRole="link"
+              accessibilityLabel={`View ${checkIn.friendName}'s profile`}
+              style={styles.nameLink}
+              testID="checkin-author"
+            >
+              <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>{checkIn.friendName}</Text>
+            </Pressable>
             <View style={styles.spacer} />
             {busynessPercent ? <Text style={styles.busynessPercent}>{busynessPercent}</Text> : null}
             <Pressable
@@ -250,6 +258,7 @@ const styles = StyleSheet.create({
   avatarInitial: { fontSize: 18, fontWeight: '700' as const },
   friendName: { fontSize: 24, fontWeight: '700' as const, letterSpacing: -0.3, flexShrink: 1 },
   spacer: { flex: 1 },
+  nameLink: { flexShrink: 1 },
   menuBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   busynessPercent: { fontSize: 16, fontWeight: '700' as const, color: '#FFFFFF', letterSpacing: -0.2 },
   subRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 5 },

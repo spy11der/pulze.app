@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+let instance = 0;
 import { supabase } from '@/services/supabase';
 
 /**
@@ -8,6 +10,8 @@ import { supabase } from '@/services/supabase';
  * Bursts are coalesced; the channel is removed on unmount.
  */
 export function useFriendshipChanges(userId: string | undefined, onChange: () => void): void {
+  // Unique per mounted user of the hook: supabase-js does not share channels.
+  const [suffix] = useState(() => ++instance);
   const callback = useRef(onChange);
   useEffect(() => {
     callback.current = onChange;
@@ -17,7 +21,7 @@ export function useFriendshipChanges(userId: string | undefined, onChange: () =>
     if (!userId) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const channel = supabase
-      .channel(`friendships-${userId}`)
+      .channel(`friendships-${userId}-${suffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_friendships' }, () => {
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => callback.current(), 300);
@@ -27,5 +31,5 @@ export function useFriendshipChanges(userId: string | undefined, onChange: () =>
       if (timer) clearTimeout(timer);
       void supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, suffix]);
 }

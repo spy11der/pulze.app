@@ -9,10 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Ban, Check, ChevronRight, Flag, MapPin, MapPinOff, MoreHorizontal, ShieldCheck, Star, StarOff, UserMinus, UserPlus, X } from 'lucide-react-native';
+import { Ban, Check, ChevronRight, CircleUser, Flag, MapPin, MapPinOff, MoreHorizontal, ShieldCheck, Star, StarOff, UserMinus, UserPlus, X } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -44,6 +44,7 @@ const FAILED = 'Something went wrong. Check your connection and try again.';
 
 export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
 
@@ -167,12 +168,14 @@ export default function FriendsScreen() {
     if (sheet.kind === 'request') {
       const r = sheet.request;
       return [
+        { id: 'profile', label: 'View profile', icon: CircleUser, onPress: () => router.push({ pathname: '/user/[id]', params: { id: r.fromUserId } }) },
         { id: 'block', label: 'Block', subtitle: 'Decline and stop future requests', icon: Ban, destructive: true, onPress: () => handleBlock(r.fromUserId, r.displayName) },
         { id: 'report', label: 'Report profile', icon: Flag, destructive: true, onPress: () => setReportTarget({ id: r.fromUserId, label: `@${r.username}` }) },
       ];
     }
     const f = sheet.friend;
     return [
+      { id: 'profile', label: 'View profile', icon: CircleUser, onPress: () => router.push({ pathname: '/user/[id]', params: { id: f.userId } }) },
       f.iGrantClose
         ? { id: 'inner-off', label: 'Remove from your Inner Circle', subtitle: 'They stop seeing your private check-ins', icon: StarOff, onPress: () => void handleToggleClose(f) }
         : { id: 'inner-on', label: 'Add to your Inner Circle', subtitle: 'They can see your private check-ins', icon: Star, onPress: () => void handleToggleClose(f) },
@@ -183,7 +186,7 @@ export default function FriendsScreen() {
       { id: 'block', label: 'Block', icon: Ban, destructive: true, onPress: () => handleBlock(f.userId, f.displayName) },
       { id: 'report', label: 'Report profile', icon: Flag, destructive: true, onPress: () => setReportTarget({ id: f.userId, label: `@${f.username}` }) },
     ];
-  }, [sheet, handleBlock, handleToggleClose, handleToggleLocation, handleUnfriend]);
+  }, [sheet, router, handleBlock, handleToggleClose, handleToggleLocation, handleUnfriend]);
 
   const sections = useMemo(() => {
     const innerCircle = friends.filter((f) => f.tier === 'inner_circle');

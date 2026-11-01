@@ -31,6 +31,7 @@ export default function EditProfileScreen() {
 
   const [displayName, setDisplayName] = useState<string>(user?.displayName ?? '');
   const [username, setUsername] = useState<string>(user?.username ?? '');
+  const [bio, setBio] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
@@ -46,7 +47,7 @@ export default function EditProfileScreen() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('display_name, username')
+          .select('display_name, username, bio' as any)
           .eq('id', user.id)
           .maybeSingle();
 
@@ -56,11 +57,12 @@ export default function EditProfileScreen() {
           return;
         }
         const profile = data as
-          | { display_name: string | null; username: string | null }
+          | { display_name: string | null; username: string | null; bio?: string | null }
           | null;
         if (profile) {
           if (profile.display_name) setDisplayName(profile.display_name);
           if (profile.username) setUsername(profile.username);
+          setBio(profile.bio ?? '');
         }
       } catch (e) {
         console.log('[EditProfile] Load exception:', e);
@@ -84,13 +86,20 @@ export default function EditProfileScreen() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: displayName, username })
+        .update({ display_name: displayName, username, bio: bio.trim() || null } as any)
         .eq('id', user.id);
 
       if (error) {
         console.log('[EditProfile] Save error:', error.message);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Could not save', error.message);
+        // Plain sentences for the rules the server enforces.
+        const m = error.message ?? '';
+        const msg = error.code === '23505' ? 'That username is taken. Choose a different one.'
+          : /username_invalid/.test(m) ? 'Usernames are 3 to 30 characters, with no spaces, @ or /.'
+          : /display_name_too_long/.test(m) ? 'Keep your name to 60 characters.'
+          : /profiles_bio_length/.test(m) ? 'Keep your bio to 160 characters.'
+          : 'Something went wrong. Check your connection and try again.';
+        Alert.alert('Could not save', msg);
         setIsSaving(false);
         return;
       }
@@ -121,7 +130,7 @@ export default function EditProfileScreen() {
       Alert.alert('Could not save', message);
       setIsSaving(false);
     }
-  }, [displayName, username, router, user, isSaving]);
+  }, [displayName, username, bio, router, user, isSaving]);
 
   const handleCancel = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -343,6 +352,22 @@ export default function EditProfileScreen() {
             />
           </View>
 
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Bio</Text>
+            <TextInput
+              style={[styles.fieldInput, styles.bioInput, { backgroundColor: colors.card, color: colors.text }]}
+              value={bio}
+              onChangeText={(t) => setBio(t.slice(0, 160))}
+              placeholder="A line about you (optional)"
+              placeholderTextColor={colors.textSoft}
+              multiline
+              maxLength={160}
+              accessibilityLabel="Bio"
+              testID="edit-bio"
+            />
+            <Text style={[styles.fieldLabel, styles.bioCount, { color: colors.textSoft }]}>{bio.length}/160</Text>
+          </View>
+
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: isDark ? '#102E38' : '#E0F0F5' }]}>
@@ -460,4 +485,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  bioInput: { minHeight: 72, textAlignVertical: 'top' as const, paddingTop: 12 },
+  bioCount: { alignSelf: 'flex-end', marginTop: 4 },
 });

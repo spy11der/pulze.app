@@ -28,6 +28,7 @@ import {
   Moon,
   ScanFace,
   Share2,
+  ShieldCheck,
   Ban,
   ShieldAlert,
   Sun,
@@ -38,6 +39,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { getNotificationPreferences, setNotificationPreference, type NotificationPreferences } from '@/services/notifications';
 import { clearLocalCachesForUser, clearDeviceAccountBindings } from '@/services/localCleanup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -49,6 +51,8 @@ import {
   setLocationConsent,
   getMyPersonalizationConsent,
   setMyPersonalizationConsent,
+  getMyCheckInVerificationConsent,
+  setMyCheckInVerificationConsent,
 } from '@/services/consent';
 import { supabase } from '@/services/supabase';
 import {
@@ -76,18 +80,24 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({ checkInPrompt: true });
+  // Server-side preferences for the in-app notification center (B15).
+  const [socialPrefs, setSocialPrefs] = useState<NotificationPreferences>({ friend_requests: true, friend_accepted: true, inner_circle_check_ins: true });
   const [locationConsent, setLocationConsentState] = useState<boolean>(false);
   // Personalization consent (Batch 4B). Separate from demographic
   // analytics + location + location-based check-ins. Default OFF
   // unless the persisted flag is already true.
   const [personalizationConsent, setPersonalizationConsentState] = useState<boolean>(false);
   const [personalizationBusy, setPersonalizationBusy] = useState<boolean>(false);
+  const [verifyConsent, setVerifyConsentState] = useState<boolean>(false);
+  const [verifyBusy, setVerifyBusy] = useState<boolean>(false);
 
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     getLocationConsent(user.id).then((granted) => { if (!cancelled) setLocationConsentState(granted); });
     getMyPersonalizationConsent().then((granted) => { if (!cancelled) setPersonalizationConsentState(granted); });
+    getMyCheckInVerificationConsent().then(({ granted }) => { if (!cancelled) setVerifyConsentState(granted); });
+    getNotificationPreferences().then((prefs) => { if (!cancelled) setSocialPrefs(prefs); });
     return () => { cancelled = true; };
   }, [user?.id]);
 
@@ -108,6 +118,22 @@ export default function SettingsScreen() {
     }
     setPersonalizationBusy(false);
   }, [personalizationBusy, personalizationConsent]);
+
+  // Same optimistic pattern. Turning it off stops verification readings at
+  // once; check-ins keep working, unverified.
+  const toggleVerifyConsent = useCallback(async () => {
+    if (verifyBusy) return;
+    void Haptics.selectionAsync();
+    const next = !verifyConsent;
+    setVerifyBusy(true);
+    setVerifyConsentState(next);
+    const ok = await setMyCheckInVerificationConsent(next);
+    if (!ok) {
+      setVerifyConsentState(!next);
+      Alert.alert("Couldn't update", 'Please try again.');
+    }
+    setVerifyBusy(false);
+  }, [verifyBusy, verifyConsent]);
 
   const [locationBusy, setLocationBusy] = useState<boolean>(false);
 
@@ -278,6 +304,17 @@ export default function SettingsScreen() {
     }
   }, [notifPrefs]);
 
+  const updateSocialPref = useCallback(async (key: keyof NotificationPreferences) => {
+    if (!user?.id) return;
+    void Haptics.selectionAsync();
+    const next = !socialPrefs[key];
+    setSocialPrefs((prev) => ({ ...prev, [key]: next }));
+    if (!(await setNotificationPreference(user.id, key, next))) {
+      setSocialPrefs((prev) => ({ ...prev, [key]: !next }));
+      Alert.alert("Couldn't update", 'Please try again.');
+    }
+  }, [socialPrefs, user?.id]);
+
   const handleToggleBiometric = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggleBiometric();
@@ -443,7 +480,7 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Notifications</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>
-            When you arrive at a venue, Pulze can ping you to snap a check-in photo.
+            What shows up in your notifications. Venue check-in prompts are phone alerts when you arrive somewhere.
           </Text>
           <View style={styles.preferenceList}>
             <NotifToggleRow
@@ -453,7 +490,31 @@ export default function SettingsScreen() {
               onToggle={() => updateNotif('checkInPrompt')}
               testID="notif-checkin-prompt"
             />
+            <NotifToggleRow
+              icon={BellRing}
+              label="Friend requests"
+              value={socialPrefs.friend_requests}
+              onToggle={() => void updateSocialPref('friend_requests')}
+              testID="notif-friend-requests"
+            />
+            <NotifToggleRow
+              icon={BellRing}
+              label="Accepted friend requests"
+              value={socialPrefs.friend_accepted}
+              onToggle={() => void updateSocialPref('friend_accepted')}
+              testID="notif-friend-accepted"
+            />
+            <NotifToggleRow
+              icon={BellRing}
+              label="Inner Circle check-ins"
+              value={socialPrefs.inner_circle_check_ins}
+              onToggle={() => void updateSocialPref('inner_circle_check_ins')}
+              testID="notif-inner-circle"
+            />
           </View>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSoft }]}>
+            Notices about your account (warnings, removed content, suspensions) are always shown.
+          </Text>
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -475,6 +536,26 @@ export default function SettingsScreen() {
                 disabled={locationBusy}
                 trackColor={{ false: colors.border, true: colors.aqua }}
                 testID="switch-location-consent"
+              />
+            </View>
+
+            <View style={[styles.radioRow, { backgroundColor: colors.card, borderColor: 'transparent' }]} testID="pref-verify-consent">
+              <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                <ShieldCheck color={colors.aqua} size={18} />
+              </View>
+              <View style={styles.settingBody}>
+                <Text style={[styles.settingValue, { color: colors.text }]}>Verify my check-ins with location</Text>
+                <Text style={[styles.settingLabel, { color: colors.textMuted }]}>
+                  One location reading when you check in, to confirm you&apos;re at the venue. Your exact location isn&apos;t stored, and nothing is collected in the background. Off by default.
+                </Text>
+              </View>
+              <Switch
+                value={verifyConsent}
+                onValueChange={toggleVerifyConsent}
+                disabled={verifyBusy}
+                trackColor={{ false: colors.border, true: colors.aqua }}
+                accessibilityLabel="Verify my check-ins with location"
+                testID="switch-verify-consent"
               />
             </View>
 

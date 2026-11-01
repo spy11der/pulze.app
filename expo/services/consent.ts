@@ -63,3 +63,35 @@ export async function setMyPersonalizationConsent(granted: boolean): Promise<boo
   }
   return true;
 }
+
+
+// -----------------------------
+// Check-in verification consent (B13)
+// -----------------------------
+//
+// A purpose of its own: ONE foreground location reading when the user checks
+// in, so the server can verify the check-in. Separate from the background
+// "Location-based check-ins" consent above; neither implies the other. The
+// server refuses to look at a reading without it (outcome 'no_consent').
+
+export async function getMyCheckInVerificationConsent(): Promise<{ granted: boolean; decided: boolean }> {
+  const { data, error } = await supabase
+    .from('user_consent_states')
+    .select('consent_check_in_verification, check_in_verification_consent_at' as any)
+    .maybeSingle();
+  if (error) {
+    console.log('[Consent] getMyCheckInVerificationConsent error:', error.message);
+    return { granted: false, decided: true }; // unknown: don't prompt, don't collect
+  }
+  const row = data as { consent_check_in_verification?: boolean } | null;
+  return { granted: !!row?.consent_check_in_verification, decided: row !== null && row?.consent_check_in_verification !== undefined };
+}
+
+export async function setMyCheckInVerificationConsent(granted: boolean): Promise<boolean> {
+  const { error } = await (supabase.rpc as any)('set_my_check_in_verification_consent', { p_granted: granted });
+  if (error) {
+    console.log('[Consent] setMyCheckInVerificationConsent error:', error.message);
+    return false;
+  }
+  return true;
+}

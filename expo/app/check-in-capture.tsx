@@ -29,7 +29,7 @@ import { PanGestureHandler, PinchGestureHandler, TapGestureHandler, State } from
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { insertCheckIn } from '@/services/checkInDatabase';
-import { captureCheckInFix } from '@/services/checkInVerification';
+import { verificationFixForCheckIn } from '@/services/checkInVerification';
 import { getQuip } from '@/utils/quips';
 import type { VenueType } from '@/types/venue';
 
@@ -295,8 +295,9 @@ export default function CheckInCaptureScreen() {
     const userId = user?.id ?? 'unknown';
 
     const result = await insertCheckIn({
-      // Started now, in parallel with the upload: one fresh reading.
-      locationFix: captureCheckInFix(),
+      // Only with Pulze's verification consent (asked once) and OS permission:
+      // one fresh reading, taken in parallel with the upload.
+      locationFix: (await verificationFixForCheckIn(userId))?.fix,
       userId,
       venueId: params.venueId ?? '',
       venueName,
@@ -319,8 +320,9 @@ export default function CheckInCaptureScreen() {
 
     const userId = user?.id ?? 'unknown';
     const result = await insertCheckIn({
-      // Started now, in parallel with the upload: one fresh reading.
-      locationFix: captureCheckInFix(),
+      // Only with Pulze's verification consent (asked once) and OS permission:
+      // one fresh reading, taken in parallel with the upload.
+      locationFix: (await verificationFixForCheckIn(userId))?.fix,
       userId,
       venueId: params.venueId ?? '',
       venueName,
@@ -342,8 +344,9 @@ export default function CheckInCaptureScreen() {
 
     const userId = user?.id ?? 'unknown';
     const result = await insertCheckIn({
-      // Started now, in parallel with the upload: one fresh reading.
-      locationFix: captureCheckInFix(),
+      // Only with Pulze's verification consent (asked once) and OS permission:
+      // one fresh reading, taken in parallel with the upload.
+      locationFix: (await verificationFixForCheckIn(userId))?.fix,
       userId,
       venueId: params.venueId ?? '',
       venueName,
