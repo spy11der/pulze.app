@@ -232,6 +232,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   ): Promise<SignupResult> => {
     console.log('[Auth] Signup attempt for', username);
 
+    // Ask first, so a taken name gets a clear answer instead of a failed
+    // signup. If the check itself can't run (offline, or a backend without
+    // username_available), signUp below still refuses a taken name.
+    // username_available isn't in the generated Supabase types yet, so cast.
+    const { data: availability } = await (supabase.rpc as any)('username_available', { p_username: username });
+    if (availability === 'taken') throw authFlowError('username_unavailable');
+    if (availability === 'invalid') throw authFlowError('username_invalid');
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

@@ -108,6 +108,8 @@ test('signup explains a registered email or a taken username', () => {
   assert.equal(signupKind(new AuthApiError('User already registered', 422, 'user_already_exists')), 'email_taken');
   assert.equal(signupKind(new AuthApiError('Database error saving new user', 500, 'unexpected_failure')), 'username_unavailable');
   assert.equal(signupKind(new AuthApiError('Database error saving new user', 500, undefined)), 'username_unavailable');
+  // supabase-js 2.110+: a 5xx arrives as AuthRetryableFetchError
+  assert.equal(signupKind(new AuthRetryableFetchError('Database error saving new user', 500)), 'username_unavailable');
 });
 
 test('other signup failures keep their own message', () => {

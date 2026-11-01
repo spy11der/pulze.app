@@ -43,6 +43,7 @@ export type AuthFlowErrorKind =
   | 'invalid_credentials'
   | 'email_taken'
   | 'username_unavailable'
+  | 'username_invalid'
   | 'unknown';
 
 export class AuthFlowError extends Error {
@@ -70,6 +71,7 @@ export const AUTH_FLOW_MESSAGES: Record<AuthFlowErrorKind, string> = {
   invalid_credentials: 'Invalid email/username or password',
   email_taken: 'An account with this email already exists. Log in, or use Forgot password.',
   username_unavailable: 'That username is taken. Choose a different one.',
+  username_invalid: 'Usernames are 3 to 30 characters, with no spaces, @ or /.',
   unknown: 'Something went wrong. Check your connection and try again.',
 };
 
@@ -162,13 +164,15 @@ export function toLoginError(error: unknown): AuthFlowError {
 export function toSignupError(error: unknown): AuthFlowError {
   if (error instanceof AuthFlowError) return error;
 
-  if (isAuthApiError(error)) {
-    if (error.code === 'user_already_exists' || error.code === 'email_exists') {
-      return authFlowError('email_taken');
-    }
-    if (error.code === 'unexpected_failure' || /database error saving new user/i.test(error.message)) {
-      return authFlowError('username_unavailable');
-    }
+  if (isAuthApiError(error) && (error.code === 'user_already_exists' || error.code === 'email_exists')) {
+    return authFlowError('email_taken');
+  }
+  // supabase-js 2.110+ reports any 5xx as AuthRetryableFetchError, not
+  // AuthApiError, so match the trigger failure by status and message.
+  const e = error as { status?: number; code?: string; message?: string } | null;
+  if (e && e.status === 500
+      && (e.code === 'unexpected_failure' || /database error saving new user/i.test(e.message ?? ''))) {
+    return authFlowError('username_unavailable');
   }
 
   const mapped = toAuthFlowError(error);
