@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Pressable,
@@ -15,6 +16,7 @@ import { Camera, MapPin } from 'lucide-react-native';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { getMyCheckIns } from '@/services/crewFeed';
+import { deleteMyCheckIn } from '@/services/safety';
 import type { FriendCheckInFeedItem } from '@/mocks/friends';
 
 const NUM_COLUMNS = 3;
@@ -50,10 +52,33 @@ export default function CheckinHistoryScreen() {
     [router],
   );
 
+  // Long-press deletes; the tile disappears at once and comes back if the
+  // server refuses.
+  const handleItemLongPress = useCallback((item: FriendCheckInFeedItem) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Delete check-in?', `Your check-in at ${item.venueName} and its photo will be removed for everyone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setCheckIns((prev) => prev.filter((c) => c.id !== item.id));
+          const result = await deleteMyCheckIn(item.id);
+          if (!result.ok) {
+            Alert.alert('Could not delete', result.error);
+            void loadCheckIns();
+          }
+        },
+      },
+    ]);
+  }, [loadCheckIns]);
+
   const renderItem = useCallback(
     ({ item }: { item: FriendCheckInFeedItem }) => (
       <Pressable
         onPress={() => handleItemPress(item)}
+        onLongPress={() => handleItemLongPress(item)}
+        accessibilityHint="Long press to delete"
         style={({ pressed }) => [styles.tile, pressed && { opacity: 0.8 }]}
       >
         {item.photoUri ? (
@@ -68,7 +93,7 @@ export default function CheckinHistoryScreen() {
         </View>
       </Pressable>
     ),
-    [colors, isDark, handleItemPress],
+    [colors, isDark, handleItemPress, handleItemLongPress],
   );
 
   const keyExtractor = useCallback((item: FriendCheckInFeedItem) => item.id, []);

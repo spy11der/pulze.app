@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
+import { submitCheckInVerification, type CheckInFix } from '@/services/checkInVerification';
 
 const DEDUP_CACHE_KEY = 'pulze_geofence_dedup';
 const DEDUP_WINDOW_MS = 15 * 60 * 1000;
@@ -99,7 +100,16 @@ async function deleteUploadedPhoto(path: string): Promise<void> {
   }
 }
 
-export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResult> {
+/**
+ * locationFix: a reading started when the user tapped to check in. It is used
+ * only if this call creates the check-in on the server right now; a check-in
+ * queued offline and uploaded later is never verified (a late upload is not
+ * fresh evidence of presence), so the retry path passes none.
+ */
+export async function insertCheckIn(
+  input: CheckInRecord & { locationFix?: Promise<CheckInFix | null> },
+): Promise<CheckInResult> {
+  const { locationFix, ...record } = input;
   const localId = `ci_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   let realVenueId: string | null;
@@ -151,6 +161,10 @@ export async function insertCheckIn(record: CheckInRecord): Promise<CheckInResul
     // resolves the select result to `never`, so cast the returned row.
     const inserted = data as { id: string };
     await storeLocalCheckIn({ ...record, id: inserted.id, syncStatus: 'synced' });
+    if (locationFix) {
+      // Finishes in the background; the server rejects it if it arrives late.
+      void locationFix.then((fix) => submitCheckInVerification(inserted.id, fix));
+    }
     return { id: inserted.id, status: 'synced' };
   } catch (e) {
     // Ambiguous — network dropped between request and response, insert may

@@ -49,6 +49,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: 'Back', headerTransparent: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="friends" options={{ presentation: 'card' }} />
+      <Stack.Screen name="blocked-users" options={{ presentation: 'card' }} />
       <Stack.Screen name="checkin-history" options={{ presentation: 'card' }} />
       <Stack.Screen name="saved-venues" options={{ presentation: 'card' }} />
       <Stack.Screen name="settings" options={{ presentation: 'card' }} />

@@ -28,6 +28,7 @@ import {
   Moon,
   ScanFace,
   Share2,
+  Ban,
   ShieldAlert,
   Sun,
   Trash2,
@@ -495,6 +496,21 @@ export default function SettingsScreen() {
                 testID="switch-personalization-consent"
               />
             </View>
+
+            <Pressable
+              onPress={() => router.push('/blocked-users')}
+              style={({ pressed }) => [styles.legalRow, { backgroundColor: colors.card }, pressed && styles.btnPressed]}
+              testID="blocked-users-row"
+            >
+              <View style={[styles.settingIcon, { backgroundColor: isDark ? 'rgba(53, 212, 207, 0.12)' : 'rgba(26, 168, 163, 0.08)' }]}>
+                <Ban color={colors.aqua} size={18} />
+              </View>
+              <View style={styles.settingBody}>
+                <Text style={[styles.settingValue, { color: colors.text }]}>Blocked accounts</Text>
+                <Text style={[styles.settingLabel, { color: colors.textMuted }]}>See and unblock people you blocked</Text>
+              </View>
+              <ChevronDown color={colors.textSoft} size={16} style={{ transform: [{ rotate: '-90deg' }] }} />
+            </Pressable>
           </View>
         </View>
 

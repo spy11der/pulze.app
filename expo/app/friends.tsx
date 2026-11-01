@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   SectionList,
@@ -8,10 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Check, ChevronRight, ShieldCheck, Star, UserPlus, X } from 'lucide-react-native';
+import { Ban, Check, ChevronRight, Flag, MapPin, MapPinOff, MoreHorizontal, ShieldCheck, Star, StarOff, UserMinus, UserPlus, X } from 'lucide-react-native';
 
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
@@ -24,77 +25,165 @@ import {
   declineFriendRequest,
   unfriend,
   setCloseFriend,
+  setLocationSharing,
   type RealFriend,
   type RealFriendRequest,
+  type SentFriendRequest,
 } from '@/services/friends';
+import { blockUser } from '@/services/safety';
+import { ActionSheet, type SheetAction } from '@/components/ActionSheet';
+import { ReportSheet } from '@/components/ReportSheet';
+import { useFriendshipChanges } from '@/hooks/useFriendshipChanges';
+
+// Someone the action sheet is about: a friend or the sender of a request.
+type SheetTarget =
+  | { kind: 'friend'; friend: RealFriend }
+  | { kind: 'request'; request: RealFriendRequest };
+
+const FAILED = 'Something went wrong. Check your connection and try again.';
 
 export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
 
   const [friends, setFriends] = useState<RealFriend[]>([]);
   const [requests, setRequests] = useState<RealFriendRequest[]>([]);
+  const [sent, setSent] = useState<SentFriendRequest[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [addUsername, setAddUsername] = useState<string>('');
+  const [adding, setAdding] = useState<boolean>(false);
+  const [sheet, setSheet] = useState<SheetTarget | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ id: string; label: string } | null>(null);
 
   const reload = useCallback(async () => {
     if (!user?.id) return;
-    const { friends, requests } = await getFriendsAndRequests(user.id);
-    setFriends(friends);
-    setRequests(requests);
+    const snapshot = await getFriendsAndRequests(user.id);
+    if (!snapshot.loaded) {
+      // Keep whatever was on screen; say it couldn't refresh.
+      setStatus((prev) => (prev === 'ready' ? 'ready' : 'error'));
+      return;
+    }
+    setFriends(snapshot.friends);
+    setRequests(snapshot.requests);
+    setSent(snapshot.sent);
+    setStatus('ready');
   }, [user?.id]);
 
   useEffect(() => { void reload(); }, [reload]);
+  // Back from another screen or from the background: refresh, since a
+  // realtime event may have been missed while away.
+  useFocusEffect(useCallback(() => { void reload(); }, [reload]));
+  useFriendshipChanges(user?.id, reload);
+
+  const run = useCallback(async (action: () => Promise<boolean>, failureTitle: string) => {
+    const ok = await action();
+    if (!ok) Alert.alert(failureTitle, FAILED);
+    void reload();
+  }, [reload]);
 
   const handleAcceptRequest = useCallback(async (request: RealFriendRequest) => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const ok = await acceptFriendRequest(request.friendshipId);
-    if (ok) void reload();
-  }, [reload]);
+    await run(() => acceptFriendRequest(request.friendshipId), 'Could not accept request');
+  }, [run]);
 
   const handleDeclineRequest = useCallback(async (request: RealFriendRequest) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const ok = await declineFriendRequest(request.friendshipId);
-    if (ok) void reload();
-  }, [reload]);
+    await run(() => declineFriendRequest(request.friendshipId), 'Could not decline request');
+  }, [run]);
+
+  const handleCancelSent = useCallback(async (request: SentFriendRequest) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await run(() => declineFriendRequest(request.friendshipId), 'Could not cancel request');
+  }, [run]);
 
   const handleAddFriend = useCallback(async () => {
-    if (!user?.id || !addUsername.trim()) return;
-    const target = await findUserByUsername(addUsername.trim());
-    if (!target) {
-      Alert.alert('Not found', `No user @${addUsername.trim()}`);
-      return;
+    if (!user?.id || !addUsername.trim() || adding) return;
+    setAdding(true);
+    try {
+      const target = await findUserByUsername(addUsername.trim());
+      if (!target) {
+        Alert.alert('Not found', `No user @${addUsername.trim().replace(/^@/, '')}`);
+        return;
+      }
+      if (target.id === user.id) {
+        Alert.alert("That's you", "You can't send a friend request to yourself.");
+        return;
+      }
+      const result = await sendFriendRequest(user.id, target.id);
+      if (result.success) {
+        setAddUsername('');
+        void reload();
+        Alert.alert('Sent', `Friend request sent to ${target.displayName}`);
+      } else {
+        Alert.alert('Could not send request', result.error);
+      }
+    } finally {
+      setAdding(false);
     }
-    const result = await sendFriendRequest(user.id, target.id);
-    if (result.success) {
-      setAddUsername('');
-      Alert.alert('Sent', `Friend request sent to ${target.displayName}`);
-    } else {
-      Alert.alert('Could not send request', result.error);
-    }
-  }, [user?.id, addUsername]);
+  }, [user?.id, addUsername, adding, reload]);
 
   const handleToggleClose = useCallback(async (friend: RealFriend) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const ok = await setCloseFriend(friend.friendshipId, friend.isMeA, !friend.iGrantClose);
-    if (ok) void reload();
-  }, [reload]);
+    await run(() => setCloseFriend(friend.friendshipId, friend.isMeA, !friend.iGrantClose), 'Could not update Inner Circle');
+  }, [run]);
 
-  const handleUnfriend = useCallback(async (friend: RealFriend) => {
+  const handleToggleLocation = useCallback(async (friend: RealFriend) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await run(() => setLocationSharing(friend.friendshipId, friend.isMeA, !friend.iShareLocation), 'Could not update location sharing');
+  }, [run]);
+
+  const handleUnfriend = useCallback((friend: RealFriend) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert('Remove friend', `Remove ${friend.displayName} from your friends?`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          const ok = await unfriend(friend.friendshipId);
-          if (ok) void reload();
-        },
-      },
+      { text: 'Remove', style: 'destructive', onPress: () => void run(() => unfriend(friend.friendshipId), 'Could not remove friend') },
     ]);
-  }, [reload]);
+  }, [run]);
+
+  const handleBlock = useCallback((otherId: string, name: string) => {
+    if (!user?.id) return;
+    Alert.alert(
+      `Block ${name}?`,
+      "They won't be able to send you friend requests, and you won't see each other's check-ins. Any friendship between you ends. They aren't notified.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await blockUser(user.id, otherId);
+            if (!result.ok) Alert.alert('Could not block', result.error);
+            else void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void reload();
+          },
+        },
+      ],
+    );
+  }, [user?.id, reload]);
+
+  const sheetActions = useMemo((): SheetAction[] => {
+    if (!sheet) return [];
+    if (sheet.kind === 'request') {
+      const r = sheet.request;
+      return [
+        { id: 'block', label: 'Block', subtitle: 'Decline and stop future requests', icon: Ban, destructive: true, onPress: () => handleBlock(r.fromUserId, r.displayName) },
+        { id: 'report', label: 'Report profile', icon: Flag, destructive: true, onPress: () => setReportTarget({ id: r.fromUserId, label: `@${r.username}` }) },
+      ];
+    }
+    const f = sheet.friend;
+    return [
+      f.iGrantClose
+        ? { id: 'inner-off', label: 'Remove from your Inner Circle', subtitle: 'They stop seeing your private check-ins', icon: StarOff, onPress: () => void handleToggleClose(f) }
+        : { id: 'inner-on', label: 'Add to your Inner Circle', subtitle: 'They can see your private check-ins', icon: Star, onPress: () => void handleToggleClose(f) },
+      f.iShareLocation
+        ? { id: 'loc-off', label: 'Stop sharing where you are', subtitle: "They won't see you at venues", icon: MapPinOff, onPress: () => void handleToggleLocation(f) }
+        : { id: 'loc-on', label: 'Share where you are', subtitle: 'They see you at a venue when you are there', icon: MapPin, onPress: () => void handleToggleLocation(f) },
+      { id: 'remove', label: 'Remove friend', icon: UserMinus, destructive: true, onPress: () => handleUnfriend(f) },
+      { id: 'block', label: 'Block', icon: Ban, destructive: true, onPress: () => handleBlock(f.userId, f.displayName) },
+      { id: 'report', label: 'Report profile', icon: Flag, destructive: true, onPress: () => setReportTarget({ id: f.userId, label: `@${f.username}` }) },
+    ];
+  }, [sheet, handleBlock, handleToggleClose, handleToggleLocation, handleUnfriend]);
 
   const sections = useMemo(() => {
     const innerCircle = friends.filter((f) => f.tier === 'inner_circle');
@@ -115,6 +204,9 @@ export default function FriendsScreen() {
     if (requests.length > 0) {
       data.push({ title: 'Requests', data: [], requests });
     }
+    if (sent.length > 0) {
+      data.push({ title: 'Sent', data: [] });
+    }
     data.push({
       title: 'Friends',
       data: friendsList,
@@ -126,12 +218,12 @@ export default function FriendsScreen() {
       tier: tierDefinitions.find((t) => t.id === 'inner_circle'),
     });
     return data;
-  }, [friends, requests]);
+  }, [friends, requests, sent]);
 
   const handleFriendPress = useCallback((friend: RealFriend) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    handleToggleClose(friend);
-  }, [handleToggleClose]);
+    setSheet({ kind: 'friend', friend });
+  }, []);
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: { title: string; data: RealFriend[]; tier?: TierInfo; requests?: RealFriendRequest[] } }) => {
@@ -160,7 +252,9 @@ export default function FriendsScreen() {
       return (
         <Pressable
           onPress={() => handleFriendPress(item)}
-          onLongPress={() => handleUnfriend(item)}
+          onLongPress={() => handleFriendPress(item)}
+          accessibilityHint="Opens Inner Circle, location sharing, remove, block and report options"
+          testID={`friend-${item.username}`}
           style={({ pressed }) => [styles.friendRow, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}
         >
           <View style={[styles.avatar, { backgroundColor: tierInfo.color + '20', borderColor: tierInfo.color + '30' }]}>
@@ -170,6 +264,8 @@ export default function FriendsScreen() {
             <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>{item.displayName}</Text>
             <View style={styles.friendMeta}>
               <Text style={[styles.friendHandle, { color: colors.textMuted }]}>@{item.username}</Text>
+              {item.iGrantClose ? <Text style={[styles.friendHandle, { color: colors.textSoft }]}>· in your Inner Circle</Text> : null}
+              {item.iShareLocation ? <MapPin color={colors.textSoft} size={11} /> : null}
             </View>
           </View>
           <View style={styles.friendTrailing}>
@@ -182,7 +278,7 @@ export default function FriendsScreen() {
         </Pressable>
       );
     },
-    [colors, handleFriendPress, handleUnfriend],
+    [colors, handleFriendPress],
   );
 
   const renderRequest = useCallback(
@@ -201,14 +297,36 @@ export default function FriendsScreen() {
             <Pressable onPress={() => handleAcceptRequest(request)} style={({ pressed }) => [styles.requestBtn, { backgroundColor: colors.aqua, opacity: pressed ? 0.8 : 1 }]}>
               <Check color="#fff" size={14} />
             </Pressable>
-            <Pressable onPress={() => handleDeclineRequest(request)} style={({ pressed }) => [styles.requestBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', opacity: pressed ? 0.7 : 1 }]}>
+            <Pressable onPress={() => handleDeclineRequest(request)} accessibilityLabel={`Decline ${request.displayName}`} style={({ pressed }) => [styles.requestBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', opacity: pressed ? 0.7 : 1 }]}>
               <X color={colors.textMuted} size={14} />
+            </Pressable>
+            <Pressable onPress={() => setSheet({ kind: 'request', request })} accessibilityLabel={`More options for ${request.displayName}`} style={({ pressed }) => [styles.requestBtn, { opacity: pressed ? 0.7 : 1 }]}>
+              <MoreHorizontal color={colors.textMuted} size={16} />
             </Pressable>
           </View>
         </View>
       );
     },
     [colors, isDark, handleAcceptRequest, handleDeclineRequest],
+  );
+
+  const renderSent = useCallback(
+    (request: SentFriendRequest) => (
+      <View key={request.friendshipId} style={[styles.requestRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.friendInfo}>
+          <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>{request.displayName}</Text>
+          <Text style={[styles.friendHandle, { color: colors.textMuted }]}>@{request.username} · waiting for them</Text>
+        </View>
+        <Pressable
+          onPress={() => void handleCancelSent(request)}
+          style={({ pressed }) => [styles.cancelBtn, { borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+          testID={`cancel-request-${request.username}`}
+        >
+          <Text style={[styles.cancelText, { color: colors.textMuted }]}>Cancel</Text>
+        </Pressable>
+      </View>
+    ),
+    [colors, handleCancelSent],
   );
 
   const renderItem = useCallback(({ item }: { item: RealFriend }) => renderFriend({ item }), [renderFriend]);
@@ -219,11 +337,12 @@ export default function FriendsScreen() {
   const renderSectionFooter = useCallback(
     ({ section }: { section: { title: string; data: RealFriend[] } }) => {
       if (section.title === 'Requests') return null;
+      if (section.title === 'Sent') return <View style={styles.requestsBlock}>{sent.map(renderSent)}</View>;
       if (section.data.length > 0) return null;
       const message =
         section.title === 'Friends'
           ? 'No friends yet. Add someone by username above.'
-          : 'No one in your inner circle yet. Tap a friend to add them.';
+          : 'Nobody has added you to their Inner Circle yet. Tap a friend to add them to yours.';
       return (
         <View
           style={[
@@ -235,14 +354,22 @@ export default function FriendsScreen() {
         </View>
       );
     },
-    [colors],
+    [colors, sent, renderSent],
   );
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Friends', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.text, headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 } }} />
+      {status === 'loading' ? (
+        <View style={styles.centered}><ActivityIndicator color={colors.aqua} /></View>
+      ) : null}
+      {status === 'error' ? (
+        <Pressable onPress={() => { setStatus('loading'); void reload(); }} style={[styles.emptyStateRow, styles.errorRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>Couldn&apos;t load your friends. Tap to try again.</Text>
+        </Pressable>
+      ) : null}
       <SectionList
-        sections={sections}
+        sections={status === 'ready' ? sections : []}
         keyExtractor={(item) => ('friendshipId' in item ? item.friendshipId : '')}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
@@ -271,8 +398,8 @@ export default function FriendsScreen() {
                   onSubmitEditing={handleAddFriend}
                 />
               </View>
-              <Pressable onPress={handleAddFriend} style={[styles.addFriendBtn, { backgroundColor: colors.aqua }]}>
-                <UserPlus color="#fff" size={18} />
+              <Pressable onPress={handleAddFriend} disabled={adding} accessibilityLabel="Send friend request" style={[styles.addFriendBtn, { backgroundColor: colors.aqua, opacity: adding ? 0.6 : 1 }]}>
+                {adding ? <ActivityIndicator color="#fff" /> : <UserPlus color="#fff" size={18} />}
               </Pressable>
             </View>
           </View>
@@ -281,6 +408,21 @@ export default function FriendsScreen() {
           if (requests.length === 0) return null;
           return <View style={styles.requestsBlock}>{requests.map(renderRequest)}</View>;
         }}
+      />
+      <ActionSheet
+        visible={sheet !== null}
+        onClose={() => setSheet(null)}
+        title={sheet?.kind === 'friend' ? sheet.friend.displayName : sheet?.kind === 'request' ? sheet.request.displayName : ''}
+        subtitle={sheet?.kind === 'friend' ? `@${sheet.friend.username}` : sheet?.kind === 'request' ? `@${sheet.request.username} sent you a request` : undefined}
+        actions={sheetActions}
+        testID="friend-actions"
+      />
+      <ReportSheet
+        visible={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        kind="user"
+        targetId={reportTarget?.id ?? ''}
+        targetLabel={reportTarget?.label ?? ''}
       />
     </View>
   );
@@ -312,6 +454,10 @@ const styles = StyleSheet.create({
   requestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
   requestActions: { flexDirection: 'row', gap: 8 },
   requestBtn: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cancelBtn: { paddingHorizontal: 12, height: 32, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { fontSize: 13, fontWeight: '600' as const },
+  centered: { paddingTop: 40, alignItems: 'center' },
+  errorRow: { margin: 16 },
   friendRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
   avatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   avatarText: { fontSize: 16, fontWeight: '700' as const },

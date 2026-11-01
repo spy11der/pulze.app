@@ -43,7 +43,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Pulze uses your location to show nearby venues, calculate distance, and support location-based check-ins.",
+          "locationWhenInUsePermission": "Pulze uses your location to show nearby venues and distances, and when you check in, to confirm you are at the venue. Your exact location is not stored.",
           "locationAlwaysAndWhenInUsePermission": "If you enable Location-based check-ins, Pulze uses your location in the background to detect when you arrive at participating venues and prompt you to check in.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,

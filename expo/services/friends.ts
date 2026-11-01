@@ -10,6 +10,7 @@ export interface RealFriend {
   avatarUrl: string | null;
   tier: FriendTier; // what THEY grant ME (drives what I can see of theirs)
   iGrantClose: boolean; // what I grant THEM (my own outbound setting)
+  iShareLocation: boolean; // whether my presence at venues is shared with them (my own setting)
   isMeA: boolean; // whether I'm user_id_a in the underlying row (needed for setCloseFriend)
 }
 
@@ -22,18 +23,33 @@ export interface RealFriendRequest {
   requestedAt: string;
 }
 
-export async function getFriendsAndRequests(
-  currentUserId: string,
-): Promise<{ friends: RealFriend[]; requests: RealFriendRequest[] }> {
+/** A request I sent that hasn't been answered. */
+export interface SentFriendRequest {
+  friendshipId: string;
+  toUserId: string;
+  username: string;
+  displayName: string;
+  sentAt: string;
+}
+
+export interface FriendsSnapshot {
+  friends: RealFriend[];
+  requests: RealFriendRequest[];
+  sent: SentFriendRequest[];
+  /** False when the list couldn't be loaded (offline, server error): not the same as "no friends". */
+  loaded: boolean;
+}
+
+export async function getFriendsAndRequests(currentUserId: string): Promise<FriendsSnapshot> {
   const { data: rows, error } = await supabase
     .from('user_friendships')
     .select('*')
     .or(`user_id_a.eq.${currentUserId},user_id_b.eq.${currentUserId}`);
 
-  if (error || !rows) return { friends: [], requests: [] };
+  if (error || !rows) return { friends: [], requests: [], sent: [], loaded: false };
 
   const otherIds = (rows as any[]).map((f) => (f.user_id_a === currentUserId ? f.user_id_b : f.user_id_a));
-  if (otherIds.length === 0) return { friends: [], requests: [] };
+  if (otherIds.length === 0) return { friends: [], requests: [], sent: [], loaded: true };
 
   const { data: profiles } = await supabase
     .from('profiles')
@@ -43,6 +59,7 @@ export async function getFriendsAndRequests(
 
   const friends: RealFriend[] = [];
   const requests: RealFriendRequest[] = [];
+  const sent: SentFriendRequest[] = [];
 
   for (const f of rows as any[]) {
     const isMeA = f.user_id_a === currentUserId;
@@ -60,6 +77,14 @@ export async function getFriendsAndRequests(
           avatarUrl: profile.avatar_url,
           requestedAt: f.created_at,
         });
+      } else {
+        sent.push({
+          friendshipId: f.id,
+          toUserId: otherId,
+          username: profile.username,
+          displayName: profile.display_name ?? profile.username,
+          sentAt: f.created_at,
+        });
       }
       continue;
     }
@@ -75,19 +100,25 @@ export async function getFriendsAndRequests(
         avatarUrl: profile.avatar_url,
         tier: grantsMeClose ? 'inner_circle' : 'friends',
         iGrantClose,
+        // Column naming: A owns allow_a_sees_b_location (see update_friend_presence).
+        iShareLocation: Boolean(isMeA ? f.allow_a_sees_b_location : f.allow_b_sees_a_location),
         isMeA,
       });
     }
   }
 
-  return { friends, requests };
+  return { friends, requests, sent, loaded: true };
 }
 
 export async function findUserByUsername(username: string): Promise<{ id: string; displayName: string } | null> {
+  // ilike gives the case-insensitive match usernames need, but treats % and _
+  // as wildcards: escape them so "a_b" can't match "axb".
+  const exact = username.trim().replace(/^@/, '').replace(/[\\%_]/g, (c) => `\\${c}`);
+  if (!exact) return null;
   const { data } = await supabase
     .from('profiles')
     .select('id, display_name, username')
-    .ilike('username', username.trim())
+    .ilike('username', exact)
     .maybeSingle();
   if (!data) return null;
   return { id: (data as any).id, displayName: (data as any).display_name ?? (data as any).username };
@@ -101,7 +132,10 @@ export async function sendFriendRequest(currentUserId: string, targetUserId: str
     status: 'pending',
   } as any);
   if (error) {
-    return { success: false, error: error.code === '23505' ? 'Already friends or request pending' : error.message };
+    if (error.code === '23505') return { success: false, error: 'Already friends or request pending' };
+    // A block in either direction. Deliberately doesn't say who blocked whom.
+    if (/friend_request_not_allowed/.test(error.message)) return { success: false, error: "You can't send a friend request to this person." };
+    return { success: false, error: 'Something went wrong. Check your connection and try again.' };
   }
   return { success: true };
 }
@@ -129,6 +163,14 @@ export async function unfriend(friendshipId: string): Promise<boolean> {
 // already returned on the RealFriend object, don't recompute it.
 export async function setCloseFriend(friendshipId: string, isMeA: boolean, value: boolean): Promise<boolean> {
   const field = isMeA ? 'is_close_friend_a_to_b' : 'is_close_friend_b_to_a';
+  const { error } = await (supabase.from('user_friendships') as any).update({ [field]: value }).eq('id', friendshipId);
+  return !error;
+}
+
+// Sets MY OWN location-sharing grant toward this friend: whether they see me
+// at a venue (friend presence). Same ownership rule as setCloseFriend.
+export async function setLocationSharing(friendshipId: string, isMeA: boolean, value: boolean): Promise<boolean> {
+  const field = isMeA ? 'allow_a_sees_b_location' : 'allow_b_sees_a_location';
   const { error } = await (supabase.from('user_friendships') as any).update({ [field]: value }).eq('id', friendshipId);
   return !error;
 }
