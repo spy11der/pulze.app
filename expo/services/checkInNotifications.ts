@@ -34,8 +34,10 @@ export async function setupNotificationCategories(): Promise<void> {
       },
     },
     {
+      // Records a private check-in without a photo, so it says so. (It was
+      // labelled "Skip", which read as declining.)
       identifier: 'skip',
-      buttonTitle: 'Skip',
+      buttonTitle: 'Check in, no photo',
       options: {
         opensAppToForeground: false,
         isDestructive: false,
@@ -128,10 +130,12 @@ export function registerNotificationResponseHandler(
       return;
     }
 
-    if (actionId === 'lets_go') {
+    // Tapping the prompt itself opens the camera screen, like "Let's go":
+    // nothing is posted until the user chooses there. Only the explicit
+    // "Check in, no photo" action records a check-in from the prompt.
+    if (actionId === 'lets_go' || actionId === Notifications.DEFAULT_ACTION_IDENTIFIER) {
       onLetsGo(data as Record<string, unknown>);
-    } else if (actionId === 'skip' || actionId === Notifications.DEFAULT_ACTION_IDENTIFIER) {
-      // Skip or notification body tapped without action = skip
+    } else if (actionId === 'skip') {
       onSkip(data as Record<string, unknown>);
     }
   });

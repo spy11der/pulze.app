@@ -165,7 +165,7 @@ function AppContent() {
             });
           }
         },
-        // "Skip" — silent check-in
+        // "Check in, no photo": a private check-in without a photo
         async (data) => {
           console.log('[App] Notification: Skip', data);
           const venueId = data.venueId as string;

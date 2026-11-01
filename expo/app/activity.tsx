@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -138,13 +139,15 @@ export default function ActivityScreen() {
   const handleAcceptFriend = useCallback(async (request: RealFriendRequest) => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const ok = await acceptFriendRequest(request.friendshipId);
-    if (ok) void loadFriendRequests();
+    if (!ok) Alert.alert('Could not accept request', 'Something went wrong. Check your connection and try again.');
+    void loadFriendRequests();
   }, [loadFriendRequests]);
 
   const handleDeclineFriend = useCallback(async (request: RealFriendRequest) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const ok = await declineFriendRequest(request.friendshipId);
-    if (ok) void loadFriendRequests();
+    if (!ok) Alert.alert('Could not decline request', 'Something went wrong. Check your connection and try again.');
+    void loadFriendRequests();
   }, [loadFriendRequests]);
 
   const renderNearby: ListRenderItem<NearbyRow> = useCallback(({ item }) => {
