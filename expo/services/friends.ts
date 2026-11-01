@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase';
+import { literalLikePattern } from '@/utils/likePattern';
 
 export type FriendTier = 'friends' | 'inner_circle';
 
@@ -111,9 +112,7 @@ export async function getFriendsAndRequests(currentUserId: string): Promise<Frie
 }
 
 export async function findUserByUsername(username: string): Promise<{ id: string; displayName: string } | null> {
-  // ilike gives the case-insensitive match usernames need, but treats % and _
-  // as wildcards: escape them so "a_b" can't match "axb".
-  const exact = username.trim().replace(/^@/, '').replace(/[\\%_]/g, (c) => `\\${c}`);
+  const exact = literalLikePattern(username.trim().replace(/^@/, ''));
   if (!exact) return null;
   const { data } = await supabase
     .from('profiles')
