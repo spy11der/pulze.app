@@ -55,6 +55,15 @@ export function checkBuildEnv(env) {
   }
   if (keyRef && ref !== 'none' && keyRef !== ref) errors.push('the anon key belongs to a different project than the URL');
 
+  // @rork-ai/toolkit-sdk's Metro transformer wraps the root layout in a
+  // PostHog provider that switches on only when both of these are inlined.
+  // The iOS privacy answers (no third-party analytics) depend on it staying off.
+  if (profile !== 'development') {
+    for (const name of ['EXPO_PUBLIC_PROJECT_ID', 'EXPO_PUBLIC_TEAM_ID']) {
+      if (env[name]) errors.push(`${name} is set: it would turn on Rork's third-party analytics`);
+    }
+  }
+
   return { profile, ref, errors };
 }
 

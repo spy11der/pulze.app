@@ -41,6 +41,12 @@ test('development needs no baked-in env; production may use production', () => {
   assert.deepEqual(checkBuildEnv(env('production', OTHER)).errors, []);
 });
 
+test("Rork's analytics variables are refused outside development", () => {
+  const e = { ...env('testflight', STAGING), EXPO_PUBLIC_PROJECT_ID: 'x', EXPO_PUBLIC_TEAM_ID: 'y' };
+  assert.equal(checkBuildEnv(e).errors.filter((m) => m.includes('analytics')).length, 2);
+  assert.deepEqual(checkBuildEnv({ ...e, EAS_BUILD_PROFILE: 'development' }).errors, []);
+});
+
 test('errors never contain the key itself', () => {
   const key = fakeKey(OTHER);
   const { errors } = checkBuildEnv(env('testflight', STAGING, key));
