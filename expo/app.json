@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pulze.app",
+      "bundleIdentifier": "pro.pulze.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",

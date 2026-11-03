@@ -61,7 +61,16 @@ eas build --profile production --platform ios
 eas build --profile production --platform android
 ```
 
-Bundle ID / package: `com.pulze.app`. Deep-link scheme: `pulze://`.
+iOS bundle ID: `pro.pulze.app` (`com.pulze.app` belongs to another developer's
+published app). Android package: `com.pulze.app`. Deep-link scheme: `pulze://`.
+
+### Internal TestFlight (staging backend)
+
+1. Once: `bash scripts/eas-env-staging.sh` (staging URL + anon key into the EAS
+   "preview" environment).
+2. `npx eas-cli build --profile testflight --platform ios` (store-signed;
+   `scripts/eas-build-guard.mjs` refuses the build unless it targets staging).
+3. `npx eas-cli submit --profile testflight --platform ios --latest`.
 
 ## Contributing
 
