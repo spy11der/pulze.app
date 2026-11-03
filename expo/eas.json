@@ -12,6 +12,13 @@
       "distribution": "internal",
       "environment": "preview"
     },
+    "ios-simulator": {
+      "distribution": "internal",
+      "environment": "preview",
+      "ios": {
+        "simulator": true
+      }
+    },
     "testflight": {
       "distribution": "store",
       "environment": "preview",
