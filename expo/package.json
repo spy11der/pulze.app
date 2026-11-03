@@ -6,7 +6,9 @@
     "start": "bunx rork start -p cmdj1v6lzdnu5omh92zbm",
     "start-web": "bunx rork start -p cmdj1v6lzdnu5omh92zbm --web",
     "start-web-dev": "DEBUG=expo* bunx rork start -p cmdj1v6lzdnu5omh92zbm --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "eas-build-pre-install": "node scripts/eas-build-guard.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

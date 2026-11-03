@@ -14,8 +14,10 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Pulze needs camera access so you can take photos for your posts and profile.",
         "NSPhotoLibraryUsageDescription": "Pulze needs photo library access so you can share photos in your posts and update your profile picture.",
-        "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app."
-      }
+        "NSFaceIDUsageDescription": "Pulze uses Face ID to securely lock the app.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -44,11 +46,20 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Pulze uses your location to show nearby venues and distances, and when you check in, to confirm you are at the venue. Your exact location is not stored.",
+          "locationAlwaysPermission": "If you enable Location-based check-ins, Pulze uses your location in the background to detect when you arrive at participating venues and prompt you to check in.",
           "locationAlwaysAndWhenInUsePermission": "If you enable Location-based check-ins, Pulze uses your location in the background to detect when you arrive at participating venues and prompt you to check in.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true,
           "motionUsagePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Pulze needs camera access so you can take photos for your posts and profile.",
+          "microphonePermission": "Pulze takes photos only and does not record audio.",
+          "recordAudioAndroid": false
         }
       ],
       [
