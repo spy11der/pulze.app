@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { supabase } from '@/services/supabase';
 import { getMyCheckInVerificationConsent, setMyCheckInVerificationConsent } from '@/services/consent';
+import { reportCheckInFailure } from '@/services/checkInErrors';
 
 export interface CheckInFix {
   latitude: number;
@@ -69,7 +70,7 @@ export async function submitCheckInVerification(checkInId: string, fix: CheckInF
     p_fix_at: fix?.takenAt ?? null,
     p_is_mocked: fix?.mocked ?? false,
   });
-  if (error) console.log('[CheckInVerify] Not evaluated:', error.message);
+  if (error) void reportCheckInFailure('verify', error);
   else if (__DEV__) console.log('[CheckInVerify] Outcome:', data);
 }
 

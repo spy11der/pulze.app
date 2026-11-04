@@ -26,6 +26,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useMapLocation } from '@/hooks/useMapLocation';
 import { getAllLiveVenues, getVenueActivitySummaries } from '@/services/venues';
+import { manualCheckInUnavailable } from '@/services/checkInOutcome';
 import { getFriendsAndRequests, acceptFriendRequest, declineFriendRequest, type RealFriendRequest } from '@/services/friends';
 import { hasReliableBusyness, type PulzeVenue } from '@/types/venue';
 import { NotificationsList } from '@/components/NotificationsList';
@@ -77,6 +78,10 @@ export default function ActivityScreen() {
   const unreadNotifications = useUnreadNotificationCount(userId);
   const [friendReqs, setFriendReqs] = useState<RealFriendRequest[]>([]);
   const [nearby, setNearby] = useState<NearbyRow[]>([]);
+  // Whether the nearby lookup has answered for the current location, so
+  // "Check in manually" can say why there is nothing to check in to.
+  const [nearbyLoadedFor, setNearbyLoadedFor] = useState<string | null>(null);
+  const nearbyLoaded = nearbyLoadedFor === `${nearLat},${nearLng}`;
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownY, setDropdownY] = useState(0);
   const triggerRef = useRef<ViewInstance>(null);
@@ -95,6 +100,7 @@ export default function ActivityScreen() {
   useEffect(() => {
     if (nearLat == null || nearLng == null) return;
     let cancelled = false;
+    const key = `${nearLat},${nearLng}`;
     getAllLiveVenues(nearLat, nearLng).then(async (venues) => {
       const top = venues.slice(0, 6);
       const ids = top.map((v) => v.id);
@@ -110,6 +116,10 @@ export default function ActivityScreen() {
           };
         }),
       );
+      setNearbyLoadedFor(key);
+    }).catch((e) => {
+      console.warn('[Activity] nearby venues failed:', e instanceof Error ? e.message : e);
+      if (!cancelled) setNearbyLoadedFor(key);
     });
     return () => { cancelled = true; };
   }, [nearLat, nearLng]);
@@ -250,7 +260,12 @@ export default function ActivityScreen() {
         onPress={() => {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           const top = nearby[0];
-          if (!top) return;
+          if (!top) {
+            // Used to do nothing at all, which looked like a broken button.
+            const why = manualCheckInUnavailable(nearLat != null && nearLng != null, nearbyLoaded);
+            Alert.alert(why.title, why.body);
+            return;
+          }
           router.push({ pathname: '/check-in-capture', params: { venueId: top.venue.id, venueName: top.venue.name, neighborhood: top.venue.neighborhood } });
         }}
         style={({ pressed }) => [styles.manualCheckin, { backgroundColor: colors.aqua + '10', borderColor: colors.aqua + '20', opacity: pressed ? 0.7 : 1 }]}

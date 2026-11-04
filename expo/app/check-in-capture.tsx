@@ -27,7 +27,9 @@ import {
 import { PanGestureHandler, PinchGestureHandler, TapGestureHandler, State } from 'react-native-gesture-handler';
 
 import { useAuth } from '@/providers/AuthProvider';
-import { insertCheckIn } from '@/services/checkInDatabase';
+import { insertCheckIn, type CheckInResult } from '@/services/checkInDatabase';
+import { failureReference, reportCheckInFailure } from '@/services/checkInErrors';
+import { checkInOutcomeMessage } from '@/services/checkInOutcome';
 import { verificationFixForCheckIn } from '@/services/checkInVerification';
 import { getQuip } from '@/utils/quips';
 import type { VenueType } from '@/types/venue';
@@ -197,6 +199,9 @@ export default function CheckInCaptureScreen() {
     return () => subscription.remove();
   }, [hasCameraPermission, getCamPermission]);
 
+  // Set by CameraView's onCameraReady; the countdown waits for it.
+  const cameraReadyRef = useRef<boolean>(false);
+
   // The latest handleSkip (declared further down), for capturePhoto's error
   // path; updated after each render, never during it.
   const handleSkipRef = useRef<() => Promise<void>>(async () => {});
@@ -216,8 +221,16 @@ export default function CheckInCaptureScreen() {
       setQuip(getQuip(venueType));
       setPhase('captured');
     } catch (e) {
-      console.log('[Capture] Error taking photo:', e);
-      void handleSkipRef.current();
+      // Used to fall through to a photo-less check-in without saying so.
+      const f = await reportCheckInFailure('capture', e);
+      Alert.alert(
+        "Couldn't take the photo",
+        `You can check in without a photo instead.\n\nRef: ${failureReference(f)}`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => setPhase('choice') },
+          { text: 'Check in without photo', onPress: () => void handleSkipRef.current() },
+        ],
+      );
     }
   }, []);
 
@@ -236,6 +249,11 @@ export default function CheckInCaptureScreen() {
       countdownAnim.setValue(remaining);
 
       if (remaining <= 0) {
+        // takePictureAsync throws until the preview is running.
+        if (!cameraReadyRef.current) {
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
         void capturePhoto();
         return;
       }
@@ -288,88 +306,88 @@ export default function CheckInCaptureScreen() {
     }, QUIP_DISPLAY_MS);
   }, [capturedPhoto, quipOpacity, resultOpacity]);
 
+  // The latest submitCheckIn, for its own "Try again" button.
+  type PhotoChoice = { uri: string | null; visibility: boolean; quip: string | null };
+  const submitRef = useRef<(photo: PhotoChoice) => Promise<void>>(async () => {});
+
+  // Every way of checking in goes through here: one request per tap, and an
+  // outcome the user always sees. Anything other than 'synced' is reported.
+  const submitCheckIn = useCallback(
+    async (photo: PhotoChoice) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      setIsSharing(true);
+      let result: CheckInResult;
+      try {
+        if (!user?.id) {
+          result = await insertCheckIn({
+            userId: '', venueId: params.venueId ?? '', venueName, neighborhood,
+            photoUri: null, photoVisibility: false, capturedAt: new Date().toISOString(), quip: null,
+          });
+        } else {
+          result = await insertCheckIn({
+            // Only with Pulze's verification consent (asked once) and OS permission:
+            // one fresh reading, taken in parallel with the upload.
+            locationFix: (await verificationFixForCheckIn(user.id))?.fix,
+            userId: user.id,
+            venueId: params.venueId ?? '',
+            venueName,
+            neighborhood,
+            photoUri: photo.uri,
+            photoVisibility: photo.visibility,
+            capturedAt: new Date().toISOString(),
+            quip: photo.quip,
+          });
+        }
+      } catch (e) {
+        // Used to be an unhandled rejection: the button stayed dead and
+        // nothing was shown.
+        const f = await reportCheckInFailure('unexpected', e);
+        result = { id: '', status: 'failed', error: 'Something went wrong.', stage: 'unexpected', reference: failureReference(f) };
+      }
+
+      const msg = checkInOutcomeMessage(result, venueName);
+      if (result.status === 'synced') {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+        return;
+      }
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (result.status === 'pending') {
+        // Saved on the phone and retried later: leaving is fine.
+        Alert.alert(msg.title, msg.body, [{ text: 'OK', onPress: () => router.back() }]);
+        return;
+      }
+      // Refused: stay on the screen so the user can try again or leave.
+      submittingRef.current = false;
+      setIsSharing(false);
+      Alert.alert(msg.title, msg.body, [
+        { text: 'Close', style: 'cancel', onPress: () => router.back() },
+        // Retrying cannot help a missing sign-in, an unknown venue or a duplicate.
+        ...(result.stage === 'auth' || result.stage === 'venue' || /check_in_duplicate/.test(result.reference ?? '') ? [] : [{ text: 'Try again', onPress: () => void submitRef.current(photo) }]),
+      ]);
+    },
+    [user, params.venueId, venueName, neighborhood, router],
+  );
+  useEffect(() => {
+    submitRef.current = submitCheckIn;
+  }, [submitCheckIn]);
+
   const handleShareWithCrew = useCallback(async () => {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
     if (isSharing) return;
-    setIsSharing(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    const photoUri = stampedPhoto ?? capturedPhoto;
-    const userId = user?.id ?? 'unknown';
-
-    const result = await insertCheckIn({
-      // Only with Pulze's verification consent (asked once) and OS permission:
-      // one fresh reading, taken in parallel with the upload.
-      locationFix: (await verificationFixForCheckIn(userId))?.fix,
-      userId,
-      venueId: params.venueId ?? '',
-      venueName,
-      neighborhood,
-      photoUri,
-      photoVisibility: true,
-      capturedAt: new Date().toISOString(),
-      quip: caption || quip,
-    });
-    if (result.status === 'failed') {
-      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
-    }
-
-    // Dismiss camera and go back
-    router.back();
-  }, [isSharing, stampedPhoto, capturedPhoto, user, params.venueId, venueName, neighborhood, caption, quip, router]);
+    await submitCheckIn({ uri: stampedPhoto ?? capturedPhoto, visibility: true, quip: caption || quip });
+  }, [isSharing, stampedPhoto, capturedPhoto, caption, quip, submitCheckIn]);
 
   const handleJustCheckInChoice = useCallback(async () => {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const userId = user?.id ?? 'unknown';
-    const result = await insertCheckIn({
-      // Only with Pulze's verification consent (asked once) and OS permission:
-      // one fresh reading, taken in parallel with the upload.
-      locationFix: (await verificationFixForCheckIn(userId))?.fix,
-      userId,
-      venueId: params.venueId ?? '',
-      venueName,
-      neighborhood,
-      photoUri: null,
-      photoVisibility: false,
-      capturedAt: new Date().toISOString(),
-      quip: null,
-    });
-    if (result.status === 'failed') {
-      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
-    }
-
-    router.back();
-  }, [user, params.venueId, venueName, neighborhood, router]);
+    await submitCheckIn({ uri: null, visibility: false, quip: null });
+  }, [submitCheckIn]);
 
   const handleSkip = useCallback(async () => {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const userId = user?.id ?? 'unknown';
-    const result = await insertCheckIn({
-      // Only with Pulze's verification consent (asked once) and OS permission:
-      // one fresh reading, taken in parallel with the upload.
-      locationFix: (await verificationFixForCheckIn(userId))?.fix,
-      userId,
-      venueId: params.venueId ?? '',
-      venueName,
-      neighborhood,
-      photoUri: null,
-      photoVisibility: false,
-      capturedAt: new Date().toISOString(),
-      quip: null,
-    });
-    if (result.status === 'failed') {
-      Alert.alert('Check-in failed', result.error ?? 'Something went wrong');
-    }
-
-    router.back();
-  }, [user, params.venueId, venueName, neighborhood, router]);
+    await submitCheckIn({ uri: null, visibility: false, quip: null });
+  }, [submitCheckIn]);
   useEffect(() => {
     handleSkipRef.current = handleSkip;
   }, [handleSkip]);
@@ -437,6 +455,7 @@ export default function CheckInCaptureScreen() {
           </Pressable>
           <Pressable
             onPress={handleJustCheckInChoice}
+            disabled={isSharing}
             style={({ pressed }) => [
               styles.choiceSecondaryBtn,
               pressed && styles.btnPressed,
@@ -464,6 +483,14 @@ export default function CheckInCaptureScreen() {
           style={styles.camera}
           facing="front"
           ratio="16:9"
+          onCameraReady={() => { cameraReadyRef.current = true; }}
+          onMountError={(e) => {
+            void reportCheckInFailure('capture', e?.message ?? 'camera failed to start').then((f) =>
+              Alert.alert("The camera couldn't start", `Ref: ${failureReference(f)}`, [
+                { text: 'OK', onPress: () => setPhase('choice') },
+              ]),
+            );
+          }}
         >
           {/* Darken overlay */}
           <View style={styles.cameraOverlay} />

@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '@/services/supabase';
 import { submitCheckInVerification, type CheckInFix } from '@/services/checkInVerification';
+import { failureReference, reportCheckInFailure, type CheckInStage } from '@/services/checkInErrors';
 
 const DEDUP_CACHE_KEY = 'pulze_geofence_dedup';
 const DEDUP_WINDOW_MS = 15 * 60 * 1000;
@@ -58,7 +59,23 @@ export type CheckInSyncStatus = 'synced' | 'pending' | 'failed';
 export interface CheckInResult {
   id: string;
   status: CheckInSyncStatus;
+  /** What to tell the user. */
   error?: string;
+  /** Where it failed, for anything that is not 'synced'. */
+  stage?: CheckInStage;
+  /** Short diagnostic reference (step · status · server message) for the user to quote. */
+  reference?: string;
+}
+
+async function failed(
+  status: 'pending' | 'failed',
+  id: string,
+  stage: CheckInStage,
+  err: unknown,
+  error: string,
+): Promise<CheckInResult> {
+  const f = await reportCheckInFailure(stage, err);
+  return { id, status, error, stage, reference: failureReference(f) };
 }
 
 // What's actually stored locally — includes sync state and, if a photo was
@@ -84,7 +101,12 @@ async function resolveRealVenueId(venueId: string): Promise<string | null> {
 }
 
 async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ path: string }> {
-  const base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+  let base64: string;
+  try {
+    base64 = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.Base64 });
+  } catch (e) {
+    throw Object.assign(e instanceof Error ? e : new Error(String(e)), { checkInStage: 'photo_read' as const });
+  }
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
@@ -94,7 +116,7 @@ async function uploadCheckInPhoto(userId: string, localUri: string): Promise<{ p
   const { error } = await supabase.storage
     .from('check-in-photos')
     .upload(path, bytes, { contentType: 'image/jpeg' });
-  if (error) throw error;
+  if (error) throw Object.assign(error, { checkInStage: 'upload' as const });
   // Store the raw object path in check_ins.photo_url — buckets are
   // private, so getPublicUrl() would return a URL that 403s. Read-side
   // code signs the path per-request.
@@ -122,17 +144,23 @@ export async function insertCheckIn(
   const record: CheckInRecord = { ...given, clientRef: given.clientRef ?? Crypto.randomUUID() };
   const localId = record.clientRef as string;
 
+  // Storage paths and RLS are keyed by the signed-in user: without one, every
+  // step below would be refused. Not queued: a retry cannot fix it.
+  if (!record.userId || record.userId === 'unknown') {
+    return failed('failed', localId, 'auth', 'no signed-in user', 'Sign in again to check in.');
+  }
+
   let realVenueId: string | null;
   try {
     realVenueId = await resolveRealVenueId(record.venueId);
-  } catch {
+  } catch (e) {
     await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending' });
-    return { id: localId, status: 'pending', error: 'Offline — venue lookup failed, queued for retry' };
+    return failed('pending', localId, 'venue', e, "You're offline. The check-in is saved and will be sent when you're back online.");
   }
 
   if (!realVenueId) {
     await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'failed' });
-    return { id: localId, status: 'failed', error: 'Venue not recognized' };
+    return failed('failed', localId, 'venue', `venue not found: ${record.venueId || '(none)'}`, "This venue isn't available for check-ins.");
   }
 
   let photoPath: string | undefined = record.uploadedPhotoPath;
@@ -140,9 +168,21 @@ export async function insertCheckIn(
     try {
       const uploaded = await uploadCheckInPhoto(record.userId, record.photoUri);
       photoPath = uploaded.path;
-    } catch {
-      await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending' });
-      return { id: localId, status: 'pending', error: 'Photo upload failed — queued for retry' };
+    } catch (e) {
+      const stage = (e as { checkInStage?: CheckInStage }).checkInStage ?? 'upload';
+      if (stage === 'photo_read') {
+        // The file is gone or unreadable: a retry would fail the same way.
+        await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'failed' });
+        return failed('failed', localId, stage, e, "The photo couldn't be read. Take it again.");
+      }
+      // A refusal (4xx: RLS, size, type) would be refused again; a dropped
+      // connection or 5xx may not be.
+      const status = Number((e as { statusCode?: unknown; status?: unknown }).statusCode ?? (e as { status?: unknown }).status);
+      const refused = status >= 400 && status < 500;
+      await storeLocalCheckIn({ ...record, id: localId, syncStatus: refused ? 'failed' : 'pending' });
+      return refused
+        ? failed('failed', localId, stage, e, "The photo couldn't be uploaded.")
+        : failed('pending', localId, stage, e, "The photo couldn't be uploaded yet. It's saved and will be sent when the connection is back.");
     }
   }
 
@@ -183,9 +223,9 @@ export async function insertCheckIn(
       if (photoPath) await deleteUploadedPhoto(photoPath);
       await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'failed', uploadedPhotoPath: undefined });
       if (/check_in_duplicate/.test(error.message)) {
-        return { id: localId, status: 'failed', error: 'You checked in here a few minutes ago.' };
+        return failed('failed', localId, 'insert', error, 'You checked in here a few minutes ago.');
       }
-      return { id: localId, status: 'failed', error: 'The check-in could not be saved. Try again.' };
+      return failed('failed', localId, 'insert', error, 'The check-in could not be saved. Try again.');
     }
 
     // The generated Supabase types don't cover this table — `.insert(as any)`
@@ -194,16 +234,18 @@ export async function insertCheckIn(
     await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'synced', uploadedPhotoPath: photoPath });
     if (locationFix) {
       // Finishes in the background; the server rejects it if it arrives late.
-      void locationFix.then((fix) => submitCheckInVerification(inserted.id, fix));
+      void locationFix
+        .then((fix) => submitCheckInVerification(inserted.id, fix))
+        .catch((e) => reportCheckInFailure('verify', e));
     }
     return { id: inserted.id, status: 'synced' };
-  } catch {
+  } catch (e) {
     // Ambiguous — network dropped between request and response, insert may
     // have actually succeeded server-side. Do NOT delete the photo here;
     // an automatic delete could remove a photo a successful check-in is
     // now using. Leave it — retryPendingCheckIns will re-check on next attempt.
     await storeLocalCheckIn({ ...record, id: localId, syncStatus: 'pending', uploadedPhotoPath: photoPath });
-    return { id: localId, status: 'pending', error: 'Network error — queued for retry' };
+    return failed('pending', localId, 'insert', e, "The connection dropped. The check-in is saved and will be sent when you're back online.");
   }
 }
 
