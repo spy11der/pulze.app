@@ -10,6 +10,8 @@ const fakeKey = (ref, role = 'anon') =>
   ['e30', Buffer.from(JSON.stringify({ ref, role })).toString('base64url'), 'sig'].join('.');
 const env = (profile, ref, key = fakeKey(ref)) => ({
   EAS_BUILD_PROFILE: profile,
+  EAS_BUILD_PLATFORM: 'ios',
+  EXPO_USE_PRECOMPILED_MODULES: '0',
   EXPO_PUBLIC_SUPABASE_URL: ref ? `https://${ref}.supabase.co` : undefined,
   EXPO_PUBLIC_SUPABASE_ANON_KEY: key,
 });
@@ -51,4 +53,25 @@ test('errors never contain the key itself', () => {
   const key = fakeKey(OTHER);
   const { errors } = checkBuildEnv(env('testflight', STAGING, key));
   assert.ok(errors.every((e) => !e.includes(key)));
+});
+
+test("iOS builds outside production refuse Expo's precompiled modules (Build 2 launch crash)", () => {
+  for (const value of [undefined, '1', '']) {
+    for (const p of ['testflight', 'preview', 'ios-simulator', 'development']) {
+      const e = { ...env(p, STAGING), EXPO_USE_PRECOMPILED_MODULES: value };
+      assert.ok(checkBuildEnv(e).errors.some((m) => m.includes('EXPO_USE_PRECOMPILED_MODULES')), `${p} ${value}`);
+    }
+  }
+  assert.deepEqual(checkBuildEnv(env('testflight', STAGING)).errors, []);
+  // Android and local runs are unaffected.
+  assert.deepEqual(checkBuildEnv({ ...env('preview', STAGING), EAS_BUILD_PLATFORM: 'android', EXPO_USE_PRECOMPILED_MODULES: undefined }).errors, []);
+});
+
+test('every non-production profile in eas.json disables precompiled modules', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const eas = JSON.parse(await readFile(new URL('../eas.json', import.meta.url), 'utf8'));
+  for (const [name, profile] of Object.entries(eas.build)) {
+    if (name === 'production') continue;
+    assert.equal(profile.env?.EXPO_USE_PRECOMPILED_MODULES, '0', name);
+  }
 });

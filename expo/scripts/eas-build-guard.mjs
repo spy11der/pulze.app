@@ -12,6 +12,13 @@
 //     new one): the URL must be the staging project, and a JWT anon key must
 //     be the staging anon key. So production is refused without this public
 //     repo having to name the production project.
+//   - iOS builds of every profile except "production": EXPO_USE_PRECOMPILED_MODULES
+//     must be "0" (set in eas.json). Expo SDK 58's Podfile links Expo's
+//     precompiled XCFrameworks by default, and the published release prebuilds
+//     of expo-file-system 58.0.12 / expo-camera 58.0.13 import Swift symbols
+//     that the expo-modules-core 58.0.26 prebuild does not export, so dyld
+//     cannot load the app (Build 2 crashed on launch). Building the modules
+//     from source keeps them consistent.
 
 const STAGING_REF = 'noxkfboguoyggyhaqrbx';
 
@@ -62,6 +69,11 @@ export function checkBuildEnv(env) {
     for (const name of ['EXPO_PUBLIC_PROJECT_ID', 'EXPO_PUBLIC_TEAM_ID']) {
       if (env[name]) errors.push(`${name} is set: it would turn on Rork's third-party analytics`);
     }
+  }
+
+  const platform = env.EAS_BUILD_PLATFORM ?? '';
+  if (platform === 'ios' && profile !== 'production' && env.EXPO_USE_PRECOMPILED_MODULES !== '0') {
+    errors.push(`EXPO_USE_PRECOMPILED_MODULES must be "0" for iOS builds: Expo's precompiled modules for SDK 58 do not load together`);
   }
 
   return { profile, ref, errors };
