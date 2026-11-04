@@ -4,30 +4,44 @@ import { BarChart3, Camera, MapPin, Users, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/providers/ThemeProvider';
+import { CARD_MAX_WIDTH, CARD_PADDING, OVERLAY_GUTTER, slideWidthFor } from '@/components/welcomeModalLayout';
 
 const TEAL = '#2BBFBA';
 const STORAGE_KEY = 'pulze_open_count';
 const ONBOARDING_DONE_KEY = 'pulze_onboarding_done';
 const MAX_OPENS = 5;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_INNER_WIDTH = SCREEN_WIDTH - 48;
-
 type Step = 0 | 1 | 2;
+const STEPS: Step[] = [0, 1, 2];
+
+// Slides off screen are clipped, but VoiceOver would still read them.
+const offscreenA11y = (hidden: boolean) =>
+  hidden
+    ? ({ accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } as const)
+    : {};
 
 export function WelcomeModal() {
   const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  // The real content width once the card has laid out; until then, the same
+  // value computed from the window, so the first frame is already right.
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const slideWidth = measuredWidth ?? slideWidthFor(windowWidth);
   const [visible, setVisible] = useState<boolean>(false);
   const [step, setStep] = useState<Step>(0);
   const [locationRequesting, setLocationRequesting] = useState<boolean>(false);
@@ -65,14 +79,29 @@ export function WelcomeModal() {
 
   const animateToStep = useCallback(
     (next: Step) => {
+      // The dots follow the tap at once, not after the slide finishes.
+      setStep(next);
       Animated.timing(slideAnim, {
-        toValue: -next * CARD_INNER_WIDTH,
+        toValue: -next * slideWidth,
         duration: 300,
         useNativeDriver: true,
-      }).start(() => setStep(next));
+      }).start();
     },
-    [slideAnim],
+    [slideAnim, slideWidth],
   );
+
+  // If the width changes (first measurement, Dynamic Type, split view), keep
+  // the current slide exactly in place.
+  useEffect(() => {
+    slideAnim.setValue(-step * slideWidth);
+    // step is deliberately not a dependency: animateToStep moves the track.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slideWidth, slideAnim]);
+
+  const onViewportLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0) setMeasuredWidth((prev) => (prev === w ? prev : w));
+  }, []);
 
   const finishOnboarding = useCallback(async () => {
     await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'true');
@@ -106,10 +135,21 @@ export function WelcomeModal() {
 
   return (
     <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} testID="welcome-modal">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 },
+        ]}
+        // Scrolls only when the card is taller than the screen (small phones,
+        // large text sizes); otherwise it stays centred and still.
+        alwaysBounceVertical={false}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
         {/* Page indicator dots */}
         <View style={styles.dotsRow}>
-          {([0, 1, 2] as Step[]).map((s) => (
+          {STEPS.map((s) => (
             <View
               key={s}
               style={[
@@ -121,11 +161,18 @@ export function WelcomeModal() {
           ))}
         </View>
 
+        {/* The viewport is the card's content box and clips the track, so
+            only the current slide is ever visible (the card's own padding
+            would otherwise show the neighbouring slides). */}
+        <View style={styles.viewport} onLayout={onViewportLayout} testID="onboarding-viewport">
         <Animated.View
-          style={[styles.screensTrack, { transform: [{ translateX: slideAnim }] }]}
+          style={[
+            styles.screensTrack,
+            { width: slideWidth * STEPS.length, transform: [{ translateX: slideAnim }] },
+          ]}
         >
           {/* ── Screen 1: Welcome & Value Prop ── */}
-          <View style={styles.screen}>
+          <View style={[styles.screen, { width: slideWidth }]} {...offscreenA11y(step !== 0)}>
             <View style={styles.pill}>
               <Text style={styles.pillText}>WELCOME TO PULZE</Text>
             </View>
@@ -181,7 +228,7 @@ export function WelcomeModal() {
           </View>
 
           {/* ── Screen 2: Location Permission ── */}
-          <View style={styles.screen}>
+          <View style={[styles.screen, { width: slideWidth }]} {...offscreenA11y(step !== 1)}>
             <View style={[styles.largeIconWrap, { backgroundColor: 'rgba(43, 191, 186, 0.12)' }]}>
               <MapPin size={32} color={TEAL} />
             </View>
@@ -212,7 +259,7 @@ export function WelcomeModal() {
           </View>
 
           {/* ── Screen 3: Connect with Friends ── */}
-          <View style={styles.screen}>
+          <View style={[styles.screen, { width: slideWidth }]} {...offscreenA11y(step !== 2)}>
             <View style={[styles.largeIconWrap, { backgroundColor: 'rgba(43, 191, 186, 0.12)' }]}>
               <Users size={32} color={TEAL} />
             </View>
@@ -239,7 +286,9 @@ export function WelcomeModal() {
             </TouchableOpacity>
           </View>
         </Animated.View>
+        </View>
       </View>
+      </ScrollView>
     </Animated.View>
   );
 }
@@ -252,16 +301,27 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(4, 19, 24, 0.97)',
+    zIndex: 999,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
-    paddingHorizontal: 24,
+    paddingHorizontal: OVERLAY_GUTTER,
   },
   card: {
     width: '100%',
+    maxWidth: CARD_MAX_WIDTH,
     borderRadius: 24,
-    padding: 32,
+    padding: CARD_PADDING,
     paddingTop: 28,
+    overflow: 'hidden',
+  },
+  viewport: {
+    width: '100%',
     overflow: 'hidden',
   },
   dotsRow: {
@@ -280,10 +340,10 @@ const styles = StyleSheet.create({
   },
   screensTrack: {
     flexDirection: 'row',
-    width: CARD_INNER_WIDTH,
+    // Each slide keeps its own height; the card is as tall as the tallest.
+    alignItems: 'flex-start',
   },
   screen: {
-    width: CARD_INNER_WIDTH,
     alignItems: 'center',
   },
   pill: {
