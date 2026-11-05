@@ -259,10 +259,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     if (data.user && !data.session) {
       console.log('[Auth] Email confirmation required');
       // The DB trigger (on_auth_user_created) already created the profile row
-      // at user insert, so confirmation does NOT delay profile creation. The
-      // best-effort upsert below only succeeds if RLS allows anon inserts —
-      // it's a fallback, not the guarantee.
-      void createProfile(data.user, name, username);
+      // at user insert, so confirmation does NOT delay profile creation.
       return { status: 'confirmation_required', email: email.trim() };
     }
 
@@ -274,7 +271,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setSession(data.session);
     setUser(mapSessionUser(data.session));
     setIsAuthenticated(true);
-    void createProfile(data.user!, name, username);
+    // No client profile write: on_auth_user_created creates the row from the
+    // username and display_name passed above, and clients have no INSERT on
+    // public.profiles (schema-wide grant hardening, 2026-09-20). The upsert
+    // that used to be here was refused with 403 on every signup.
     return { status: 'signed_in' };
   }, []);
 
@@ -423,23 +423,3 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     completePasswordReset, cancelPasswordReset,
   ]);
 });
-
-async function createProfile(user: User, displayName: string, username: string) {
-  try {
-    console.log('[Auth] Ensuring profile exists for', user.id);
-
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      username,
-      display_name: displayName,
-    } as any);
-
-    if (error) {
-      console.log('[Auth] Profile upsert error:', error.message);
-    } else {
-      console.log('[Auth] Profile confirmed');
-    }
-  } catch (e) {
-    console.log('[Auth] Profile creation exception:', e);
-  }
-}
